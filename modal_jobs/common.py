@@ -1,0 +1,51 @@
+"""Shared Modal image and volumes for xkv jobs."""
+from __future__ import annotations
+
+from pathlib import Path
+
+import modal
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+weights = modal.Volume.from_name("xkv-weights", create_if_missing=True)
+artifacts = modal.Volume.from_name("xkv-artifacts", create_if_missing=True)
+VOLUMES = {"/weights": weights, "/artifacts": artifacts}
+
+image = (
+    modal.Image.from_registry("nvidia/cuda:12.8.1-devel-ubuntu22.04", add_python="3.11")
+    .apt_install("git")
+    .pip_install(
+        "torch==2.8.0",
+        "transformers==5.20.2",
+        "accelerate",
+        "safetensors",
+        "huggingface_hub[hf_transfer]",
+        "datasets",
+        "numpy",
+        "flash-linear-attention==0.6.0",
+        "kernels",
+    )
+    .pip_install("https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.3/flash_attn-2.8.3+cu12torch2.8cxx11abiTRUE-cp311-cp311-linux_x86_64.whl")
+    .env({"HF_HOME": "/weights/hf", "HF_HUB_ENABLE_HF_TRANSFER": "1", "PYTHONUNBUFFERED": "1"})
+    .add_local_python_source("xkv", "common", copy=False)
+)
+
+MODELS = {
+    "0.8b": "Qwen/Qwen3.5-0.8B",
+    "2b": "Qwen/Qwen3.5-2B",
+    "4b": "Qwen/Qwen3.5-4B",
+    "27b": "Qwen/Qwen3.8-27B",
+}
+
+
+def charge(app, gpu, minutes, note=""):
+    """Optional local launch guard; lives outside the repository (private/launch_guard.py)."""
+    import sys
+
+    sys.path.insert(0, str(ROOT / "private"))
+    try:
+        from launch_guard import charge as _charge
+    except ImportError:
+        return
+    _charge(app, gpu, minutes, note)
