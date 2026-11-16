@@ -166,6 +166,12 @@ class Mapper:
         self.Wq = {j: w.to(device) for j, w in self.Wq.items()}
         return self
 
+    def trainable(self):
+        """Turn the maps into fp32 leaf tensors that require grad; return them."""
+        self.W = {i: w.float().requires_grad_(True) for i, w in self.W.items()}
+        self.Wq = {j: w.float().requires_grad_(True) for j, w in self.Wq.items()}
+        return list(self.W.values()) + list(self.Wq.values())
+
     def n_params(self):
         return sum(w.numel() for w in self.W.values()) + sum(w.numel() for w in self.Wq.values())
 
@@ -173,7 +179,9 @@ class Mapper:
         return {"W": self.W, "Wq": self.Wq, "slices": self.slices, "src_of": self.src_of}
 
     def save(self, path):
-        torch.save({"W": {i: w.cpu() for i, w in self.W.items()}, "Wq": {j: w.cpu() for j, w in self.Wq.items()},
+        bf = torch.bfloat16
+        torch.save({"W": {i: w.detach().to(bf).cpu() for i, w in self.W.items()},
+                    "Wq": {j: w.detach().to(bf).cpu() for j, w in self.Wq.items()},
                     "slices": self.slices, "src_of": self.src_of}, path)
 
     @classmethod
@@ -191,12 +199,18 @@ class Mapper:
 
 def _mm(x, W):
     """x (..., d) @ W (d+1, o) with the bias row last."""
+    W = W.to(x.dtype)
     return torch.addmm(W[-1], x.reshape(-1, x.shape[-1]), W[:-1]).view(*x.shape[:-1], W.shape[1])
 
 
-@torch.no_grad()
 def transfer_prefill(src: Hybrid, tgt: Hybrid, mapper: Mapper, ids, tail: int = 1, chunk: int = 8192,
-                     window: int | None = None, max_len: int | None = None, timings: dict | None = None):
+                     window: int | None = None, max_len: int | None = None, timings: dict | None = None,
+                     grad: bool = False):
+    with torch.set_grad_enabled(grad):
+        return _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timings, grad)
+
+
+def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timings, grad):
     """Build the target cache for prompt `ids` (1, T) from a source prefill; return (cache, first_logits).
 
     The source prefills ids[:, :T-tail]; the target natively processes the last `tail` tokens
@@ -207,7 +221,7 @@ def transfer_prefill(src: Hybrid, tgt: Hybrid, mapper: Mapper, ids, tail: int = 
     T = ids.shape[1]
     Tm = T - tail
     ts = tgt.spec
-    tc = tgt.new_cache(ids.shape[0], max_len or T + 512)
+    tc = tgt.new_cache(ids.shape[0], max_len or T + 512, functional=grad)
     sync()
     t0 = time.perf_counter()
     if Tm > 0:
@@ -229,15 +243,14 @@ def transfer_prefill(src: Hybrid, tgt: Hybrid, mapper: Mapper, ids, tail: int = 
                     k = y[..., :h].reshape(B, L, ts.nkv, ts.hd)
                     v = y[..., h:].reshape(B, L, ts.nkv, ts.hd)
                     cos, sin = cur["rope"]
-                    tc.k[j][:, s:s + L] = tgt.rope(k, cos, sin)
-                    tc.v[j][:, s:s + L] = v
+                    tc.write_kv(j, s, tgt.rope(k, cos, sin), v)
                 else:
                     la = tgt.layers[j].linear_attn
                     kv = y[..., : kd + ts.value_dim]
                     a = y[..., kd + ts.value_dim: kd + ts.value_dim + ts.nv]
                     b = y[..., kd + ts.value_dim + ts.nv:]
                     xx = torch.cat((tc.conv[j][:, kd:], kv.transpose(1, 2)), dim=-1)
-                    tc.conv[j][:, kd:] = xx[..., -(ts.conv_k - 1):]
+                    tc.conv[j] = torch.cat((tc.conv[j][:, :kd], xx[..., -(ts.conv_k - 1):]), dim=1)
                     mixed = F.silu(F.conv1d(xx, la.conv1d.weight[kd:], None, groups=kd + ts.value_dim)).transpose(1, 2)
                     k = mixed[..., :kd].reshape(B, L, ts.nk, ts.dk)
                     v = mixed[..., kd:].reshape(B, L, ts.nv, ts.dv)
@@ -249,8 +262,10 @@ def transfer_prefill(src: Hybrid, tgt: Hybrid, mapper: Mapper, ids, tail: int = 
                     tc.S[j] = S
                     if s + L == Tm:  # q channels of the conv state for the final tokens
                         n = ts.conv_k - 1
-                        qraw = _mm(x[:, -n:], mapper.Wq[j])
-                        tc.conv[j][:, :kd, -qraw.shape[1]:] = qraw.transpose(1, 2)
+                        qraw = _mm(x[:, -n:], mapper.Wq[j]).transpose(1, 2)
+                        if qraw.shape[-1] < n:
+                            qraw = torch.cat((tc.conv[j][:, :kd, qraw.shape[-1]:], qraw), dim=-1)
+                        tc.conv[j] = torch.cat((qraw, tc.conv[j][:, kd:]), dim=1)
 
         for s in range(0, Tm, chunk):
             e = min(s + chunk, Tm)

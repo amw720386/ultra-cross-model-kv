@@ -125,22 +125,33 @@ class Spec:
 class Cache:
     """Preallocated hybrid cache. K is stored post-RoPE, layout (B, T, Hkv, D)."""
 
-    def __init__(self, spec: Spec, batch: int, max_len: int, device, dtype=torch.bfloat16):
-        self.spec, self.max_len, self.len = spec, max_len, 0
-        self.k = {j: torch.empty(batch, max_len, spec.nkv, spec.hd, device=device, dtype=dtype) for j in spec.full}
-        self.v = {j: torch.empty(batch, max_len, spec.nkv, spec.hd, device=device, dtype=dtype) for j in spec.full}
+    def __init__(self, spec: Spec, batch: int, max_len: int, device, dtype=torch.bfloat16, functional=False):
+        """functional=True grows K/V by concatenation and never writes in place (autograd-safe)."""
+        self.spec, self.max_len, self.len, self.functional = spec, max_len, 0, functional
+        n = 0 if functional else max_len
+        self.k = {j: torch.empty(batch, n, spec.nkv, spec.hd, device=device, dtype=dtype) for j in spec.full}
+        self.v = {j: torch.empty(batch, n, spec.nkv, spec.hd, device=device, dtype=dtype) for j in spec.full}
         self.conv = {j: torch.zeros(batch, spec.conv_dim, spec.conv_k - 1, device=device, dtype=dtype) for j in spec.lin}
         self.S = {j: torch.zeros(batch, spec.nv, spec.dk, spec.dv, device=device, dtype=torch.float32) for j in spec.lin}
 
     def clone(self, upto: int | None = None) -> "Cache":
         n = self.len if upto is None else upto
         c = Cache.__new__(Cache)
-        c.spec, c.max_len, c.len = self.spec, self.max_len, n
+        c.spec, c.max_len, c.len, c.functional = self.spec, self.max_len, n, self.functional
         c.k = {j: t.clone() for j, t in self.k.items()}
         c.v = {j: t.clone() for j, t in self.v.items()}
         c.conv = {j: t.clone() for j, t in self.conv.items()}
         c.S = {j: t.clone() for j, t in self.S.items()}
         return c
+
+    def write_kv(self, j, s, k, v):
+        if self.functional:
+            assert self.k[j].shape[1] == s
+            self.k[j] = torch.cat((self.k[j], k), dim=1)
+            self.v[j] = torch.cat((self.v[j], v), dim=1)
+        else:
+            self.k[j][:, s:s + k.shape[1]] = k
+            self.v[j][:, s:s + v.shape[1]] = v
 
     def nbytes(self) -> int:
         tot = 0
@@ -189,8 +200,8 @@ class Hybrid:
         xr, xp = x[..., :r], x[..., r:]
         return torch.cat((xr * cos + rotate_half(xr) * sin, xp), dim=-1)
 
-    def new_cache(self, batch: int, max_len: int) -> Cache:
-        return Cache(self.spec, batch, max_len, self.device, self.dtype)
+    def new_cache(self, batch: int, max_len: int, functional: bool = False) -> Cache:
+        return Cache(self.spec, batch, max_len, self.device, self.dtype, functional)
 
     # ---- mixers -----------------------------------------------------------------------
     def _full(self, j, x, cache: Cache, pos0, rope, window, cap):
@@ -206,8 +217,7 @@ class Hybrid:
             cap("tgt_full", j, x=x, k=k, v=v)
         cos, sin = rope
         q, kr = self.rope(q, cos, sin), self.rope(k, cos, sin)
-        cache.k[j][:, pos0:pos0 + L] = kr
-        cache.v[j][:, pos0:pos0 + L] = v
+        cache.write_kv(j, pos0, kr, v)
         o = attention(q, cache.k[j][:, : pos0 + L], cache.v[j][:, : pos0 + L], window)
         o = o.reshape(B, L, -1) * torch.sigmoid(gate)
         return attn.o_proj(o)
@@ -239,7 +249,6 @@ class Hybrid:
         return la.out_proj(o)
 
     # ---- forward ----------------------------------------------------------------------
-    @torch.no_grad()
     def forward(self, ids, cache: Cache, logits: str | None = "last", window: int | None = None,
                 cap: Callable | None = None, stop_after: int | None = None, inputs_embeds=None):
         """Process ids (B,L) appended to `cache`. logits: 'last' | 'all' | None.
@@ -295,5 +304,6 @@ def load(path: str, device="cuda", dtype=torch.bfloat16):
 
     hf = AutoModelForImageTextToText.from_pretrained(path, dtype=dtype, device_map=device)
     hf.eval()
+    hf.requires_grad_(False)
     tok = AutoTokenizer.from_pretrained(path)
     return Hybrid(hf), tok

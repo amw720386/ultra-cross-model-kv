@@ -260,6 +260,73 @@ def task_bench(src="4b", tgt="27b", mapper_name=None, lengths=(8192, 16384, 3276
     return res
 
 
+def task_distill(src="4b", tgt="27b", mapper_name=None, out_name=None, steps=1500, prefix=1024, cont=128,
+                 tail=1, lr=2e-5, warmup=50, clip=1.0, eval_every=250, n_eval=8, source="fineweb", window=None,
+                 prefix_choices=None):
+    """Fine-tune the ridge maps end to end: minimize KL(native target || transferred target) on continuations.
+
+    Only the maps are trained; both models stay frozen. Gradients flow from the target's continuation logits
+    through its attention over the synthesized KV and through the DeltaNet scans into the maps.
+    """
+    import random
+
+    sm, stok = get(src)
+    tm, ttok = get(tgt)
+    mapper = load_mapper(mapper_name, sm, tm)
+    params = mapper.trainable()
+    opt = torch.optim.AdamW(params, lr=lr, betas=(0.9, 0.98), weight_decay=0.0)
+    sched = torch.optim.lr_scheduler.LambdaLR(
+        opt, lambda s: min(1.0, (s + 1) / warmup) * max(0.1, 0.5 * (1 + math.cos(math.pi * s / steps))))
+    lens = prefix_choices or [prefix]
+    train = evals.load_heldout_text(ttok, steps, max(lens) + cont, seed=11, split="calib", source=source)
+    held = evals.load_heldout_text(ttok, n_eval, prefix + cont, seed=7, split="eval", source=source)
+    rng = random.Random(0)
+
+    def evaluate():
+        rows = []
+        for s in held:
+            p, c = s[:prefix], s[prefix:]
+            nc, nl = native_prefill(tm, T(p))
+            ref = teacher_forced(tm, nc, nl, c)
+            del nc
+            tc, tl = transfer_prefill(sm, tm, mapper, T(p), tail=tail, window=window)
+            rows.append(compare(ref, teacher_forced(tm, tc, tl, c), c))
+        return mean_dicts(rows)
+
+    hist = [{"step": 0, **evaluate()}]
+    print(json.dumps(hist[-1]), flush=True)
+    t0 = time.time()
+    run = 0.0
+    for step, s in enumerate(train):
+        P = rng.choice(lens)
+        p, c = s[:P], s[P:P + cont]
+        with torch.no_grad():
+            nc, nl = native_prefill(tm, T(p))
+            ref = teacher_forced(tm, nc, nl, c)
+            del nc
+            lr_ = F.log_softmax(ref, -1)
+        tc, tl = transfer_prefill(sm, tm, mapper, T(p), tail=tail, window=window, grad=True)
+        with torch.enable_grad():
+            lg = torch.cat((tl[0, -1:], tm.forward(T(c[:-1]), tc, logits="all")[0]), dim=0)
+            lt = F.log_softmax(lg, -1)
+            loss = (lr_.exp() * (lr_ - lt)).sum(-1).mean()
+            loss.backward()
+        gn = torch.nn.utils.clip_grad_norm_(params, clip)
+        opt.step()
+        opt.zero_grad(set_to_none=True)
+        sched.step()
+        run = 0.98 * run + 0.02 * float(loss) if step else float(loss)
+        if step % 25 == 0:
+            print(f"[distill] step {step} kl {float(loss):.4f} ema {run:.4f} gn {float(gn):.3f} "
+                  f"{time.time() - t0:.0f}s mem {torch.cuda.max_memory_allocated() / 1e9:.1f}GB", flush=True)
+        if (step + 1) % eval_every == 0 or step + 1 == len(train):
+            hist.append({"step": step + 1, **evaluate()})
+            print(json.dumps(hist[-1]), flush=True)
+    out_name = out_name or f"{mapper_name}-distill{steps}"
+    mapper.save(ART / "maps" / f"{out_name}.pt")
+    return {"name": out_name, "history": hist, "seconds": time.time() - t0}
+
+
 TASKS = {k[5:]: v for k, v in globals().items() if k.startswith("task_")}
 
 
