@@ -20,13 +20,16 @@ from collections import defaultdict
 import torch
 import torch.nn.functional as F
 
-from .qwen35 import Cache, Hybrid, delta_scan
+from .qwen35 import Cache, Hybrid, delta_scan, delta_state, dwconv_silu
 
 
 def out_dims(spec, j):
     if spec.types[j] == "full_attention":
         return {"k": spec.nkv * spec.hd, "v": spec.nkv * spec.hd}
     return {"q": spec.key_dim, "k": spec.key_dim, "v": spec.value_dim, "a": spec.nv, "b": spec.nv}
+
+
+PROFILE: dict = {}  # {"mode": "src" | "gemm_only" | "gemm" | None} -- timing ablations only
 
 
 def candidates(n_src: int, n_tgt: int, j: int, radius: int = 2) -> list[int]:
@@ -71,7 +74,7 @@ class Stats:
             if kind == "src" and i in need:
                 xs.setdefault(i, []).append(x)
 
-        sc = src.new_cache(B, L)
+        sc = src.new_cache(B, L, window=window, chunk=chunk)
         src.prefill(ids, sc, chunk=chunk, logits=None, window=window, cap=cap_src, stop_after=max(need))
         del sc
         X = {i: self._aug(torch.cat(v, dim=1)) for i, v in xs.items()}
@@ -225,14 +228,16 @@ def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timin
     sync()
     t0 = time.perf_counter()
     if Tm > 0:
-        sc = src.new_cache(ids.shape[0], Tm)
+        sc = src.new_cache(ids.shape[0], Tm, window=window, chunk=chunk)
         kd = ts.key_dim
         cur = {"s": 0, "L": 0, "rope": None}
 
         def cap(kind, i, x=None, **_):
-            if kind != "src" or i not in mapper.by_src:
+            if kind != "src" or i not in mapper.by_src or PROFILE.get("mode") == "src":
                 return
             Y = _mm(x, mapper.W[i])
+            if PROFILE.get("mode") == "gemm_only":
+                return
             s, L = cur["s"], cur["L"]
             B = x.shape[0]
             for j in mapper.by_src[i]:
@@ -249,23 +254,24 @@ def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timin
                     kv = y[..., : kd + ts.value_dim]
                     a = y[..., kd + ts.value_dim: kd + ts.value_dim + ts.nv]
                     b = y[..., kd + ts.value_dim + ts.nv:]
-                    xx = torch.cat((tc.conv[j][:, kd:], kv.transpose(1, 2)), dim=-1)
-                    tc.conv[j] = torch.cat((tc.conv[j][:, :kd], xx[..., -(ts.conv_k - 1):]), dim=1)
-                    mixed = F.silu(F.conv1d(xx, la.conv1d.weight[kd:], None, groups=kd + ts.value_dim)).transpose(1, 2)
+                    xx = torch.cat((tc.conv[j][..., kd:], kv), dim=1)
+                    tc.conv[j] = torch.cat((tc.conv[j][..., :kd], xx[:, -(ts.conv_k - 1):]), dim=-1)
+                    mixed = dwconv_silu(xx, tgt.conv_w(j)[:, kd:])
                     k = mixed[..., :kd].reshape(B, L, ts.nk, ts.dk)
                     v = mixed[..., kd:].reshape(B, L, ts.nv, ts.dv)
                     rep = ts.nv // ts.nk
                     if rep > 1:
                         k = k.repeat_interleave(rep, dim=2)
                     g = -la.A_log.float().exp() * F.softplus(a.float() + la.dt_bias)
-                    _, S = delta_scan(k, k, v, g, b.sigmoid(), tc.S[j])
-                    tc.S[j] = S
+                    if PROFILE.get("mode") == "gemm":
+                        continue
+                    tc.S[j] = delta_state(k, v, g, b.sigmoid(), tc.S[j])
                     if s + L == Tm:  # q channels of the conv state for the final tokens
                         n = ts.conv_k - 1
-                        qraw = _mm(x[:, -n:], mapper.Wq[j]).transpose(1, 2)
-                        if qraw.shape[-1] < n:
-                            qraw = torch.cat((tc.conv[j][:, :kd, qraw.shape[-1]:], qraw), dim=-1)
-                        tc.conv[j] = torch.cat((qraw, tc.conv[j][:, kd:]), dim=1)
+                        qraw = _mm(x[:, -n:], mapper.Wq[j])
+                        if qraw.shape[1] < n:
+                            qraw = torch.cat((tc.conv[j][:, qraw.shape[1]:, :kd], qraw), dim=1)
+                        tc.conv[j] = torch.cat((qraw, tc.conv[j][..., kd:]), dim=-1)
 
         for s in range(0, Tm, chunk):
             e = min(s + chunk, Tm)

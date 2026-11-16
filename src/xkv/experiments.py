@@ -92,6 +92,11 @@ def task_selftest(src="0.8b", tgt="2b", calib_seqs=8, calib_len=1024):
     res["parity_full_top1"] = float((ours.argmax(-1) == ref.argmax(-1)).float().mean())
     res["parity_chunked_decode_maxabs"] = float((step - ref[-1]).abs().max())
     res["parity_chunked_decode_top1"] = bool(step.argmax() == ref[-1].argmax())
+    # chunk boundary inside the conv history / scan state
+    c3 = tm.new_cache(1, 1024)
+    tm.prefill(ids[:, :509], c3, chunk=100, logits=None)
+    step3 = tm.forward(ids[:, 509:], c3, logits="all")[0, -1]
+    res["parity_odd_chunks_maxabs"] = float((step3 - ref[-1]).abs().max())
     print(json.dumps(res, indent=1), flush=True)
 
     # mini calibration + transfer smoke test
@@ -257,6 +262,116 @@ def task_bench(src="4b", tgt="27b", mapper_name=None, lengths=(8192, 16384, 3276
         row["peak_mem_gb"] = torch.cuda.max_memory_allocated() / 1e9
         print(json.dumps(row), flush=True)
         res["rows"].append(row)
+    return res
+
+
+def make_generator(strategy, sm, tm, mapper, tok, tail=32, window=None):
+    stop = {i for i in (tok.convert_tokens_to_ids("<|im_end|>"), tok.eos_token_id) if isinstance(i, int)}
+
+    def gen(ctx, max_new):
+        ids = T(ctx)
+        if strategy == "target":
+            c, lg = native_prefill(tm, ids)
+            return tm.greedy(c, lg, max_new, stop)
+        if strategy == "source":
+            c, lg = native_prefill(sm, ids)
+            return sm.greedy(c, lg, max_new, stop)
+        c, lg = transfer_prefill(sm, tm, mapper, ids, tail=tail, window=window)
+        return tm.greedy(c, lg, max_new, stop)
+
+    return gen
+
+
+def task_longctx(src="4b", tgt="27b", mapper_name=None, prefix=32768, cont=256, n_seqs=6, windows=(None, 8192, 2048),
+                 tail=32, niah_len=32768, niah_n=20, num_keys=(1, 4), source="fineweb", lm=True):
+    sm, stok = get(src)
+    tm, ttok = get(tgt)
+    mapper = load_mapper(mapper_name, sm, tm)
+    res = {"prefix": prefix, "niah_len": niah_len}
+    if lm:
+        seqs = evals.load_heldout_text(ttok, n_seqs, prefix + cont, seed=5, split="eval", source=source)
+        rows = []
+        for s in seqs:
+            p, c = s[:prefix], s[prefix:prefix + cont]
+            nc, nl = native_prefill(tm, T(p))
+            ref = teacher_forced(tm, nc, nl, c)
+            del nc
+            row = {}
+            for w in windows:
+                tc, tl = transfer_prefill(sm, tm, mapper, T(p), tail=tail, window=w)
+                row[f"w{w or 'full'}"] = compare(ref, teacher_forced(tm, tc, tl, c), c)
+                del tc
+            sc, sl = native_prefill(sm, T(p))
+            row["source_native"] = compare(ref, teacher_forced(sm, sc, sl, c), c)
+            del sc
+            rows.append(row)
+            torch.cuda.empty_cache()
+        res["lm"] = {k: mean_dicts([r[k] for r in rows]) for k in rows[0]}
+        print(json.dumps(res["lm"], indent=1), flush=True)
+    res["niah"] = {}
+    for nk in num_keys:
+        samples = evals.make_niah(ttok, niah_len, niah_n, seed=3, num_keys=nk)
+        strategies = [("target", None), ("source", None)] + [("transfer", w) for w in windows]
+        for strat, w in strategies:
+            key = f"k{nk}-" + (strat if strat != "transfer" else f"transfer_w{w or 'full'}")
+            r = evals.run_niah(ttok, make_generator(strat, sm, tm, mapper, ttok, tail, w), samples=samples,
+                               max_new_tokens=24)
+            res["niah"][key] = {k: v for k, v in r.items() if k != "outputs"}
+            res["niah"][key]["sample_outputs"] = r.get("outputs", [])[:3]
+            print(f"[niah] {key} acc={r['acc']:.3f} {r.get('acc_by_depth')}", flush=True)
+            torch.cuda.empty_cache()
+    return res
+
+
+def task_profile(src="4b", tgt="27b", mapper_name=None, lengths=(8192, 32768), tail=32, reps=3, chunk=8192,
+                 window=None):
+    from . import mapper as M
+    from .qwen35 import delta_scan, delta_state
+
+    sm, _ = get(src)
+    tm, _ = get(tgt)
+    mapper = load_mapper(mapper_name, sm, tm)
+    res = {"gpu": torch.cuda.get_device_name()}
+    # state-only scan matches the full kernel
+    gen = torch.Generator(device="cuda").manual_seed(0)
+    B, L, H, K, V = 1, 1000, 8, 128, 128
+    k = torch.randn(B, L, H, K, device="cuda", generator=gen).bfloat16()
+    v = torch.randn(B, L, H, V, device="cuda", generator=gen).bfloat16()
+    g = -torch.rand(B, L, H, device="cuda", generator=gen) * 0.1
+    beta = torch.rand(B, L, H, device="cuda", generator=gen).bfloat16()
+    s0 = torch.randn(B, H, K, V, device="cuda", generator=gen) * 0.1
+    with torch.no_grad():
+        ref = delta_scan(k, k, v, g, beta, s0.clone())[1]
+        got = delta_state(k, v, g, beta, s0.clone())
+    res["state_only_maxrel"] = float((ref - got).abs().max() / ref.abs().max())
+    from .qwen35 import STATS
+    res["kernel_stats"] = dict(STATS)
+
+    def timeit(fn):
+        ts = []
+        for _ in range(reps):
+            torch.cuda.synchronize()
+            t = time.perf_counter()
+            fn()
+            torch.cuda.synchronize()
+            ts.append(time.perf_counter() - t)
+            torch.cuda.empty_cache()
+        return sorted(ts)[len(ts) // 2]
+
+    rows = []
+    for L in lengths:
+        ids = torch.randint(1000, 100000, (1, L), device="cuda")
+        row = {"len": L}
+        row["native_tgt"] = timeit(lambda: native_prefill(tm, ids, chunk=chunk))
+        row["native_src"] = timeit(lambda: native_prefill(sm, ids, chunk=chunk))
+        for mode in ("src", "gemm_only", "gemm", None):
+            M.PROFILE["mode"] = mode
+            row[f"transfer_{mode or 'full'}"] = timeit(
+                lambda: transfer_prefill(sm, tm, mapper, ids, tail=tail, window=window, chunk=chunk))
+        M.PROFILE.clear()
+        print(json.dumps(row), flush=True)
+        rows.append(row)
+    res["rows"] = rows
     return res
 
 
