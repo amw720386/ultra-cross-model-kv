@@ -1,0 +1,1024 @@
+{
+ "config": "map 4b-27b-chat, tail 128, full source attention up to 32K, greedy, thinking off",
+ "arc_chat": {
+  "target": {
+   "task": "arc_chat",
+   "metric": "acc",
+   "n": 300,
+   "n_skipped": 0,
+   "parsed": 1.0,
+   "score": 0.97,
+   "acc": 0.97,
+   "n_scored": 300,
+   "prompt_tokens": {
+    "min": 54,
+    "median": 92,
+    "mean": 95.6,
+    "max": 205
+   },
+   "max_ctx": null,
+   "seed": 0,
+   "seconds": 98.11092185974121
+  },
+  "transfer": {
+   "task": "arc_chat",
+   "metric": "acc",
+   "n": 300,
+   "n_skipped": 0,
+   "parsed": 1.0,
+   "score": 0.97,
+   "acc": 0.97,
+   "n_scored": 300,
+   "prompt_tokens": {
+    "min": 54,
+    "median": 92,
+    "mean": 95.6,
+    "max": 205
+   },
+   "max_ctx": null,
+   "seed": 0,
+   "seconds": 124.99808359146118
+  },
+  "source": {
+   "task": "arc_chat",
+   "metric": "acc",
+   "n": 300,
+   "n_skipped": 0,
+   "parsed": 1.0,
+   "score": 0.9133333333333333,
+   "acc": 0.9133333333333333,
+   "n_scored": 300,
+   "prompt_tokens": {
+    "min": 54,
+    "median": 92,
+    "mean": 95.6,
+    "max": 205
+   },
+   "max_ctx": null,
+   "seed": 0,
+   "seconds": 40.526865005493164
+  },
+  "transfer@16": {
+   "task": "arc_chat",
+   "metric": "acc",
+   "n": 300,
+   "n_skipped": 0,
+   "parsed": 1.0,
+   "score": 0.9233333333333333,
+   "acc": 0.9233333333333333,
+   "n_scored": 300,
+   "prompt_tokens": {
+    "min": 54,
+    "median": 92,
+    "mean": 95.6,
+    "max": 205
+   },
+   "max_ctx": null,
+   "seed": 0,
+   "seconds": 104.83459234237671
+  }
+ },
+ "math500": {
+  "target": {
+   "task": "math500",
+   "metric": "acc",
+   "n": 200,
+   "n_skipped": 0,
+   "boxed": 0.91,
+   "score": 0.9,
+   "acc": 0.9,
+   "n_scored": 200,
+   "by_subject": {
+    "Algebra": {
+     "n": 55,
+     "score": 0.9818181818181818
+    },
+    "Counting & Probability": {
+     "n": 14,
+     "score": 1.0
+    },
+    "Geometry": {
+     "n": 21,
+     "score": 0.7619047619047619
+    },
+    "Intermediate Algebra": {
+     "n": 37,
+     "score": 0.7837837837837838
+    },
+    "Number Theory": {
+     "n": 23,
+     "score": 0.9130434782608695
+    },
+    "Prealgebra": {
+     "n": 32,
+     "score": 0.9375
+    },
+    "Precalculus": {
+     "n": 18,
+     "score": 0.8888888888888888
+    }
+   },
+   "by_level": {
+    "1": {
+     "n": 16,
+     "score": 0.9375
+    },
+    "2": {
+     "n": 38,
+     "score": 0.9736842105263158
+    },
+    "3": {
+     "n": 40,
+     "score": 0.925
+    },
+    "4": {
+     "n": 51,
+     "score": 0.9215686274509803
+    },
+    "5": {
+     "n": 55,
+     "score": 0.8
+    }
+   },
+   "prompt_tokens": {
+    "min": 36,
+    "median": 76,
+    "mean": 99.7,
+    "max": 859
+   },
+   "max_ctx": null,
+   "seed": 0,
+   "seconds": 1652.1052136421204
+  },
+  "transfer": {
+   "task": "math500",
+   "metric": "acc",
+   "n": 200,
+   "n_skipped": 0,
+   "boxed": 0.9,
+   "score": 0.895,
+   "acc": 0.895,
+   "n_scored": 200,
+   "by_subject": {
+    "Algebra": {
+     "n": 55,
+     "score": 0.9818181818181818
+    },
+    "Counting & Probability": {
+     "n": 14,
+     "score": 1.0
+    },
+    "Geometry": {
+     "n": 21,
+     "score": 0.7142857142857143
+    },
+    "Intermediate Algebra": {
+     "n": 37,
+     "score": 0.7837837837837838
+    },
+    "Number Theory": {
+     "n": 23,
+     "score": 0.9130434782608695
+    },
+    "Prealgebra": {
+     "n": 32,
+     "score": 0.90625
+    },
+    "Precalculus": {
+     "n": 18,
+     "score": 0.9444444444444444
+    }
+   },
+   "by_level": {
+    "1": {
+     "n": 16,
+     "score": 0.9375
+    },
+    "2": {
+     "n": 38,
+     "score": 0.9736842105263158
+    },
+    "3": {
+     "n": 40,
+     "score": 0.95
+    },
+    "4": {
+     "n": 51,
+     "score": 0.8823529411764706
+    },
+    "5": {
+     "n": 55,
+     "score": 0.8
+    }
+   },
+   "prompt_tokens": {
+    "min": 36,
+    "median": 76,
+    "mean": 99.7,
+    "max": 859
+   },
+   "max_ctx": null,
+   "seed": 0,
+   "seconds": 1658.015300989151
+  },
+  "source": {
+   "task": "math500",
+   "metric": "acc",
+   "n": 200,
+   "n_skipped": 0,
+   "boxed": 0.895,
+   "score": 0.88,
+   "acc": 0.88,
+   "n_scored": 200,
+   "by_subject": {
+    "Algebra": {
+     "n": 55,
+     "score": 0.9636363636363636
+    },
+    "Counting & Probability": {
+     "n": 14,
+     "score": 0.9285714285714286
+    },
+    "Geometry": {
+     "n": 21,
+     "score": 0.6666666666666666
+    },
+    "Intermediate Algebra": {
+     "n": 37,
+     "score": 0.7297297297297297
+    },
+    "Number Theory": {
+     "n": 23,
+     "score": 0.9565217391304348
+    },
+    "Prealgebra": {
+     "n": 32,
+     "score": 0.90625
+    },
+    "Precalculus": {
+     "n": 18,
+     "score": 1.0
+    }
+   },
+   "by_level": {
+    "1": {
+     "n": 16,
+     "score": 0.9375
+    },
+    "2": {
+     "n": 38,
+     "score": 0.9736842105263158
+    },
+    "3": {
+     "n": 40,
+     "score": 0.95
+    },
+    "4": {
+     "n": 51,
+     "score": 0.8823529411764706
+    },
+    "5": {
+     "n": 55,
+     "score": 0.7454545454545455
+    }
+   },
+   "prompt_tokens": {
+    "min": 36,
+    "median": 76,
+    "mean": 99.7,
+    "max": 859
+   },
+   "max_ctx": null,
+   "seed": 0,
+   "seconds": 547.2476108074188
+  }
+ },
+ "contract_nli": {
+  "target": {
+   "task": "contract_nli",
+   "metric": "acc",
+   "n": 300,
+   "n_skipped": 0,
+   "score": 0.8,
+   "acc": 0.8,
+   "n_scored": 300,
+   "by_label": {
+    "contradiction": {
+     "n": 36,
+     "score": 0.6388888888888888
+    },
+    "entailment": {
+     "n": 151,
+     "score": 0.9139072847682119
+    },
+    "neutral": {
+     "n": 113,
+     "score": 0.6991150442477876
+    }
+   },
+   "prompt_tokens": {
+    "min": 405,
+    "median": 1983,
+    "mean": 2335.8,
+    "max": 8081
+   },
+   "max_ctx": null,
+   "seed": 0,
+   "seconds": 737.373587846756
+  },
+  "transfer": {
+   "task": "contract_nli",
+   "metric": "acc",
+   "n": 300,
+   "n_skipped": 0,
+   "score": 0.75,
+   "acc": 0.75,
+   "n_scored": 300,
+   "by_label": {
+    "contradiction": {
+     "n": 36,
+     "score": 0.6388888888888888
+    },
+    "entailment": {
+     "n": 151,
+     "score": 0.695364238410596
+    },
+    "neutral": {
+     "n": 113,
+     "score": 0.8584070796460177
+    }
+   },
+   "prompt_tokens": {
+    "min": 405,
+    "median": 1983,
+    "mean": 2335.8,
+    "max": 8081
+   },
+   "max_ctx": null,
+   "seed": 0,
+   "seconds": 427.2444839477539
+  },
+  "source": {
+   "task": "contract_nli",
+   "metric": "acc",
+   "n": 300,
+   "n_skipped": 0,
+   "score": 0.73,
+   "acc": 0.73,
+   "n_scored": 300,
+   "by_label": {
+    "contradiction": {
+     "n": 36,
+     "score": 0.08333333333333333
+    },
+    "entailment": {
+     "n": 151,
+     "score": 0.8410596026490066
+    },
+    "neutral": {
+     "n": 113,
+     "score": 0.7876106194690266
+    }
+   },
+   "prompt_tokens": {
+    "min": 405,
+    "median": 1983,
+    "mean": 2335.8,
+    "max": 8081
+   },
+   "max_ctx": null,
+   "seed": 0,
+   "seconds": 70.57533860206604
+  }
+ },
+ "bamboo_paperqa": {
+  "target": {
+   "task": "bamboo_paperqa",
+   "metric": "acc",
+   "n": 84,
+   "n_skipped": 0,
+   "score": 0.8690476190476191,
+   "acc": 0.8690476190476191,
+   "n_scored": 84,
+   "prompt_tokens": {
+    "min": 5665,
+    "median": 6852,
+    "mean": 7174.7,
+    "max": 12475
+   },
+   "max_ctx": null,
+   "seed": 0,
+   "seconds": 287.2039451599121
+  },
+  "transfer": {
+   "task": "bamboo_paperqa",
+   "metric": "acc",
+   "n": 84,
+   "n_skipped": 0,
+   "score": 0.8809523809523809,
+   "acc": 0.8809523809523809,
+   "n_scored": 84,
+   "prompt_tokens": {
+    "min": 5665,
+    "median": 6852,
+    "mean": 7174.7,
+    "max": 12475
+   },
+   "max_ctx": null,
+   "seed": 0,
+   "seconds": 239.99044632911682
+  },
+  "source": {
+   "task": "bamboo_paperqa",
+   "metric": "acc",
+   "n": 84,
+   "n_skipped": 0,
+   "score": 0.8928571428571429,
+   "acc": 0.8928571428571429,
+   "n_scored": 84,
+   "prompt_tokens": {
+    "min": 5665,
+    "median": 6852,
+    "mean": 7174.7,
+    "max": 12475
+   },
+   "max_ctx": null,
+   "seed": 0,
+   "seconds": 46.17613172531128
+  }
+ },
+ "longhealth": {
+  "target": {
+   "task": "longhealth",
+   "metric": "acc",
+   "n": 200,
+   "n_skipped": 0,
+   "score": 0.895,
+   "acc": 0.895,
+   "n_scored": 200,
+   "by_diagnosis": {
+    "AML": {
+     "n": 8,
+     "score": 1.0
+    },
+    "ARDS": {
+     "n": 9,
+     "score": 0.8888888888888888
+    },
+    "Breast carcinoma": {
+     "n": 9,
+     "score": 0.8888888888888888
+    },
+    "Cardiomyopathy": {
+     "n": 12,
+     "score": 0.75
+    },
+    "Cerebral glioblastoma": {
+     "n": 7,
+     "score": 1.0
+    },
+    "Chronic kidney disease": {
+     "n": 8,
+     "score": 1.0
+    },
+    "Common Variable Immunodeficiency Syndrome": {
+     "n": 10,
+     "score": 0.9
+    },
+    "DLBCL": {
+     "n": 12,
+     "score": 0.9166666666666666
+    },
+    "Galactosemia": {
+     "n": 9,
+     "score": 0.8888888888888888
+    },
+    "Hepatocellular carcinoma": {
+     "n": 12,
+     "score": 0.9166666666666666
+    },
+    "Hypopharynx carcinoma": {
+     "n": 8,
+     "score": 1.0
+    },
+    "Hypoplastic Left Heart Syndrome": {
+     "n": 10,
+     "score": 0.7
+    },
+    "Liposarcoma": {
+     "n": 11,
+     "score": 0.8181818181818182
+    },
+    "Liver cirrhosis": {
+     "n": 11,
+     "score": 0.8181818181818182
+    },
+    "Melanoma": {
+     "n": 7,
+     "score": 1.0
+    },
+    "Multiple Myeloma": {
+     "n": 16,
+     "score": 0.9375
+    },
+    "Pancreatic cancer": {
+     "n": 9,
+     "score": 1.0
+    },
+    "Polytrauma": {
+     "n": 10,
+     "score": 0.9
+    },
+    "Prostate cancer ": {
+     "n": 13,
+     "score": 0.8461538461538461
+    },
+    "Renal cell carcinoma": {
+     "n": 9,
+     "score": 0.8888888888888888
+    }
+   },
+   "prompt_tokens": {
+    "min": 10452,
+    "median": 12191,
+    "mean": 12290.1,
+    "max": 14005
+   },
+   "max_ctx": null,
+   "seed": 0,
+   "seconds": 416.1751356124878
+  },
+  "transfer": {
+   "task": "longhealth",
+   "metric": "acc",
+   "n": 200,
+   "n_skipped": 0,
+   "score": 0.835,
+   "acc": 0.835,
+   "n_scored": 200,
+   "by_diagnosis": {
+    "AML": {
+     "n": 8,
+     "score": 0.875
+    },
+    "ARDS": {
+     "n": 9,
+     "score": 0.7777777777777778
+    },
+    "Breast carcinoma": {
+     "n": 9,
+     "score": 0.8888888888888888
+    },
+    "Cardiomyopathy": {
+     "n": 12,
+     "score": 0.8333333333333334
+    },
+    "Cerebral glioblastoma": {
+     "n": 7,
+     "score": 0.7142857142857143
+    },
+    "Chronic kidney disease": {
+     "n": 8,
+     "score": 1.0
+    },
+    "Common Variable Immunodeficiency Syndrome": {
+     "n": 10,
+     "score": 0.9
+    },
+    "DLBCL": {
+     "n": 12,
+     "score": 0.8333333333333334
+    },
+    "Galactosemia": {
+     "n": 9,
+     "score": 0.5555555555555556
+    },
+    "Hepatocellular carcinoma": {
+     "n": 12,
+     "score": 0.9166666666666666
+    },
+    "Hypopharynx carcinoma": {
+     "n": 8,
+     "score": 0.875
+    },
+    "Hypoplastic Left Heart Syndrome": {
+     "n": 10,
+     "score": 0.7
+    },
+    "Liposarcoma": {
+     "n": 11,
+     "score": 0.9090909090909091
+    },
+    "Liver cirrhosis": {
+     "n": 11,
+     "score": 0.6363636363636364
+    },
+    "Melanoma": {
+     "n": 7,
+     "score": 0.8571428571428571
+    },
+    "Multiple Myeloma": {
+     "n": 16,
+     "score": 0.8125
+    },
+    "Pancreatic cancer": {
+     "n": 9,
+     "score": 1.0
+    },
+    "Polytrauma": {
+     "n": 10,
+     "score": 0.9
+    },
+    "Prostate cancer ": {
+     "n": 13,
+     "score": 0.8461538461538461
+    },
+    "Renal cell carcinoma": {
+     "n": 9,
+     "score": 0.8888888888888888
+    }
+   },
+   "prompt_tokens": {
+    "min": 10452,
+    "median": 12191,
+    "mean": 12290.1,
+    "max": 14005
+   },
+   "max_ctx": null,
+   "seed": 0,
+   "seconds": 173.2280068397522
+  },
+  "source": {
+   "task": "longhealth",
+   "metric": "acc",
+   "n": 200,
+   "n_skipped": 0,
+   "score": 0.84,
+   "acc": 0.84,
+   "n_scored": 200,
+   "by_diagnosis": {
+    "AML": {
+     "n": 8,
+     "score": 0.875
+    },
+    "ARDS": {
+     "n": 9,
+     "score": 0.7777777777777778
+    },
+    "Breast carcinoma": {
+     "n": 9,
+     "score": 0.7777777777777778
+    },
+    "Cardiomyopathy": {
+     "n": 12,
+     "score": 0.8333333333333334
+    },
+    "Cerebral glioblastoma": {
+     "n": 7,
+     "score": 0.8571428571428571
+    },
+    "Chronic kidney disease": {
+     "n": 8,
+     "score": 0.875
+    },
+    "Common Variable Immunodeficiency Syndrome": {
+     "n": 10,
+     "score": 0.9
+    },
+    "DLBCL": {
+     "n": 12,
+     "score": 0.9166666666666666
+    },
+    "Galactosemia": {
+     "n": 9,
+     "score": 0.6666666666666666
+    },
+    "Hepatocellular carcinoma": {
+     "n": 12,
+     "score": 0.8333333333333334
+    },
+    "Hypopharynx carcinoma": {
+     "n": 8,
+     "score": 1.0
+    },
+    "Hypoplastic Left Heart Syndrome": {
+     "n": 10,
+     "score": 0.7
+    },
+    "Liposarcoma": {
+     "n": 11,
+     "score": 0.9090909090909091
+    },
+    "Liver cirrhosis": {
+     "n": 11,
+     "score": 0.7272727272727273
+    },
+    "Melanoma": {
+     "n": 7,
+     "score": 1.0
+    },
+    "Multiple Myeloma": {
+     "n": 16,
+     "score": 0.875
+    },
+    "Pancreatic cancer": {
+     "n": 9,
+     "score": 1.0
+    },
+    "Polytrauma": {
+     "n": 10,
+     "score": 0.9
+    },
+    "Prostate cancer ": {
+     "n": 13,
+     "score": 0.6153846153846154
+    },
+    "Renal cell carcinoma": {
+     "n": 9,
+     "score": 0.8888888888888888
+    }
+   },
+   "prompt_tokens": {
+    "min": 10452,
+    "median": 12191,
+    "mean": 12290.1,
+    "max": 14005
+   },
+   "max_ctx": null,
+   "seed": 0,
+   "seconds": 106.56895661354065
+  }
+ },
+ "qmsum": {
+  "target": {
+   "task": "qmsum",
+   "metric": "rougeL",
+   "n": 100,
+   "n_skipped": 0,
+   "rouge1": 0.3629924009802559,
+   "rouge2": 0.09979681966984165,
+   "rougeL": 0.22026931616684817,
+   "rouge_geo": 0.1956721941750926,
+   "score": 0.22026931616684817,
+   "n_scored": 100,
+   "by_query_type": {
+    "general": {
+     "n": 11,
+     "score": 0.20842789381900959
+    },
+    "specific": {
+     "n": 89,
+     "score": 0.2217328627491653
+    }
+   },
+   "prompt_tokens": {
+    "min": 3166,
+    "median": 11634,
+    "mean": 12863.5,
+    "max": 28563
+   },
+   "max_ctx": null,
+   "seed": 0,
+   "seconds": 271.28597497940063
+  },
+  "transfer": {
+   "task": "qmsum",
+   "metric": "rougeL",
+   "n": 100,
+   "n_skipped": 0,
+   "rouge1": 0.35004943879665845,
+   "rouge2": 0.09762864455750324,
+   "rougeL": 0.2126449771687759,
+   "rouge_geo": 0.1883935671745805,
+   "score": 0.2126449771687759,
+   "n_scored": 100,
+   "by_query_type": {
+    "general": {
+     "n": 11,
+     "score": 0.19917533429888934
+    },
+    "specific": {
+     "n": 89,
+     "score": 0.214309764489773
+    }
+   },
+   "prompt_tokens": {
+    "min": 3166,
+    "median": 11634,
+    "mean": 12863.5,
+    "max": 28563
+   },
+   "max_ctx": null,
+   "seed": 0,
+   "seconds": 171.03868675231934
+  },
+  "source": {
+   "task": "qmsum",
+   "metric": "rougeL",
+   "n": 100,
+   "n_skipped": 0,
+   "rouge1": 0.34801808696518033,
+   "rouge2": 0.09080118509317091,
+   "rougeL": 0.20271282125081647,
+   "rouge_geo": 0.17892554202473765,
+   "score": 0.20271282125081647,
+   "n_scored": 100,
+   "by_query_type": {
+    "general": {
+     "n": 11,
+     "score": 0.21277997955144476
+    },
+    "specific": {
+     "n": 89,
+     "score": 0.20146856573051405
+    }
+   },
+   "prompt_tokens": {
+    "min": 3166,
+    "median": 11634,
+    "mean": 12863.5,
+    "max": 28563
+   },
+   "max_ctx": null,
+   "seed": 0,
+   "seconds": 79.8162477016449
+  }
+ },
+ "humaneval_free_prompt": {
+  "target": {
+   "task": "humaneval",
+   "metric": "pass@1",
+   "n": 164,
+   "n_skipped": 0,
+   "score": 0.9329268292682927,
+   "timeout": 0.0,
+   "pass@1": 0.9329268292682927,
+   "n_scored": 164,
+   "prompt_tokens": {
+    "min": 76,
+    "median": 158,
+    "mean": 175.0,
+    "max": 440
+   },
+   "max_ctx": null,
+   "seed": 0,
+   "seconds": 346.786461353302
+  },
+  "transfer": {
+   "task": "humaneval",
+   "metric": "pass@1",
+   "n": 164,
+   "n_skipped": 0,
+   "score": 0.9146341463414634,
+   "timeout": 0.0,
+   "pass@1": 0.9146341463414634,
+   "n_scored": 164,
+   "prompt_tokens": {
+    "min": 76,
+    "median": 158,
+    "mean": 175.0,
+    "max": 440
+   },
+   "max_ctx": null,
+   "seed": 0,
+   "seconds": 378.1734733581543
+  },
+  "transfer:s1": {
+   "task": "humaneval",
+   "metric": "pass@1",
+   "n": 164,
+   "n_skipped": 0,
+   "score": 0.9085365853658537,
+   "timeout": 0.0,
+   "pass@1": 0.9085365853658537,
+   "n_scored": 164,
+   "prompt_tokens": {
+    "min": 76,
+    "median": 158,
+    "mean": 175.0,
+    "max": 440
+   },
+   "max_ctx": null,
+   "seed": 0,
+   "seconds": 290.8885688781738
+  }
+ },
+ "mbpp_free_prompt": {
+  "target": {
+   "task": "mbpp",
+   "metric": "pass@1",
+   "n": 257,
+   "n_skipped": 0,
+   "score": 0.8754863813229572,
+   "timeout": 0.0,
+   "pass@1": 0.8754863813229572,
+   "n_scored": 257,
+   "prompt_tokens": {
+    "min": 82,
+    "median": 126,
+    "mean": 151.1,
+    "max": 890
+   },
+   "max_ctx": null,
+   "seed": 0,
+   "seconds": 449.55867767333984
+  },
+  "transfer": {
+   "task": "mbpp",
+   "metric": "pass@1",
+   "n": 257,
+   "n_skipped": 0,
+   "score": 0.8482490272373541,
+   "timeout": 0.0,
+   "pass@1": 0.8482490272373541,
+   "n_scored": 257,
+   "prompt_tokens": {
+    "min": 82,
+    "median": 126,
+    "mean": 151.1,
+    "max": 890
+   },
+   "max_ctx": null,
+   "seed": 0,
+   "seconds": 469.4829239845276
+  },
+  "source": {
+   "task": "mbpp",
+   "metric": "pass@1",
+   "n": 257,
+   "n_skipped": 0,
+   "score": 0.8015564202334631,
+   "timeout": 0.0038910505836575876,
+   "pass@1": 0.8015564202334631,
+   "n_scored": 257,
+   "prompt_tokens": {
+    "min": 82,
+    "median": 126,
+    "mean": 151.1,
+    "max": 890
+   },
+   "max_ctx": null,
+   "seed": 0,
+   "seconds": 201.24033546447754
+  }
+ },
+ "bigcodebench_free_prompt": {
+  "target": {
+   "task": "bigcodebench",
+   "metric": "pass@1",
+   "n": 100,
+   "n_skipped": 0,
+   "score": 0.56,
+   "timeout": 0.0,
+   "pass@1": 0.56,
+   "n_scored": 100,
+   "prompt_tokens": {
+    "min": 94,
+    "median": 168,
+    "mean": 185.0,
+    "max": 546
+   },
+   "max_ctx": null,
+   "seed": 0,
+   "seconds": 400.0717444419861
+  },
+  "transfer": {
+   "task": "bigcodebench",
+   "metric": "pass@1",
+   "n": 100,
+   "n_skipped": 0,
+   "score": 0.55,
+   "timeout": 0.0,
+   "pass@1": 0.55,
+   "n_scored": 100,
+   "prompt_tokens": {
+    "min": 94,
+    "median": 168,
+    "mean": 185.0,
+    "max": 546
+   },
+   "max_ctx": null,
+   "seed": 0,
+   "seconds": 424.61006903648376
+  },
+  "source": {
+   "task": "bigcodebench",
+   "metric": "pass@1",
+   "n": 100,
+   "n_skipped": 0,
+   "score": 0.4,
+   "timeout": 0.0,
+   "pass@1": 0.4,
+   "n_scored": 100,
+   "prompt_tokens": {
+    "min": 94,
+    "median": 168,
+    "mean": 185.0,
+    "max": 546
+   },
+   "max_ctx": null,
+   "seed": 0,
+   "seconds": 156.71125054359436
+  }
+ }
+}

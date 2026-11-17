@@ -1,0 +1,85 @@
+{
+ "note": "final engine, mapper 4b-27b-chat, full_until 32768, tail 128, H100, median of 5; two runs (64K OOMed in both after these rows)",
+ "run_a": [
+  {
+   "len": 8192,
+   "batch": 1,
+   "native_s": 0.9020203669999773,
+   "transfer_s": 0.33586805500002015,
+   "transfer_parts": {
+    "src_and_map": 0.2861112620000199,
+    "tail": 0.04852392699999086,
+    "total": 0.33463518900001077
+   },
+   "speedup": 2.6856390584687286,
+   "peak_mem_gb": 79.409449472
+  },
+  {
+   "len": 16384,
+   "batch": 1,
+   "native_s": 1.8965407190000008,
+   "transfer_s": 0.6780830379999827,
+   "transfer_parts": {
+    "src_and_map": 0.6285175779999861,
+    "tail": 0.04956545999999662,
+    "total": 0.6780830379999827
+   },
+   "speedup": 2.7969151456639874,
+   "peak_mem_gb": 79.409449472
+  },
+  {
+   "len": 32768,
+   "batch": 1,
+   "native_s": 4.147698321000007,
+   "transfer_s": 1.3534837999999922,
+   "transfer_parts": {
+    "src_and_map": 1.3277851080000005,
+    "tail": 0.052608563000006825,
+    "total": 1.3803936710000073
+   },
+   "speedup": 3.0644610013064293,
+   "peak_mem_gb": 80.550496768
+  }
+ ],
+ "run_b": [
+  {
+   "len": 8192,
+   "batch": 1,
+   "native_s": 0.9158635079999726,
+   "transfer_s": 0.3750688439999976,
+   "transfer_parts": {
+    "src_and_map": 0.3268610049999836,
+    "tail": 0.04820783900001402,
+    "total": 0.3750688439999976
+   },
+   "speedup": 2.441854402601295,
+   "peak_mem_gb": 79.409449472
+  },
+  {
+   "len": 16384,
+   "batch": 1,
+   "native_s": 1.9240931120000084,
+   "transfer_s": 0.6489588840000238,
+   "transfer_parts": {
+    "src_and_map": 0.5949058040000068,
+    "tail": 0.04932372600001145,
+    "total": 0.6442295300000183
+   },
+   "speedup": 2.96489216718996,
+   "peak_mem_gb": 79.409449472
+  },
+  {
+   "len": 32768,
+   "batch": 1,
+   "native_s": 4.239285549000016,
+   "transfer_s": 1.376050217999989,
+   "transfer_parts": {
+    "src_and_map": 1.3099298489999853,
+    "tail": 0.05300675699999147,
+    "total": 1.3629366059999768
+   },
+   "speedup": 3.080763691285611,
+   "peak_mem_gb": 80.550496768
+  }
+ ]
+}
