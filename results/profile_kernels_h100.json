@@ -1,0 +1,489 @@
+{
+ "task": "kprofile",
+ "args": {},
+ "wall_s": 232.6224365234375,
+ "result": {
+  "gpu": "NVIDIA H100 80GB HBM3",
+  "max_src": 31,
+  "rows": [
+   {
+    "len": 8192,
+    "native_tgt_s": 0.9187955809999977,
+    "native_src_s": 0.1979509599999858,
+    "src_stop_window_s": 0.19778022400001305,
+    "transfer_s": 0.44009040000000255,
+    "tgt_tail_only_s": 0.12741489700002262,
+    "transfer_parts": {
+     "src_and_map": 0.3097216839999817,
+     "tail": 0.12931695400001786,
+     "total": 0.43903863799999954
+    },
+    "transfer_kernels": {
+     "by_category_s": {
+      "elementwise": 0.1644825715000017,
+      "gemm": 0.12124063900000083,
+      "copy": 0.0609786375000028,
+      "triton_other": 0.06036098849999894,
+      "flash_attn": 0.046702918499999885,
+      "fla_scan": 0.04437299099999988
+     },
+     "gpu_busy_s": 0.49813874600000396,
+     "top_kernels_s": [
+      [
+       "triton_poi_fused__to_copy_add_mul_0",
+       0.03781300099999936
+      ],
+      [
+       "nvjet_tst_320x128_64x3_1x1_h_bz_coopB_TNT",
+       0.03208809399999978
+      ],
+      [
+       "ChunkGatedDeltaRuleFunction",
+       0.027510298999999683
+      ],
+      [
+       "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<at::native:",
+       0.023431827500000422
+      ],
+      [
+       "Command Buffer Full",
+       0.02270073399999995
+      ],
+      [
+       "triton_poi_fused__to_copy_silu_1",
+       0.022547987499999582
+      ],
+      [
+       "nvjet_tst_320x128_64x3_1x2_h_bz_coopB_TNT",
+       0.021877345500000336
+      ],
+      [
+       "Torch-Compiled Region: 0/2",
+       0.02027606199999927
+      ],
+      [
+       "void at::native::(anonymous namespace)::CatArrayBatchedCopy<at::native::(anonymous namespa",
+       0.018098314500000174
+      ],
+      [
+       "chunk_gated_delta_rule_fwd_kernel_h_blockdim64",
+       0.01798405499999975
+      ],
+      [
+       "merge_16x16_to_64x64_inverse_kernel",
+       0.015760086000000114
+      ],
+      [
+       "FlashAttnFunc",
+       0.015567639499999961
+      ],
+      [
+       "flash_attn::_flash_attn_forward",
+       0.015567639499999961
+      ],
+      [
+       "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native:",
+       0.015348103000000392
+      ],
+      [
+       "nvjet_tst_192x192_64x3_1x2_h_bz_coopB_bias_NNN",
+       0.014324663000000008
+      ],
+      [
+       "void flash::flash_fwd_kernel<Flash_fwd_kernel_traits<256, 64, 64, 4, false, false, cutlass",
+       0.013994741000000038
+      ],
+      [
+       "nvjet_tst_192x192_64x4_1x2_h_bz_coopB_TNN",
+       0.013698663000000087
+      ],
+      [
+       "cuLaunchKernelEx",
+       0.012373336999999957
+      ],
+      [
+       "void at::native::unrolled_elementwise_kernel<at::native::direct_copy_kernel_cuda(at::Tenso",
+       0.011456029000000716
+      ],
+      [
+       "recompute_w_u_fwd_kernel",
+       0.010855902000000016
+      ],
+      [
+       "Torch-Compiled Region: 0/0",
+       0.01051118600000017
+      ],
+      [
+       "nvjet_tst_144x128_64x6_2x1_v_bz_TNN",
+       0.009182861500000203
+      ],
+      [
+       "nvjet_tst_192x192_64x3_2x1_v_bz_coopB_bias_NNN",
+       0.008375307999999968
+      ],
+      [
+       "void at::native::vectorized_elementwise_kernel<4, at::native::(anonymous namespace)::pow_t",
+       0.007062551499999285
+      ],
+      [
+       "void at::native::vectorized_elementwise_kernel<8, at::native::bfloat16_copy_kernel_cuda(at",
+       0.0069262010000011
+      ]
+     ]
+    },
+    "src_kernels": {
+     "by_category_s": {
+      "elementwise": 0.18993713450000102,
+      "gemm": 0.07433237100000037,
+      "flash_attn": 0.05507868650000004,
+      "copy": 0.029373935500000076,
+      "triton_other": 0.019696913000000288,
+      "fla_scan": 0.01562637150000005
+     },
+     "gpu_busy_s": 0.3840454120000019,
+     "top_kernels_s": [
+      [
+       "Command Buffer Full",
+       0.06802845250000046
+      ],
+      [
+       "nvjet_tst_320x128_64x3_1x2_h_bz_coopB_TNT",
+       0.03610694100000015
+      ],
+      [
+       "cuLaunchKernelEx",
+       0.03530269850000024
+      ],
+      [
+       "nvjet_tst_192x192_64x4_2x1_v_bz_coopB_TNN",
+       0.03128616850000002
+      ],
+      [
+       "ChunkGatedDeltaRuleFunction",
+       0.026653624499999973
+      ],
+      [
+       "FlashAttnFunc",
+       0.02019666350000002
+      ],
+      [
+       "flash_attn::_flash_attn_forward",
+       0.02019666350000002
+      ],
+      [
+       "void flash::flash_fwd_kernel<Flash_fwd_kernel_traits<256, 64, 64, 4, false, false, cutlass",
+       0.014685359500000002
+      ],
+      [
+       "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native:",
+       0.014148512000000021
+      ],
+      [
+       "triton_poi_fused__to_copy_add_mul_0",
+       0.012313844000000015
+      ],
+      [
+       "void at::native::unrolled_elementwise_kernel<at::native::direct_copy_kernel_cuda(at::Tenso",
+       0.009902825000000098
+      ],
+      [
+       "Torch-Compiled Region: 0/1",
+       0.009848456500000144
+      ],
+      [
+       "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<at::native:",
+       0.009558478500000142
+      ],
+      [
+       "triton_poi_fused__to_copy_silu_1",
+       0.007383069000000272
+      ],
+      [
+       "void at::native::vectorized_elementwise_kernel<4, at::native::(anonymous namespace)::pow_t",
+       0.006746237499999842
+      ],
+      [
+       "void at::native::vectorized_elementwise_kernel<8, at::native::bfloat16_copy_kernel_cuda(at",
+       0.006532097000000081
+      ],
+      [
+       "nvjet_tst_256x128_64x4_1x2_h_bz_coopA_TNT",
+       0.006057195500000116
+      ],
+      [
+       "chunk_gated_delta_rule_fwd_kernel_h_blockdim64",
+       0.005271366500000011
+      ],
+      [
+       "void at::native::vectorized_elementwise_kernel<8, at::native::BinaryFunctor<c10::BFloat16,",
+       0.005149350000000007
+      ],
+      [
+       "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<float, at::native::MeanOps<flo",
+       0.004559156000000147
+      ],
+      [
+       "chunk_fwd_kernel_o",
+       0.004201601000000039
+      ],
+      [
+       "merge_16x16_to_64x64_inverse_kernel",
+       0.003805327499999926
+      ],
+      [
+       "void at::native::unrolled_elementwise_kernel<at::native::BinaryFunctor<float, float, float",
+       0.0035612634999998907
+      ],
+      [
+       "void at::native::vectorized_elementwise_kernel<8, at::native::(anonymous namespace)::silu_",
+       0.0031082555000000304
+      ],
+      [
+       "void at::native::(anonymous namespace)::CatArrayBatchedCopy_alignedK_contig<at::native::(a",
+       0.002785500000000063
+      ]
+     ]
+    }
+   },
+   {
+    "len": 16384,
+    "native_tgt_s": 1.9143532940000227,
+    "native_src_s": 0.4219263840000167,
+    "src_stop_window_s": 0.4083461490000104,
+    "transfer_s": 0.7768414079999957,
+    "tgt_tail_only_s": 0.14025807099997678,
+    "transfer_parts": {
+     "src_and_map": 0.6348966839999832,
+     "tail": 0.14057811500001094,
+     "total": 0.7754747989999942
+    },
+    "transfer_kernels": {
+     "by_category_s": {
+      "elementwise": 0.4977634865000045,
+      "gemm": 0.21991669050000232,
+      "flash_attn": 0.1378883440000011,
+      "triton_other": 0.12540309449999593,
+      "copy": 0.11956012100000007,
+      "fla_scan": 0.08800001800000111
+     },
+     "gpu_busy_s": 1.1885317545000051,
+     "top_kernels_s": [
+      [
+       "Command Buffer Full",
+       0.14752246100000327
+      ],
+      [
+       "triton_poi_fused__to_copy_add_mul_0",
+       0.0773225499999988
+      ],
+      [
+       "cuLaunchKernelEx",
+       0.07244832600000403
+      ],
+      [
+       "ChunkGatedDeltaRuleFunction",
+       0.07156660250000307
+      ],
+      [
+       "nvjet_tst_320x128_64x3_1x2_h_bz_coopB_TNT",
+       0.05808891500000055
+      ],
+      [
+       "triton_poi_fused__to_copy_silu_1",
+       0.04808054449999715
+      ],
+      [
+       "FlashAttnFunc",
+       0.046577419000000383
+      ],
+      [
+       "flash_attn::_flash_attn_forward",
+       0.046577419000000383
+      ],
+      [
+       "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<at::native:",
+       0.04615053399999813
+      ],
+      [
+       "Torch-Compiled Region: 0/2",
+       0.04449018350000015
+      ],
+      [
+       "void flash::flash_fwd_kernel<Flash_fwd_kernel_traits<256, 64, 64, 4, false, false, cutlass",
+       0.0417820355000004
+      ],
+      [
+       "nvjet_tst_192x192_64x4_2x1_v_bz_coopB_TNN",
+       0.03655599850000059
+      ],
+      [
+       "void at::native::(anonymous namespace)::CatArrayBatchedCopy<at::native::(anonymous namespa",
+       0.03620976150000094
+      ],
+      [
+       "chunk_gated_delta_rule_fwd_kernel_h_blockdim64",
+       0.035820419499999895
+      ],
+      [
+       "nvjet_tst_320x128_64x3_1x1_h_bz_coopB_TNT",
+       0.032165797999999746
+      ],
+      [
+       "merge_16x16_to_64x64_inverse_kernel",
+       0.030930412000000067
+      ],
+      [
+       "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native:",
+       0.029653962499999572
+      ],
+      [
+       "nvjet_tst_192x192_64x3_2x1_v_bz_coopB_bias_NNN",
+       0.02249368900000023
+      ],
+      [
+       "Torch-Compiled Region: 0/0",
+       0.02164609949999753
+      ],
+      [
+       "recompute_w_u_fwd_kernel",
+       0.021638591499999863
+      ],
+      [
+       "void at::native::unrolled_elementwise_kernel<at::native::direct_copy_kernel_cuda(at::Tenso",
+       0.021480354000002925
+      ],
+      [
+       "nvjet_tst_192x192_64x3_1x2_h_bz_coopB_bias_NNN",
+       0.014400127000000445
+      ],
+      [
+       "void at::native::vectorized_elementwise_kernel<4, at::native::(anonymous namespace)::pow_t",
+       0.013811663499999153
+      ],
+      [
+       "nvjet_tst_192x192_64x4_1x2_h_bz_coopB_TNN",
+       0.013749807000000233
+      ],
+      [
+       "void at::native::vectorized_elementwise_kernel<8, at::native::bfloat16_copy_kernel_cuda(at",
+       0.013453189999998753
+      ]
+     ]
+    },
+    "src_kernels": {
+     "by_category_s": {
+      "elementwise": 0.3933927375000006,
+      "flash_attn": 0.16053504750000025,
+      "gemm": 0.14883233299999984,
+      "copy": 0.058933472000001604,
+      "triton_other": 0.039581325999999674,
+      "fla_scan": 0.03124719499999995
+     },
+     "gpu_busy_s": 0.8325221110000018,
+     "top_kernels_s": [
+      [
+       "Command Buffer Full",
+       0.15074614800000125
+      ],
+      [
+       "nvjet_tst_320x128_64x3_1x2_h_bz_coopB_TNT",
+       0.07229248199999941
+      ],
+      [
+       "cuLaunchKernelEx",
+       0.07203319449999976
+      ],
+      [
+       "nvjet_tst_192x192_64x4_2x1_v_bz_coopB_TNN",
+       0.06263926499999993
+      ],
+      [
+       "FlashAttnFunc",
+       0.0593384390000001
+      ],
+      [
+       "flash_attn::_flash_attn_forward",
+       0.0593384390000001
+      ],
+      [
+       "ChunkGatedDeltaRuleFunction",
+       0.05053451800000013
+      ],
+      [
+       "void flash::flash_fwd_kernel<Flash_fwd_kernel_traits<256, 64, 64, 4, false, false, cutlass",
+       0.04185816950000005
+      ],
+      [
+       "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native:",
+       0.028350660500000312
+      ],
+      [
+       "triton_poi_fused__to_copy_add_mul_0",
+       0.02480878100000005
+      ],
+      [
+       "void at::native::unrolled_elementwise_kernel<at::native::direct_copy_kernel_cuda(at::Tenso",
+       0.01985982999999988
+      ],
+      [
+       "Torch-Compiled Region: 0/1",
+       0.019790662999999837
+      ],
+      [
+       "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<at::native:",
+       0.019218242500000843
+      ],
+      [
+       "triton_poi_fused__to_copy_silu_1",
+       0.014772544999999623
+      ],
+      [
+       "void at::native::vectorized_elementwise_kernel<4, at::native::(anonymous namespace)::pow_t",
+       0.01351268950000011
+      ],
+      [
+       "void at::native::vectorized_elementwise_kernel<8, at::native::bfloat16_copy_kernel_cuda(at",
+       0.013048216000000366
+      ],
+      [
+       "nvjet_tst_256x128_64x4_1x2_h_bz_coopA_TNT",
+       0.01213025800000034
+      ],
+      [
+       "chunk_gated_delta_rule_fwd_kernel_h_blockdim64",
+       0.010552687500000168
+      ],
+      [
+       "void at::native::vectorized_elementwise_kernel<8, at::native::BinaryFunctor<c10::BFloat16,",
+       0.010291870999999663
+      ],
+      [
+       "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<float, at::native::MeanOps<flo",
+       0.009135287500000033
+      ],
+      [
+       "chunk_fwd_kernel_o",
+       0.00839802000000017
+      ],
+      [
+       "merge_16x16_to_64x64_inverse_kernel",
+       0.007648515499999882
+      ],
+      [
+       "void at::native::unrolled_elementwise_kernel<at::native::BinaryFunctor<float, float, float",
+       0.007136065999999671
+      ],
+      [
+       "void at::native::vectorized_elementwise_kernel<8, at::native::(anonymous namespace)::silu_",
+       0.006211262999999822
+      ],
+      [
+       "void at::native::(anonymous namespace)::CatArrayBatchedCopy_alignedK_contig<at::native::(a",
+       0.005612120500000368
+      ]
+     ]
+    }
+   }
+  ]
+ }
+}
