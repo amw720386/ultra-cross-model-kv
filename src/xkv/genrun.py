@@ -28,6 +28,9 @@ def make_batch_gen(strategy, sm, tm, mapper, tok, tail=128, window=8192, batch=8
     from .mapper import native_prefill, transfer_prefill
 
     stops = stop_ids(tok)
+    sink = 0
+    if strategy.startswith("transfer") and ":s" in strategy:  # e.g. transfer:s1 -> first token computed natively
+        strategy, sink = strategy.split(":s")[0], int(strategy.split(":s")[1])
     if strategy.startswith("transfer@"):  # e.g. transfer@16: only the last 16 prompt tokens run natively
         strategy, tail = "transfer", int(strategy.split("@")[1])
     model = sm if strategy == "source" else tm
@@ -43,7 +46,7 @@ def make_batch_gen(strategy, sm, tm, mapper, tok, tail=128, window=8192, batch=8
                 ids = torch.tensor([prompts[i]], device="cuda")
                 if strategy == "transfer":
                     c, lg = transfer_prefill(sm, tm, mapper, ids, tail=min(tail, ids.shape[1]), window=window,
-                                             chunk=chunk, full_until=full_until)
+                                             chunk=chunk, full_until=full_until, sink=sink)
                 else:
                     c, lg = native_prefill(model, ids, chunk=chunk)
                 dec.load(b, c, int(lg[0, -1].argmax()))
@@ -62,7 +65,8 @@ def make_batch_gen(strategy, sm, tm, mapper, tok, tail=128, window=8192, batch=8
 
 def task_gen_evals(src="4b", tgt="27b", mapper_name="4b-27b-w8192-distill-ret", benches=("arc_chat",),
                    strategies=("target", "transfer", "source"), limit=100, seed=0, tail=128, window=8192,
-                   batch=8, max_ctx=None, bench_kw=None, full_until=None, exec_modal=False, limits=None):
+                   batch=8, max_ctx=None, bench_kw=None, full_until=None, exec_modal=False, limits=None,
+                   env=None):
     from . import genevals as G
     from .experiments import ART, get, load_mapper
 
@@ -70,12 +74,15 @@ def task_gen_evals(src="4b", tgt="27b", mapper_name="4b-27b-w8192-distill-ret", 
     if exec_modal:  # BigCodeBench tests run in the official evaluation image (modal_jobs/exec_app.py)
         os.environ["XKV_EXEC_MODAL"] = "1"
     limits = limits or {}
+    for k, v in (env or {}).items():
+        os.environ[k] = str(v)
     sm, _ = get(src)
     tm, tok = get(tgt)
     mapper = load_mapper(mapper_name, sm, tm) if any(s.startswith("transfer") for s in strategies) else None
+    res_env = dict(env or {})
     bench_kw = bench_kw or {}
     res = {"config": {"mapper": mapper_name, "tail": tail, "window": window, "full_until": full_until,
-                      "limit": limit, "seed": seed}}
+                      "limit": limit, "seed": seed, "env": res_env}}
     for bname in benches:
         res[bname] = {}
         for strat in strategies:

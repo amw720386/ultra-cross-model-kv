@@ -211,21 +211,21 @@ def _mm(x, W):
 def transfer_prefill(src: Hybrid, tgt: Hybrid, mapper: Mapper, ids, tail: int = 1, chunk: int = 8192,
                      window: int | None = None, max_len: int | None = None, timings: dict | None = None,
                      grad: bool = False, keep_src: bool = False, full_until: int | None = None,
-                     graph_tail: bool | None = None):
+                     graph_tail: bool | None = None, sink: int = 0):
     """keep_src=True also runs every source layer and the tail through the source and returns
     (cache, logits, source_cache) so the source can draft for speculative decoding."""
     if full_until is not None and ids.shape[1] <= full_until:
         window = None  # short enough: the source uses full attention; the sliding window only kicks in beyond
     with torch.set_grad_enabled(grad):
         return _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timings, grad, keep_src,
-                                 graph_tail)
+                                 graph_tail, sink)
 
 
 GRAPH_TAIL_MAX = 65536  # use the persistent graphed tail for prompts up to this length (None disables)
 
 
 def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timings, grad, keep_src=False,
-                      graph_tail=None):
+                      graph_tail=None, sink=0):
     """Build the target cache for prompt `ids` (1, T) from a source prefill; return (cache, first_logits).
 
     The source prefills ids[:, :T-tail]; the target natively processes the last `tail` tokens
@@ -255,13 +255,21 @@ def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timin
         kd = ts.key_dim
         cur = {"s": 0, "L": 0, "rope": None}
 
+        sink = sink if Tm > sink else 0
+        if sink:
+            # the first `sink` tokens (attention sink) are computed natively by the target
+            tgt.forward(ids[:, :sink], tc, logits=None)
+
         def cap(kind, i, x=None, **_):
             if kind != "src" or i not in mapper.by_src or PROFILE.get("mode") == "src":
                 return
-            Y = _mm(x, mapper.W[i])
+            off = max(0, sink - cur["s"])
+            if off >= x.shape[1]:
+                return
+            Y = _mm(x[:, off:] if off else x, mapper.W[i])
             if PROFILE.get("mode") == "gemm_only":
                 return
-            s, L = cur["s"], cur["L"]
+            s, L = cur["s"] + off, cur["L"] - off
             B = x.shape[0]
             for j in mapper.by_src[i]:
                 a0, a1 = mapper.slices[i][j]
@@ -271,6 +279,8 @@ def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timin
                     k = y[..., :h].reshape(B, L, ts.nkv, ts.hd)
                     v = y[..., h:].reshape(B, L, ts.nkv, ts.hd)
                     cos, sin = cur["rope"]
+                    if off:
+                        cos, sin = cos[:, off:], sin[:, off:]
                     tc.write_kv(j, s, tgt.rope(k, cos, sin), v)
                 else:
                     la = tgt.layers[j].linear_attn

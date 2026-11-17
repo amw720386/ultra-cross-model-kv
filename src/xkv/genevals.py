@@ -571,6 +571,15 @@ _EVALPLUS_PREFIX = ("Below is a Python script with a self-contained function tha
                     "passes corresponding tests:\n```python\n")
 
 
+def _code_free() -> bool:
+    """XKV_CODE_PROMPT=free: no forced assistant prefix; the model answers freely and the code fence is parsed."""
+    return os.environ.get("XKV_CODE_PROMPT") == "free"
+
+
+def _code_prefix() -> str:
+    return "" if _code_free() else _EVALPLUS_PREFIX
+
+
 # --------------------------------------------------------------------------- #
 # Text metrics: ROUGE (QMSum) and LoCoMo token F1
 # --------------------------------------------------------------------------- #
@@ -978,7 +987,7 @@ def _build_humaneval(tok: Any, limit: int, seed: int, max_ctx: int | None, max_n
     def build(i: int) -> Item:
         d = docs[i]
         prompt = chat_prompt(tok, _EVALPLUS_INSTR.format(problem=d["prompt"].strip()),
-                             assistant_prefix=_EVALPLUS_PREFIX)
+                             assistant_prefix=_code_prefix())
         return _mk(tok, prompt, d["task_id"], max_new, oracle=d["prompt"] + d["canonical_solution"] + "```",
                    meta={"doc": dict(d)})
 
@@ -995,7 +1004,7 @@ def _humaneval_program(d: dict, code: str) -> str:
 
 
 def _score_humaneval(items: list[Item], outputs: list[str]) -> list[dict]:
-    progs = [(_humaneval_program(it.meta["doc"], extract_code(o, it.meta["doc"]["entry_point"], in_fence=True)),
+    progs = [(_humaneval_program(it.meta["doc"], extract_code(o, it.meta["doc"]["entry_point"], in_fence=not _code_free())),
               "script", 10.0, 4.0) for it, o in zip(items, outputs)]
     return [{"score": float(r["passed"]), "timeout": float(r["status"] == "timeout")} for r in _run_many(progs)]
 
@@ -1006,7 +1015,7 @@ def _build_mbpp(tok: Any, limit: int, seed: int, max_ctx: int | None, max_new: i
     def build(i: int) -> Item:
         d = docs[i]
         problem = f"{d['prompt']}\nYour code should pass these tests:\n\n" + "\n".join(d["test_list"])
-        prompt = chat_prompt(tok, _EVALPLUS_INSTR.format(problem=problem), assistant_prefix=_EVALPLUS_PREFIX)
+        prompt = chat_prompt(tok, _EVALPLUS_INSTR.format(problem=problem), assistant_prefix=_code_prefix())
         return _mk(tok, prompt, d["task_id"], max_new, oracle=d["code"] + "\n```", meta={"doc": dict(d)})
 
     return _select(len(docs), build, limit, seed, max_ctx)
@@ -1017,7 +1026,7 @@ def _mbpp_program(d: dict, code: str) -> str:
 
 
 def _score_mbpp(items: list[Item], outputs: list[str]) -> list[dict]:
-    progs = [(_mbpp_program(it.meta["doc"], extract_code(o, None, in_fence=True)), "script", 10.0, 4.0)
+    progs = [(_mbpp_program(it.meta["doc"], extract_code(o, None, in_fence=not _code_free())), "script", 10.0, 4.0)
              for it, o in zip(items, outputs)]
     return [{"score": float(r["passed"]), "timeout": float(r["status"] == "timeout")} for r in _run_many(progs)]
 
