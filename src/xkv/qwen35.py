@@ -18,6 +18,8 @@ import torch.nn.functional as F
 
 _FA = None
 STATS: dict = {}
+RECUR_MAX = 256  # use the sequential fused-recurrent kernel for chunks up to this many tokens (no grad)
+FUSED_CONV = True
 
 
 def _flash():
@@ -78,7 +80,7 @@ def delta_scan(q, k, v, g, beta, state):
     chunk, recur = _gdr()
     needs_grad = torch.is_grad_enabled() and any(
         t.requires_grad for t in (q, k, v, g, beta) + ((state,) if state is not None else ()))
-    fn = recur if q.shape[1] <= 16 and not needs_grad else chunk
+    fn = recur if q.shape[1] <= RECUR_MAX and not needs_grad else chunk
     o, s = fn(q, k, v, g=g, beta=beta, initial_state=state, output_final_state=True,
               use_qk_l2norm_in_kernel=True)
     return o, s
@@ -308,9 +310,15 @@ class Hybrid:
         a = la.in_proj_a(x)
         if cap is not None:
             cap("tgt_lin", j, x=x, qkv=qkv, a=a, b=b)
-        xx = torch.cat((cache.conv[j], qkv), dim=1)
-        cache.conv[j] = xx[:, -(s.conv_k - 1):].contiguous()
-        mixed = dwconv_silu(xx, self.conv_w(j))
+        if FUSED_CONV and not torch.is_grad_enabled():
+            from .kernels import conv_silu, next_conv_state
+
+            mixed = conv_silu(cache.conv[j], qkv, self.conv_w(j))
+            cache.conv[j] = next_conv_state(cache.conv[j], qkv)
+        else:
+            xx = torch.cat((cache.conv[j], qkv), dim=1)
+            cache.conv[j] = xx[:, -(s.conv_k - 1):].contiguous()
+            mixed = dwconv_silu(xx, self.conv_w(j))
         q, k, v = torch.split(mixed, [s.key_dim, s.key_dim, s.value_dim], dim=-1)
         q = q.reshape(B, L, s.nk, s.dk)
         k = k.reshape(B, L, s.nk, s.dk)
@@ -356,11 +364,14 @@ class Hybrid:
             h = h[:, -1:]
         return self.lm_head(self.norm(h)).float()
 
-    def prefill(self, ids, cache: Cache, chunk: int = 8192, logits: str | None = "last", **kw):
+    def prefill(self, ids, cache: Cache, chunk: int = 8192, logits: str | None = "last", between=None, **kw):
+        """between(): optional callback run after every chunk but the last (lets a server interleave decode)."""
         out = None
         for s in range(0, ids.shape[1], chunk):
-            out = self.forward(ids[:, s:s + chunk], cache,
-                               logits=logits if s + chunk >= ids.shape[1] else None, **kw)
+            last = s + chunk >= ids.shape[1]
+            out = self.forward(ids[:, s:s + chunk], cache, logits=logits if last else None, **kw)
+            if between is not None and not last:
+                between()
         return out
 
     @torch.no_grad()
@@ -376,8 +387,34 @@ class Hybrid:
         return out
 
 
+def freeze_length_autotune(keys=("NB",)) -> int:
+    """fla's norm kernels autotune on NB (number of row blocks), i.e. on sequence length, so every new prompt
+    length re-runs Triton autotuning (seconds each). Drop those keys so one tuned config serves all lengths."""
+    import importlib
+
+    try:
+        from triton.runtime.autotuner import Autotuner
+    except Exception:
+        return 0
+    n = 0
+    for name in ("fla.modules.fused_norm_gate", "fla.modules.l2norm", "fla.modules.layernorm",
+                 "fla.modules.convolution", "fla.modules.token_shift"):
+        try:
+            mod = importlib.import_module(name)
+        except Exception:
+            continue
+        for obj in vars(mod).values():
+            if isinstance(obj, Autotuner) and any(k in obj.keys for k in keys):
+                obj.keys = [k for k in obj.keys if k not in keys]
+                n += 1
+    STATS["autotune_keys_frozen"] = n
+    return n
+
+
 def load(path: str, device="cuda", dtype=torch.bfloat16):
     from transformers import AutoModelForImageTextToText, AutoTokenizer
+
+    freeze_length_autotune()
 
     hf = AutoModelForImageTextToText.from_pretrained(path, dtype=dtype, device_map=device)
     hf.eval()

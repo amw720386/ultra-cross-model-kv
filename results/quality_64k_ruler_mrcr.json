@@ -1,0 +1,337 @@
+{
+ "task": "gen_evals",
+ "args": {
+  "mapper_name": "4b-27b-chat",
+  "full_until": 32768,
+  "benches": [
+   "ruler",
+   "mrcr"
+  ],
+  "strategies": [
+   "target",
+   "transfer"
+  ],
+  "limits": {
+   "ruler": 27,
+   "mrcr": 30
+  },
+  "bench_kw": {
+   "ruler": {
+    "lengths": [
+     65536
+    ],
+    "batch": 2
+   },
+   "mrcr": {
+    "min_ctx": 40000,
+    "batch": 2
+   }
+  },
+  "max_ctx": 70000,
+  "batch": 2
+ },
+ "wall_s": 1280.011551141739,
+ "result": {
+  "config": {
+   "mapper": "4b-27b-chat",
+   "tail": 128,
+   "window": 8192,
+   "full_until": 32768,
+   "limit": 100,
+   "seed": 0,
+   "env": {}
+  },
+  "ruler": {
+   "target": {
+    "task": "ruler",
+    "metric": "acc",
+    "n": 27,
+    "n_skipped": 0,
+    "score": 0.9185185185185185,
+    "acc": 0.9185185185185185,
+    "n_scored": 27,
+    "by_task": {
+     "niah_multikey_2": {
+      "n": 3,
+      "score": 1.0
+     },
+     "niah_multikey_3": {
+      "n": 3,
+      "score": 1.0
+     },
+     "niah_multiquery": {
+      "n": 3,
+      "score": 1.0
+     },
+     "niah_multivalue": {
+      "n": 3,
+      "score": 1.0
+     },
+     "niah_single_1": {
+      "n": 3,
+      "score": 1.0
+     },
+     "niah_single_2": {
+      "n": 3,
+      "score": 1.0
+     },
+     "qa_hotpot": {
+      "n": 3,
+      "score": 0.6666666666666666
+     },
+     "qa_squad": {
+      "n": 3,
+      "score": 0.6666666666666666
+     },
+     "vt": {
+      "n": 3,
+      "score": 0.9333333333333332
+     }
+    },
+    "by_category": {
+     "multi-hop": {
+      "n": 3,
+      "score": 0.9333333333333332
+     },
+     "qa": {
+      "n": 6,
+      "score": 0.6666666666666666
+     },
+     "retrieval": {
+      "n": 18,
+      "score": 1.0
+     }
+    },
+    "by_length": {
+     "65536": {
+      "n": 27,
+      "score": 0.9185185185185185
+     }
+    },
+    "prompt_tokens": {
+     "min": 65253,
+     "median": 65396,
+     "mean": 65394.5,
+     "max": 65493
+    },
+    "outputs": [
+     {
+      "prompt_tail": "in. The grass is green. The sky is blue. The sun is yellow. Here we go. There and back again. The grass is green. The sky is blue. The sun is yellow. Here we go. There and back again.\nWhat are all the special magic numbers for tense-violin mentioned in the provided text?<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\nThe special magic numbers for tense-violin mentioned in the provided text are",
+      "output": ":\n**5579841**",
+      "gold": "['5579841']",
+      "score": 1.0
+     },
+     {
+      "prompt_tail": "the focus of his music .. As a self-proclaimed \" fan of multitracking \" , Townsend has developed a trademark production style featuring an atmospheric , layered \" wall of sound \".\nWhat are all the special magic numbers for cheerful-tiger mentioned in the provided text?<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\nThe special magic numbers for cheerful-tiger mentioned in the provided text are",
+      "output": ":\n\n**7946323**",
+      "gold": "['7946323']",
+      "score": 1.0
+     },
+     {
+      "prompt_tail": "pecial magic numbers for scary-helmet is: 1916955.\nOne of the special magic numbers for quiet-harbor is: 6895055.\nOne of the special magic numbers for gentle-ribbon is: 1063169.\nWhat are all the special magic numbers for elegant-dentist mentioned in the provided text?<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\nThe special magic numbers for elegant-dentist mentioned in the provided text are",
+      "output": ":\n\n*   **7387687**",
+      "gold": "['7387687']",
+      "score": 1.0
+     }
+    ],
+    "max_ctx": 70000,
+    "seed": 0,
+    "seconds": 378.33674001693726
+   },
+   "transfer": {
+    "task": "ruler",
+    "metric": "acc",
+    "n": 27,
+    "n_skipped": 0,
+    "score": 0.5481481481481482,
+    "acc": 0.5481481481481482,
+    "n_scored": 27,
+    "by_task": {
+     "niah_multikey_2": {
+      "n": 3,
+      "score": 0.3333333333333333
+     },
+     "niah_multikey_3": {
+      "n": 3,
+      "score": 0.0
+     },
+     "niah_multiquery": {
+      "n": 3,
+      "score": 0.6666666666666666
+     },
+     "niah_multivalue": {
+      "n": 3,
+      "score": 0.6666666666666666
+     },
+     "niah_single_1": {
+      "n": 3,
+      "score": 1.0
+     },
+     "niah_single_2": {
+      "n": 3,
+      "score": 1.0
+     },
+     "qa_hotpot": {
+      "n": 3,
+      "score": 0.3333333333333333
+     },
+     "qa_squad": {
+      "n": 3,
+      "score": 0.6666666666666666
+     },
+     "vt": {
+      "n": 3,
+      "score": 0.26666666666666666
+     }
+    },
+    "by_category": {
+     "multi-hop": {
+      "n": 3,
+      "score": 0.26666666666666666
+     },
+     "qa": {
+      "n": 6,
+      "score": 0.5
+     },
+     "retrieval": {
+      "n": 18,
+      "score": 0.6111111111111112
+     }
+    },
+    "by_length": {
+     "65536": {
+      "n": 27,
+      "score": 0.5481481481481482
+     }
+    },
+    "prompt_tokens": {
+     "min": 65253,
+     "median": 65396,
+     "mean": 65394.5,
+     "max": 65493
+    },
+    "outputs": [
+     {
+      "prompt_tail": "in. The grass is green. The sky is blue. The sun is yellow. Here we go. There and back again. The grass is green. The sky is blue. The sun is yellow. Here we go. There and back again.\nWhat are all the special magic numbers for tense-violin mentioned in the provided text?<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\nThe special magic numbers for tense-violin mentioned in the provided text are",
+      "output": ":\n\n**5579841**",
+      "gold": "['5579841']",
+      "score": 1.0
+     },
+     {
+      "prompt_tail": "the focus of his music .. As a self-proclaimed \" fan of multitracking \" , Townsend has developed a trademark production style featuring an atmospheric , layered \" wall of sound \".\nWhat are all the special magic numbers for cheerful-tiger mentioned in the provided text?<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\nThe special magic numbers for cheerful-tiger mentioned in the provided text are",
+      "output": ":\n\n**7946323**",
+      "gold": "['7946323']",
+      "score": 1.0
+     },
+     {
+      "prompt_tail": "pecial magic numbers for scary-helmet is: 1916955.\nOne of the special magic numbers for quiet-harbor is: 6895055.\nOne of the special magic numbers for gentle-ribbon is: 1063169.\nWhat are all the special magic numbers for elegant-dentist mentioned in the provided text?<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\nThe special magic numbers for elegant-dentist mentioned in the provided text are",
+      "output": ":\n\n**1573481**",
+      "gold": "['7387687']",
+      "score": 0.0
+     }
+    ],
+    "max_ctx": 70000,
+    "seed": 0,
+    "seconds": 182.3325891494751
+   }
+  },
+  "mrcr": {
+   "target": {
+    "task": "mrcr",
+    "metric": "ratio",
+    "n": 30,
+    "n_skipped": 17,
+    "score": 0.9999687110612208,
+    "ratio": 0.9999687110612208,
+    "n_scored": 30,
+    "by_length": {
+     "32k-64k": {
+      "n": 27,
+      "score": 0.9999652345124674
+     },
+     "64k-128k": {
+      "n": 3,
+      "score": 1.0
+     }
+    },
+    "prompt_tokens": {
+     "min": 40236,
+     "median": 53890,
+     "mean": 52948.7,
+     "max": 67831
+    },
+    "outputs": [
+     {
+      "prompt_tail": "inds ease,  \nIn the sacred calm of night's release.  \n\nEvenings, a bridge from day to night,  \nA passageway of soft twilight.  \nA time to ponder, a time to be,  \nLost in the soul\u2019s tranquility.<|im_end|>\n<|im_start|>user\nPrepend aEINRm9gcU to the 2nd (1 indexed) short news article about raspberries. Do not include any other text in your response.<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n",
+      "output": "aEINRm9gcU**Title: Surge in Raspberry Demand Prompts Expansion in Global Production**\n\n**Date: October 20, 2023**\n\n**Location: Portland, Oregon**\n\nIn a sweet twist of fate, raspberries have taken the spotlight as the latest superfruit capturing the consumer market. Recent trends reveal a significant increase in demand for this beloved berry, driving farmers and agricultural businesses worldwide to ramp up production efforts.\n\nAccording to a report by the International Berry Association, global raspberry production is projected to grow by 15% over the next five years, with increases in acreage and advancements in cultivation techniques leading the charge. Experts attribute this rising demand to the berry's rich nutritional profile, which includes high levels of fiber, antioxidants, and vitamin C, making it a popular choice for health-conscious consumers.\n\nThe Pacific Northwest, particularly Oregon, which already boasts a reputation as a top producer of raspberries in the United States, is notably benefitting from this trend. Local farmers are incorporating innovative practices, such as high-tunnel farming and sustainable pest management, to maximize yields and meet the soaring consumer demand.\n\n\"We're seeing a renaissance in raspberry farming,\" said Alex Green, president of the Oregon Raspberry Growers Association. \"The world's love affair with raspberries is providing a much-needed boost to local agriculture, and we're committed to implementing sustainable practices to keep up with this exciting growth.\"\n\nThe surge isn't just affecting North America. European and South American countries are also expanding their raspberry cultivation, driven by both export potential and domestic consumption. In Serbia, one of the leading raspberry producers in Europe, farmers are anticipating a bumper harvest this season thanks to favorable weather conditions and improved agricultural practices.\n\nAs the market for raspberries continues to expand, industry experts are optimistic abou",
+      "gold": "aEINRm9gcU**Title: Surge in Raspberry Demand Prompts Expansion in Global Production**\n\n**Date: October 20, 2023**\n\n**Location: Portland, Oregon**\n\nIn a sweet twist of fate, raspberries have taken the spotlight as the latest superfruit capturing the consumer market. Recent trends reveal a significant increase in demand for this beloved berry, driving farmers and agricultural businesses worldwide to ramp up production efforts.\n\nAccording to a report by the International Berry Association, global r",
+      "score": 1.0
+     },
+     {
+      "prompt_tail": "! \ud83d\udc96\ud83d\udca1\n\nLet\u2019s spark a conversation. What trials have you faced that turned out to be blessings in disguise? Drop your stories below! \u2b07\ufe0f\n\n#GrowthMindset #Resilience #KeepGoing #Inspiration #LifeLessons<|im_end|>\n<|im_start|>user\nPrepend htqpfppr5O to the 1st (1 indexed) social media post about doctors. Do not include any other text in your response.<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n",
+      "output": "htqpfppr5O\ud83c\udf1f Celebrating Our Everyday Heroes: Doctors \ud83c\udf1f\n\nToday, let\u2019s take a moment to honor the incredible dedication and compassion of doctors around the world. \ud83e\ude7a\u2728\n\nFrom the endless hours spent in medical school to the tireless nights in hospitals, their commitment to healing and caring for others is truly inspiring. Whether they're diagnosing ailments, performing surgeries, or simply offering comforting words, doctors transform lives every single day. \ud83d\udc69\u200d\u2695\ufe0f\ud83d\udc68\u200d\u2695\ufe0f\n\nTo all the doctors who put their patients first, who innovate and push the boundaries of healthcare, and who work behind the scenes to ensure a healthier future for all of us\u2014THANK YOU! Your impact is immeasurable, and your passion does not go unnoticed. \ud83d\udc99\n\nLet's show our gratitude for these incredible individuals. Tag your favorite doctor or healthcare professional in the comments and let them know how much they mean to you! \ud83d\ude4c\n\n#DoctorsDay #HealthcareHeroes #ThankYouDoctors #MedicalMiracles #CompassionateCare",
+      "gold": "htqpfppr5O\ud83c\udf1f Celebrating Our Everyday Heroes: Doctors \ud83c\udf1f\n\nToday, let\u2019s take a moment to honor the incredible dedication and compassion of doctors around the world. \ud83e\ude7a\u2728\n\nFrom the endless hours spent in medical school to the tireless nights in hospitals, their commitment to healing and caring for others is truly inspiring. Whether they're diagnosing ailments, performing surgeries, or simply offering comforting words, doctors transform lives every single day. \ud83d\udc69\u200d\u2695\ufe0f\ud83d\udc68\u200d\u2695\ufe0f\n\nTo all the doctors who put their",
+      "score": 1.0
+     },
+     {
+      "prompt_tail": "n-making and drives progress. By acknowledging and managing capacity effectively, individuals and societies can harness their full potential while ensuring a balanced and sustainable future.<|im_end|>\n<|im_start|>user\nPrepend 51QJjIZRWz to the 1st (1 indexed) short scene in a play about blueberries. Do not include any other text in your response.<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n",
+      "output": "51QJjIZRWz**Title: Blueberry Delight**\n\n**Characters:**\n\n- **Amelia**: A passionate organic farmer in her 40s.\n- **Jake**: Her cheerful teenage son, always hungry.\n- **Evelyn**: A curious neighbor in her 60s with a sweet tooth.\n\n**Scene: Amelia\u2019s Farm Kitchen. Morning light filters through a window, illuminating the rustic kitchen filled with fresh produce. A large bowl of blueberries sits prominently on the wooden table.**\n\n---\n\n**Amelia**  \n*(Wiping her hands on a towel and looking at the blueberries with pride.)*  \nThere they are, Jake. Twelve months of careful tending, and the first batch is finally ready.\n\n**Jake**  \n*(Picking a handful and popping them in his mouth.)*  \nMmm, these are amazing, Mom. You\u2019ve really outdone yourself this time. Can I take some to school?\n\n**Amelia**  \nOf course, but save a few for the market tomorrow. These beauties are going to get us some loyal customers.\n\n**Evelyn**  \n*(Walking through the open door, peering with interest at the blueberries.)*  \nAm I intruding, or is that the irresistible aroma of freshly picked blueberries I detect?\n\n**Amelia**  \nEvelyn! Perfect timing! I was just about to start making a blueberry pie.\n\n**Evelyn**  \n*(Eyes lighting up.)*  \nYou know my weakness for pie, especially yours. What\u2019s the secret this time?\n\n**Amelia**  \n*(Grinning and picking up a berry.)*  \nIt's simple\u2014a little love and letting the blueberries speak for themselves. Nature\u2019s perfection doesn\u2019t need much dressing up.\n\n**Jake**  \n*(Grabbing another handful.)*  \nAnd maybe eat a few before they even make it into the pie, right?\n\n**Evelyn**  \nIf that\u2019s allowed, count me in! They do look heavenly. I\u2019ve been trying to grow my own, but they never seem to turn out like yours, Amelia.\n\n**Amelia**  \nYou\u2019re welcome to stop by anytime and I\u2019ll show you the tricks of the trade. But for now, how about I put the kettle on and we indulge in some blueberry tales while we wait for the pie?\n\n**Evelyn**  \nThat sounds delightful. Blueberry tales and a promi",
+      "gold": "51QJjIZRWz**Title: Blueberry Delight**\n\n**Characters:**\n\n- **Amelia**: A passionate organic farmer in her 40s.\n- **Jake**: Her cheerful teenage son, always hungry.\n- **Evelyn**: A curious neighbor in her 60s with a sweet tooth.\n\n**Scene: Amelia\u2019s Farm Kitchen. Morning light filters through a window, illuminating the rustic kitchen filled with fresh produce. A large bowl of blueberries sits prominently on the wooden table.**\n\n---\n\n**Amelia**  \n*(Wiping her hands on a towel and looking at the blue",
+      "score": 1.0
+     }
+    ],
+    "max_ctx": 70000,
+    "seed": 0,
+    "seconds": 460.19638419151306
+   },
+   "transfer": {
+    "task": "mrcr",
+    "metric": "ratio",
+    "n": 30,
+    "n_skipped": 17,
+    "score": 0.15479355580659823,
+    "ratio": 0.15479355580659823,
+    "n_scored": 30,
+    "by_length": {
+     "32k-64k": {
+      "n": 27,
+      "score": 0.16004879904015948
+     },
+     "64k-128k": {
+      "n": 3,
+      "score": 0.10749636670454692
+     }
+    },
+    "prompt_tokens": {
+     "min": 40236,
+     "median": 53890,
+     "mean": 52948.7,
+     "max": 67831
+    },
+    "outputs": [
+     {
+      "prompt_tail": "inds ease,  \nIn the sacred calm of night's release.  \n\nEvenings, a bridge from day to night,  \nA passageway of soft twilight.  \nA time to ponder, a time to be,  \nLost in the soul\u2019s tranquility.<|im_end|>\n<|im_start|>user\nPrepend aEINRm9gcU to the 2nd (1 indexed) short news article about raspberries. Do not include any other text in your response.<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n",
+      "output": "aEINRm9gcU**Title: Surge in Raspberry Demand Prompts Expansion in Global Production**\n\n**Date: October 20, 2023**\n\n**Location: Portland, Oregon**\n\nIn a sweet twist of fate, raspberries have taken the spotlight as the latest superfruit capturing the consumer market. Recent trends reveal a significant increase in demand for this berry, driving farmers and agricultural businesses worldwide to ramp up production efforts.\n\nAccording to a report by the International Berry Association, global raspberry production is projected to grow by 15% over the next five years, with increases in acreage and advancements in cultivation techniques leading the charge. Experts attribute this rising demand to the berry's rich nutritional profile, which includes high levels of fiber, antioxidants, and vitamin C, making it a popular choice for health-conscious consumers.\n\nThe Pacific Northwest, particularly Oregon, which already boasts a reputation as a top producer of raspberries in the United States, is notably benefitting from this trend. Local farmers are incorporating innovative practices, such as high-tunnel farming and sustainable pest management, to maximize yields and meet the soaring consumer demand.\n\n\"We're seeing a renaissance in raspberry farming,\" said Alex Green, president of the Oregon Raspberry Growers Association. \"The world's love affair with raspberries is providing a much-needed boost to local agriculture, and we're committed to implementing sustainable practices to keep up with this exciting growth.\"\n\nThe surge isn't just affecting North America. European and South American countries are also expanding their raspberry cultivation, driven by both export potential and domestic consumption. In Serbia, one of the leading raspberry producers in Europe, farmers are anticipating a bumper harvest this season thanks to favorable weather conditions and improved agricultural practices.\n\nAs the market for raspberries continues to expand, industry experts are optimistic about the fu",
+      "gold": "aEINRm9gcU**Title: Surge in Raspberry Demand Prompts Expansion in Global Production**\n\n**Date: October 20, 2023**\n\n**Location: Portland, Oregon**\n\nIn a sweet twist of fate, raspberries have taken the spotlight as the latest superfruit capturing the consumer market. Recent trends reveal a significant increase in demand for this beloved berry, driving farmers and agricultural businesses worldwide to ramp up production efforts.\n\nAccording to a report by the International Berry Association, global r",
+      "score": 0.9984164687252574
+     },
+     {
+      "prompt_tail": "! \ud83d\udc96\ud83d\udca1\n\nLet\u2019s spark a conversation. What trials have you faced that turned out to be blessings in disguise? Drop your stories below! \u2b07\ufe0f\n\n#GrowthMindset #Resilience #KeepGoing #Inspiration #LifeLessons<|im_end|>\n<|im_start|>user\nPrepend htqpfppr5O to the 1st (1 indexed) social media post about doctors. Do not include any other text in your response.<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n",
+      "output": "htqpfppr5O\ud83e\ude7a Celebrating Our Everyday Heroes: Doctors!\n\nFrom the moment we take our first breath, doctors are there to guide us through life's journey. They are the unsung heroes who work tirelessly, often around the clock, to heal, comfort, and save lives.\n\nWhether it's a routine check-up, a complex surgery, or a comforting word during a difficult time, their dedication is truly remarkable. They combine scientific knowledge with compassion to make a real difference in our lives.\n\nLet's take a moment to appreciate the hard work, long hours, and endless care that doctors provide. They are the backbone of our healthcare system and the reason we can live healthier, longer lives.\n\nThank you, doctors, for everything you do! \u2764\ufe0f\ud83d\ude4f\n\n#Doctors #HealthcareHeroes #Gratitude #Medicine #ThankYouDoctors",
+      "gold": "htqpfppr5O\ud83c\udf1f Celebrating Our Everyday Heroes: Doctors \ud83c\udf1f\n\nToday, let\u2019s take a moment to honor the incredible dedication and compassion of doctors around the world. \ud83e\ude7a\u2728\n\nFrom the endless hours spent in medical school to the tireless nights in hospitals, their commitment to healing and caring for others is truly inspiring. Whether they're diagnosing ailments, performing surgeries, or simply offering comforting words, doctors transform lives every single day. \ud83d\udc69\u200d\u2695\ufe0f\ud83d\udc68\u200d\u2695\ufe0f\n\nTo all the doctors who put their",
+      "score": 0.14431818181818182
+     },
+     {
+      "prompt_tail": "n-making and drives progress. By acknowledging and managing capacity effectively, individuals and societies can harness their full potential while ensuring a balanced and sustainable future.<|im_end|>\n<|im_start|>user\nPrepend 51QJjIZRWz to the 1st (1 indexed) short scene in a play about blueberries. Do not include any other text in your response.<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n",
+      "output": "51QJjIZRWz**Title: The Blueberry Patch**\n\n**Scene: A quaint farm, early morning. Rows of blueberry bushes stretch across the horizon. A soft mist lingers around the leaves. Two characters, LUCAS, a spry farmer in his 60s, and ELLA, his teenage granddaughter, are amid the bushes, baskets in hand.**\n\n**LUCAS**\n(Chuckling)\nAh, the quiet of the morning before the world wakes up. It's just you, me, and these blue pearls of nature.\n\n**ELLA**\n(Chuckling)\nGrandpa, why do you love blueberries so much? I mean, of all the fruits, why these little guys?\n\n**LUCAS**\n(Picking berries)\nBlueberries remind me of life's simple pleasures. They're small but mighty.\n\n**ELLA**\n(Examining a berry)\nIs that why you turned this patch into your life's work?\n\n**LUCAS**\n(Grinning)\nPrecisely. (Indicating a notebook)\nExactly. And what else do you see?\n\n**ELLA**\n(Holding up a berry)\nIt's got a tiny flaw, like a little scar.\n\n**LUCAS**\n(Nods)\nIt's the flaws that make them interesting. (Tasting a berry)\nLife's full of surprises, isn't it?\n\n**ELLA**\n(Smiling)\nGrandpa, do you think our work ever ends?\n\n**LUCAS**\n(Reflective)\nAs long as there are blueberries to pick and stories to tell.\n\n**ELLA**\n(Grinning)\nAnd maybe, just perhaps, the world will learn to savor the simple things, too.\n\n**LUCAS**\n(Walking off)\nCome on, Ella. Let's share these sweet stories with the world. Breakfast awaits.\n\n**ELLA**\n(Following)\nAnd maybe, just perhaps, the world will learn to savor the simple things, too.\n\n*(The sun begins to rise higher. The light dances across the field of blueberries.)*\n\n**CURTAIN**",
+      "gold": "51QJjIZRWz**Title: Blueberry Delight**\n\n**Characters:**\n\n- **Amelia**: A passionate organic farmer in her 40s.\n- **Jake**: Her cheerful teenage son, always hungry.\n- **Evelyn**: A curious neighbor in her 60s with a sweet tooth.\n\n**Scene: Amelia\u2019s Farm Kitchen. Morning light filters through a window, illuminating the rustic kitchen filled with fresh produce. A large bowl of blueberries sits prominently on the wooden table.**\n\n---\n\n**Amelia**  \n*(Wiping her hands on a towel and looking at the blue",
+      "score": 0.04416839199447895
+     }
+    ],
+    "max_ctx": 70000,
+    "seed": 0,
+    "seconds": 225.07569074630737
+   }
+  }
+ }
+}

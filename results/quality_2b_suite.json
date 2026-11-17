@@ -1,0 +1,1745 @@
+{
+ "config": "maps 2b-27b-chat (arc, math, quality, locomo, native/source arms) and 2b-27b-chat2 (transfer arm of zebralogic, ruler, mrcr, longbench_v2)",
+ "arc_chat": {
+  "target": {
+   "task": "arc_chat",
+   "metric": "acc",
+   "n": 100,
+   "n_skipped": 0,
+   "parsed": 1.0,
+   "score": 0.98,
+   "acc": 0.98,
+   "n_scored": 100,
+   "prompt_tokens": {
+    "min": 58,
+    "median": 92,
+    "mean": 96.6,
+    "max": 185
+   },
+   "max_ctx": null,
+   "seed": 0,
+   "seconds": 21.44259738922119
+  },
+  "transfer": {
+   "task": "arc_chat",
+   "metric": "acc",
+   "n": 100,
+   "n_skipped": 0,
+   "parsed": 1.0,
+   "score": 0.98,
+   "acc": 0.98,
+   "n_scored": 100,
+   "prompt_tokens": {
+    "min": 58,
+    "median": 92,
+    "mean": 96.6,
+    "max": 185
+   },
+   "max_ctx": null,
+   "seed": 0,
+   "seconds": 75.36445903778076
+  },
+  "source": {
+   "task": "arc_chat",
+   "metric": "acc",
+   "n": 100,
+   "n_skipped": 0,
+   "parsed": 1.0,
+   "score": 0.81,
+   "acc": 0.81,
+   "n_scored": 100,
+   "prompt_tokens": {
+    "min": 58,
+    "median": 92,
+    "mean": 96.6,
+    "max": 185
+   },
+   "max_ctx": null,
+   "seed": 0,
+   "seconds": 14.702094078063965
+  }
+ },
+ "math500": {
+  "target": {
+   "task": "math500",
+   "metric": "acc",
+   "n": 100,
+   "n_skipped": 0,
+   "boxed": 0.89,
+   "score": 0.87,
+   "acc": 0.87,
+   "n_scored": 100,
+   "by_subject": {
+    "Algebra": {
+     "n": 32,
+     "score": 0.96875
+    },
+    "Counting & Probability": {
+     "n": 8,
+     "score": 1.0
+    },
+    "Geometry": {
+     "n": 10,
+     "score": 0.7
+    },
+    "Intermediate Algebra": {
+     "n": 17,
+     "score": 0.5882352941176471
+    },
+    "Number Theory": {
+     "n": 10,
+     "score": 0.9
+    },
+    "Prealgebra": {
+     "n": 15,
+     "score": 0.9333333333333333
+    },
+    "Precalculus": {
+     "n": 8,
+     "score": 1.0
+    }
+   },
+   "by_level": {
+    "1": {
+     "n": 5,
+     "score": 1.0
+    },
+    "2": {
+     "n": 18,
+     "score": 0.9444444444444444
+    },
+    "3": {
+     "n": 21,
+     "score": 0.9523809523809523
+    },
+    "4": {
+     "n": 29,
+     "score": 0.896551724137931
+    },
+    "5": {
+     "n": 27,
+     "score": 0.7037037037037037
+    }
+   },
+   "prompt_tokens": {
+    "min": 36,
+    "median": 72,
+    "mean": 86.2,
+    "max": 272
+   },
+   "max_ctx": null,
+   "seed": 0,
+   "seconds": 832.8130788803101
+  },
+  "transfer": {
+   "task": "math500",
+   "metric": "acc",
+   "n": 100,
+   "n_skipped": 0,
+   "boxed": 0.88,
+   "score": 0.86,
+   "acc": 0.86,
+   "n_scored": 100,
+   "by_subject": {
+    "Algebra": {
+     "n": 32,
+     "score": 0.96875
+    },
+    "Counting & Probability": {
+     "n": 8,
+     "score": 1.0
+    },
+    "Geometry": {
+     "n": 10,
+     "score": 0.6
+    },
+    "Intermediate Algebra": {
+     "n": 17,
+     "score": 0.5882352941176471
+    },
+    "Number Theory": {
+     "n": 10,
+     "score": 0.9
+    },
+    "Prealgebra": {
+     "n": 15,
+     "score": 0.9333333333333333
+    },
+    "Precalculus": {
+     "n": 8,
+     "score": 1.0
+    }
+   },
+   "by_level": {
+    "1": {
+     "n": 5,
+     "score": 1.0
+    },
+    "2": {
+     "n": 18,
+     "score": 0.9444444444444444
+    },
+    "3": {
+     "n": 21,
+     "score": 0.9523809523809523
+    },
+    "4": {
+     "n": 29,
+     "score": 0.8620689655172413
+    },
+    "5": {
+     "n": 27,
+     "score": 0.7037037037037037
+    }
+   },
+   "prompt_tokens": {
+    "min": 36,
+    "median": 72,
+    "mean": 86.2,
+    "max": 272
+   },
+   "max_ctx": null,
+   "seed": 0,
+   "seconds": 842.3727021217346
+  },
+  "source": {
+   "task": "math500",
+   "metric": "acc",
+   "n": 100,
+   "n_skipped": 0,
+   "boxed": 0.84,
+   "score": 0.77,
+   "acc": 0.77,
+   "n_scored": 100,
+   "by_subject": {
+    "Algebra": {
+     "n": 32,
+     "score": 0.875
+    },
+    "Counting & Probability": {
+     "n": 8,
+     "score": 0.875
+    },
+    "Geometry": {
+     "n": 10,
+     "score": 0.8
+    },
+    "Intermediate Algebra": {
+     "n": 17,
+     "score": 0.29411764705882354
+    },
+    "Number Theory": {
+     "n": 10,
+     "score": 0.8
+    },
+    "Prealgebra": {
+     "n": 15,
+     "score": 0.9333333333333333
+    },
+    "Precalculus": {
+     "n": 8,
+     "score": 0.875
+    }
+   },
+   "by_level": {
+    "1": {
+     "n": 5,
+     "score": 1.0
+    },
+    "2": {
+     "n": 18,
+     "score": 0.8888888888888888
+    },
+    "3": {
+     "n": 21,
+     "score": 0.9523809523809523
+    },
+    "4": {
+     "n": 29,
+     "score": 0.8275862068965517
+    },
+    "5": {
+     "n": 27,
+     "score": 0.4444444444444444
+    }
+   },
+   "prompt_tokens": {
+    "min": 36,
+    "median": 72,
+    "mean": 86.2,
+    "max": 272
+   },
+   "max_ctx": null,
+   "seed": 0,
+   "seconds": 172.25906252861023
+  }
+ },
+ "zebralogic_map1": {
+  "target": {
+   "task": "zebralogic",
+   "metric": "puzzle_acc",
+   "n": 100,
+   "n_skipped": 0,
+   "cell_acc": 0.69,
+   "parsed": 0.69,
+   "score": 0.69,
+   "puzzle_acc": 0.69,
+   "n_scored": 100,
+   "by_size": {
+    "2*2": {
+     "n": 4,
+     "score": 1.0
+    },
+    "2*3": {
+     "n": 6,
+     "score": 1.0
+    },
+    "2*4": {
+     "n": 1,
+     "score": 1.0
+    },
+    "2*5": {
+     "n": 2,
+     "score": 1.0
+    },
+    "2*6": {
+     "n": 4,
+     "score": 1.0
+    },
+    "3*2": {
+     "n": 2,
+     "score": 1.0
+    },
+    "3*3": {
+     "n": 5,
+     "score": 1.0
+    },
+    "3*4": {
+     "n": 3,
+     "score": 1.0
+    },
+    "3*5": {
+     "n": 5,
+     "score": 0.8
+    },
+    "3*6": {
+     "n": 10,
+     "score": 1.0
+    },
+    "4*2": {
+     "n": 3,
+     "score": 1.0
+    },
+    "4*3": {
+     "n": 3,
+     "score": 1.0
+    },
+    "4*4": {
+     "n": 5,
+     "score": 0.8
+    },
+    "4*5": {
+     "n": 4,
+     "score": 0.5
+    },
+    "4*6": {
+     "n": 2,
+     "score": 0.5
+    },
+    "5*2": {
+     "n": 3,
+     "score": 0.6666666666666666
+    },
+    "5*3": {
+     "n": 2,
+     "score": 0.5
+    },
+    "5*4": {
+     "n": 2,
+     "score": 0.0
+    },
+    "5*5": {
+     "n": 6,
+     "score": 0.16666666666666666
+    },
+    "5*6": {
+     "n": 2,
+     "score": 0.0
+    },
+    "6*2": {
+     "n": 6,
+     "score": 1.0
+    },
+    "6*3": {
+     "n": 6,
+     "score": 0.5
+    },
+    "6*4": {
+     "n": 4,
+     "score": 0.25
+    },
+    "6*5": {
+     "n": 6,
+     "score": 0.16666666666666666
+    },
+    "6*6": {
+     "n": 4,
+     "score": 0.0
+    }
+   },
+   "by_search_space": {
+    "large": {
+     "n": 16,
+     "score": 0.4375
+    },
+    "medium": {
+     "n": 35,
+     "score": 0.9142857142857143
+    },
+    "small": {
+     "n": 27,
+     "score": 1.0
+    },
+    "xl": {
+     "n": 22,
+     "score": 0.13636363636363635
+    }
+   },
+   "prompt_tokens": {
+    "min": 559,
+    "median": 896,
+    "mean": 919.5,
+    "max": 1507
+   },
+   "max_ctx": null,
+   "seed": 0,
+   "seconds": 1398.3066892623901
+  },
+  "transfer": {
+   "task": "zebralogic",
+   "metric": "puzzle_acc",
+   "n": 100,
+   "n_skipped": 0,
+   "cell_acc": 0.18283333333333335,
+   "parsed": 0.21,
+   "score": 0.16,
+   "puzzle_acc": 0.16,
+   "n_scored": 100,
+   "by_size": {
+    "2*2": {
+     "n": 4,
+     "score": 1.0
+    },
+    "2*3": {
+     "n": 6,
+     "score": 0.8333333333333334
+    },
+    "2*4": {
+     "n": 1,
+     "score": 1.0
+    },
+    "2*5": {
+     "n": 2,
+     "score": 0.0
+    },
+    "2*6": {
+     "n": 4,
+     "score": 0.25
+    },
+    "3*2": {
+     "n": 2,
+     "score": 1.0
+    },
+    "3*3": {
+     "n": 5,
+     "score": 0.0
+    },
+    "3*4": {
+     "n": 3,
+     "score": 0.3333333333333333
+    },
+    "3*5": {
+     "n": 5,
+     "score": 0.0
+    },
+    "3*6": {
+     "n": 10,
+     "score": 0.0
+    },
+    "4*2": {
+     "n": 3,
+     "score": 0.6666666666666666
+    },
+    "4*3": {
+     "n": 3,
+     "score": 0.0
+    },
+    "4*4": {
+     "n": 5,
+     "score": 0.0
+    },
+    "4*5": {
+     "n": 4,
+     "score": 0.0
+    },
+    "4*6": {
+     "n": 2,
+     "score": 0.0
+    },
+    "5*2": {
+     "n": 3,
+     "score": 0.0
+    },
+    "5*3": {
+     "n": 2,
+     "score": 0.0
+    },
+    "5*4": {
+     "n": 2,
+     "score": 0.0
+    },
+    "5*5": {
+     "n": 6,
+     "score": 0.0
+    },
+    "5*6": {
+     "n": 2,
+     "score": 0.0
+    },
+    "6*2": {
+     "n": 6,
+     "score": 0.0
+    },
+    "6*3": {
+     "n": 6,
+     "score": 0.0
+    },
+    "6*4": {
+     "n": 4,
+     "score": 0.0
+    },
+    "6*5": {
+     "n": 6,
+     "score": 0.0
+    },
+    "6*6": {
+     "n": 4,
+     "score": 0.0
+    }
+   },
+   "by_search_space": {
+    "large": {
+     "n": 16,
+     "score": 0.0
+    },
+    "medium": {
+     "n": 35,
+     "score": 0.02857142857142857
+    },
+    "small": {
+     "n": 27,
+     "score": 0.5555555555555556
+    },
+    "xl": {
+     "n": 22,
+     "score": 0.0
+    }
+   },
+   "prompt_tokens": {
+    "min": 559,
+    "median": 896,
+    "mean": 919.5,
+    "max": 1507
+   },
+   "max_ctx": null,
+   "seed": 0,
+   "seconds": 1415.066564798355
+  },
+  "source": {
+   "task": "zebralogic",
+   "metric": "puzzle_acc",
+   "n": 100,
+   "n_skipped": 0,
+   "cell_acc": 0.38638888888888884,
+   "parsed": 0.42,
+   "score": 0.33,
+   "puzzle_acc": 0.33,
+   "n_scored": 100,
+   "by_size": {
+    "2*2": {
+     "n": 4,
+     "score": 0.75
+    },
+    "2*3": {
+     "n": 6,
+     "score": 1.0
+    },
+    "2*4": {
+     "n": 1,
+     "score": 1.0
+    },
+    "2*5": {
+     "n": 2,
+     "score": 1.0
+    },
+    "2*6": {
+     "n": 4,
+     "score": 0.75
+    },
+    "3*2": {
+     "n": 2,
+     "score": 1.0
+    },
+    "3*3": {
+     "n": 5,
+     "score": 0.6
+    },
+    "3*4": {
+     "n": 3,
+     "score": 0.0
+    },
+    "3*5": {
+     "n": 5,
+     "score": 0.4
+    },
+    "3*6": {
+     "n": 10,
+     "score": 0.2
+    },
+    "4*2": {
+     "n": 3,
+     "score": 1.0
+    },
+    "4*3": {
+     "n": 3,
+     "score": 0.6666666666666666
+    },
+    "4*4": {
+     "n": 5,
+     "score": 0.2
+    },
+    "4*5": {
+     "n": 4,
+     "score": 0.0
+    },
+    "4*6": {
+     "n": 2,
+     "score": 0.0
+    },
+    "5*2": {
+     "n": 3,
+     "score": 0.0
+    },
+    "5*3": {
+     "n": 2,
+     "score": 0.0
+    },
+    "5*4": {
+     "n": 2,
+     "score": 0.0
+    },
+    "5*5": {
+     "n": 6,
+     "score": 0.0
+    },
+    "5*6": {
+     "n": 2,
+     "score": 0.0
+    },
+    "6*2": {
+     "n": 6,
+     "score": 0.3333333333333333
+    },
+    "6*3": {
+     "n": 6,
+     "score": 0.16666666666666666
+    },
+    "6*4": {
+     "n": 4,
+     "score": 0.0
+    },
+    "6*5": {
+     "n": 6,
+     "score": 0.0
+    },
+    "6*6": {
+     "n": 4,
+     "score": 0.0
+    }
+   },
+   "by_search_space": {
+    "large": {
+     "n": 16,
+     "score": 0.0625
+    },
+    "medium": {
+     "n": 35,
+     "score": 0.2571428571428571
+    },
+    "small": {
+     "n": 27,
+     "score": 0.8518518518518519
+    },
+    "xl": {
+     "n": 22,
+     "score": 0.0
+    }
+   },
+   "prompt_tokens": {
+    "min": 559,
+    "median": 896,
+    "mean": 919.5,
+    "max": 1507
+   },
+   "max_ctx": null,
+   "seed": 0,
+   "seconds": 267.6257140636444
+  }
+ },
+ "quality_map1": {
+  "target": {
+   "task": "quality",
+   "metric": "acc",
+   "n": 100,
+   "n_skipped": 0,
+   "parsed": 1.0,
+   "score": 0.91,
+   "acc": 0.91,
+   "n_scored": 100,
+   "by_difficulty": {
+    "easy": {
+     "n": 45,
+     "score": 0.9555555555555556
+    },
+    "hard": {
+     "n": 55,
+     "score": 0.8727272727272727
+    }
+   },
+   "prompt_tokens": {
+    "min": 2345,
+    "median": 6861,
+    "mean": 6052.4,
+    "max": 8523
+   },
+   "max_ctx": 65536,
+   "seed": 0,
+   "seconds": 137.6733043193817
+  },
+  "transfer": {
+   "task": "quality",
+   "metric": "acc",
+   "n": 100,
+   "n_skipped": 0,
+   "parsed": 1.0,
+   "score": 0.77,
+   "acc": 0.77,
+   "n_scored": 100,
+   "by_difficulty": {
+    "easy": {
+     "n": 45,
+     "score": 0.8444444444444444
+    },
+    "hard": {
+     "n": 55,
+     "score": 0.7090909090909091
+    }
+   },
+   "prompt_tokens": {
+    "min": 2345,
+    "median": 6861,
+    "mean": 6052.4,
+    "max": 8523
+   },
+   "max_ctx": 65536,
+   "seed": 0,
+   "seconds": 82.08627939224243
+  },
+  "source": {
+   "task": "quality",
+   "metric": "acc",
+   "n": 100,
+   "n_skipped": 0,
+   "parsed": 1.0,
+   "score": 0.7,
+   "acc": 0.7,
+   "n_scored": 100,
+   "by_difficulty": {
+    "easy": {
+     "n": 45,
+     "score": 0.8444444444444444
+    },
+    "hard": {
+     "n": 55,
+     "score": 0.5818181818181818
+    }
+   },
+   "prompt_tokens": {
+    "min": 2345,
+    "median": 6861,
+    "mean": 6052.4,
+    "max": 8523
+   },
+   "max_ctx": 65536,
+   "seed": 0,
+   "seconds": 14.439291000366211
+  }
+ },
+ "ruler_map1": {
+  "target": {
+   "task": "ruler",
+   "metric": "acc",
+   "n": 90,
+   "n_skipped": 0,
+   "score": 0.9666666666666667,
+   "acc": 0.9666666666666667,
+   "n_scored": 90,
+   "by_task": {
+    "niah_multikey_2": {
+     "n": 12,
+     "score": 1.0
+    },
+    "niah_multikey_3": {
+     "n": 9,
+     "score": 1.0
+    },
+    "niah_multiquery": {
+     "n": 9,
+     "score": 1.0
+    },
+    "niah_multivalue": {
+     "n": 9,
+     "score": 1.0
+    },
+    "niah_single_1": {
+     "n": 12,
+     "score": 1.0
+    },
+    "niah_single_2": {
+     "n": 12,
+     "score": 1.0
+    },
+    "qa_hotpot": {
+     "n": 9,
+     "score": 0.6666666666666666
+    },
+    "qa_squad": {
+     "n": 9,
+     "score": 1.0
+    },
+    "vt": {
+     "n": 9,
+     "score": 1.0
+    }
+   },
+   "by_category": {
+    "multi-hop": {
+     "n": 9,
+     "score": 1.0
+    },
+    "qa": {
+     "n": 18,
+     "score": 0.8333333333333334
+    },
+    "retrieval": {
+     "n": 63,
+     "score": 1.0
+    }
+   },
+   "by_length": {
+    "16384": {
+     "n": 30,
+     "score": 0.9666666666666667
+    },
+    "4096": {
+     "n": 30,
+     "score": 0.9333333333333333
+    },
+    "8192": {
+     "n": 30,
+     "score": 1.0
+    }
+   },
+   "prompt_tokens": {
+    "min": 3836,
+    "median": 8052,
+    "mean": 9423.1,
+    "max": 16349
+   },
+   "max_ctx": 65536,
+   "seed": 0,
+   "seconds": 277.97338461875916
+  },
+  "transfer": {
+   "task": "ruler",
+   "metric": "acc",
+   "n": 90,
+   "n_skipped": 0,
+   "score": 0.6816666666666666,
+   "acc": 0.6816666666666666,
+   "n_scored": 90,
+   "by_task": {
+    "niah_multikey_2": {
+     "n": 12,
+     "score": 0.3333333333333333
+    },
+    "niah_multikey_3": {
+     "n": 9,
+     "score": 0.0
+    },
+    "niah_multiquery": {
+     "n": 9,
+     "score": 0.9722222222222222
+    },
+    "niah_multivalue": {
+     "n": 9,
+     "score": 0.8888888888888888
+    },
+    "niah_single_1": {
+     "n": 12,
+     "score": 0.75
+    },
+    "niah_single_2": {
+     "n": 12,
+     "score": 0.9166666666666666
+    },
+    "qa_hotpot": {
+     "n": 9,
+     "score": 0.5555555555555556
+    },
+    "qa_squad": {
+     "n": 9,
+     "score": 0.8888888888888888
+    },
+    "vt": {
+     "n": 9,
+     "score": 0.8444444444444443
+    }
+   },
+   "by_category": {
+    "multi-hop": {
+     "n": 9,
+     "score": 0.8444444444444443
+    },
+    "qa": {
+     "n": 18,
+     "score": 0.7222222222222222
+    },
+    "retrieval": {
+     "n": 63,
+     "score": 0.6468253968253969
+    }
+   },
+   "by_length": {
+    "16384": {
+     "n": 30,
+     "score": 0.6366666666666667
+    },
+    "4096": {
+     "n": 30,
+     "score": 0.7183333333333334
+    },
+    "8192": {
+     "n": 30,
+     "score": 0.6900000000000001
+    }
+   },
+   "prompt_tokens": {
+    "min": 3836,
+    "median": 8052,
+    "mean": 9423.1,
+    "max": 16349
+   },
+   "max_ctx": 65536,
+   "seed": 0,
+   "seconds": 98.75981402397156
+  },
+  "source": {
+   "task": "ruler",
+   "metric": "acc",
+   "n": 90,
+   "n_skipped": 0,
+   "score": 0.9216666666666665,
+   "acc": 0.9216666666666665,
+   "n_scored": 90,
+   "by_task": {
+    "niah_multikey_2": {
+     "n": 12,
+     "score": 1.0
+    },
+    "niah_multikey_3": {
+     "n": 9,
+     "score": 1.0
+    },
+    "niah_multiquery": {
+     "n": 9,
+     "score": 1.0
+    },
+    "niah_multivalue": {
+     "n": 9,
+     "score": 0.9722222222222222
+    },
+    "niah_single_1": {
+     "n": 12,
+     "score": 1.0
+    },
+    "niah_single_2": {
+     "n": 12,
+     "score": 1.0
+    },
+    "qa_hotpot": {
+     "n": 9,
+     "score": 0.4444444444444444
+    },
+    "qa_squad": {
+     "n": 9,
+     "score": 1.0
+    },
+    "vt": {
+     "n": 9,
+     "score": 0.7999999999999999
+    }
+   },
+   "by_category": {
+    "multi-hop": {
+     "n": 9,
+     "score": 0.7999999999999999
+    },
+    "qa": {
+     "n": 18,
+     "score": 0.7222222222222222
+    },
+    "retrieval": {
+     "n": 63,
+     "score": 0.996031746031746
+    }
+   },
+   "by_length": {
+    "16384": {
+     "n": 30,
+     "score": 0.9116666666666667
+    },
+    "4096": {
+     "n": 30,
+     "score": 0.94
+    },
+    "8192": {
+     "n": 30,
+     "score": 0.9133333333333334
+    }
+   },
+   "prompt_tokens": {
+    "min": 3836,
+    "median": 8052,
+    "mean": 9423.1,
+    "max": 16349
+   },
+   "max_ctx": 65536,
+   "seed": 0,
+   "seconds": 56.66625499725342
+  }
+ },
+ "locomo_map1": {
+  "target": {
+   "task": "locomo",
+   "metric": "f1",
+   "n": 100,
+   "n_skipped": 0,
+   "score": 0.5770346983592818,
+   "f1": 0.5770346983592818,
+   "n_scored": 100,
+   "by_category": {
+    "adversarial": {
+     "n": 24,
+     "score": 0.4166666666666667
+    },
+    "multi-hop": {
+     "n": 9,
+     "score": 0.35564113563650945
+    },
+    "open-domain": {
+     "n": 3,
+     "score": 0.13657407407407407
+    },
+    "single-hop": {
+     "n": 46,
+     "score": 0.7283528870485393
+    },
+    "temporal": {
+     "n": 18,
+     "score": 0.5882635882635882
+    }
+   },
+   "prompt_tokens": {
+    "min": 13987,
+    "median": 24310,
+    "mean": 22765.2,
+    "max": 26495
+   },
+   "max_ctx": 65536,
+   "seed": 0,
+   "seconds": 299.52231097221375
+  },
+  "transfer": {
+   "task": "locomo",
+   "metric": "f1",
+   "n": 100,
+   "n_skipped": 0,
+   "score": 0.4463214803347131,
+   "f1": 0.4463214803347131,
+   "n_scored": 100,
+   "by_category": {
+    "adversarial": {
+     "n": 24,
+     "score": 0.08333333333333333
+    },
+    "multi-hop": {
+     "n": 9,
+     "score": 0.38095141053129006
+    },
+    "open-domain": {
+     "n": 3,
+     "score": 0.115187293555415
+    },
+    "single-hop": {
+     "n": 46,
+     "score": 0.6795896937201286
+    },
+    "temporal": {
+     "n": 18,
+     "score": 0.4220498637165304
+    }
+   },
+   "prompt_tokens": {
+    "min": 13987,
+    "median": 24310,
+    "mean": 22765.2,
+    "max": 26495
+   },
+   "max_ctx": 65536,
+   "seed": 0,
+   "seconds": 83.04414820671082
+  },
+  "source": {
+   "task": "locomo",
+   "metric": "f1",
+   "n": 100,
+   "n_skipped": 0,
+   "score": 0.39286805866201613,
+   "f1": 0.39286805866201613,
+   "n_scored": 100,
+   "by_category": {
+    "adversarial": {
+     "n": 24,
+     "score": 0.041666666666666664
+    },
+    "multi-hop": {
+     "n": 9,
+     "score": 0.27797001369234864
+    },
+    "open-domain": {
+     "n": 3,
+     "score": 0.27705627705627706
+    },
+    "single-hop": {
+     "n": 46,
+     "score": 0.6255680246526928
+    },
+    "temporal": {
+     "n": 18,
+     "score": 0.3432098765432099
+    }
+   },
+   "prompt_tokens": {
+    "min": 13987,
+    "median": 24310,
+    "mean": 22765.2,
+    "max": 26495
+   },
+   "max_ctx": 65536,
+   "seed": 0,
+   "seconds": 42.626601457595825
+  }
+ },
+ "mrcr_map1": {
+  "target": {
+   "task": "mrcr",
+   "metric": "ratio",
+   "n": 60,
+   "n_skipped": 7,
+   "score": 0.9702128319897149,
+   "ratio": 0.9702128319897149,
+   "n_scored": 60,
+   "by_length": {
+    "16k-32k": {
+     "n": 15,
+     "score": 0.9398768283294843
+    },
+    "32k-64k": {
+     "n": 17,
+     "score": 1.0
+    },
+    "4k-8k": {
+     "n": 11,
+     "score": 0.9197806257419413
+    },
+    "8k-16k": {
+     "n": 17,
+     "score": 0.9998253300752512
+    }
+   },
+   "prompt_tokens": {
+    "min": 4281,
+    "median": 24516,
+    "mean": 24397.6,
+    "max": 59062
+   },
+   "max_ctx": 65536,
+   "seed": 0,
+   "seconds": 461.8383574485779
+  },
+  "transfer": {
+   "task": "mrcr",
+   "metric": "ratio",
+   "n": 60,
+   "n_skipped": 7,
+   "score": 0.20818551865601187,
+   "ratio": 0.20818551865601187,
+   "n_scored": 60,
+   "by_length": {
+    "16k-32k": {
+     "n": 15,
+     "score": 0.3336726283918232
+    },
+    "32k-64k": {
+     "n": 17,
+     "score": 0.09411474655708532
+    },
+    "4k-8k": {
+     "n": 11,
+     "score": 0.16351554478734653
+    },
+    "8k-16k": {
+     "n": 17,
+     "score": 0.24043647113835895
+    }
+   },
+   "prompt_tokens": {
+    "min": 4281,
+    "median": 24516,
+    "mean": 24397.6,
+    "max": 59062
+   },
+   "max_ctx": 65536,
+   "seed": 0,
+   "seconds": 279.59929037094116
+  },
+  "source": {
+   "task": "mrcr",
+   "metric": "ratio",
+   "n": 60,
+   "n_skipped": 7,
+   "score": 0.8675244752810526,
+   "ratio": 0.8675244752810526,
+   "n_scored": 60,
+   "by_length": {
+    "16k-32k": {
+     "n": 15,
+     "score": 0.7169399347625516
+    },
+    "32k-64k": {
+     "n": 17,
+     "score": 0.9123894329036824
+    },
+    "4k-8k": {
+     "n": 11,
+     "score": 0.8872815755401219
+    },
+    "8k-16k": {
+     "n": 17,
+     "score": 0.9427442238306443
+    }
+   },
+   "prompt_tokens": {
+    "min": 4281,
+    "median": 24516,
+    "mean": 24397.6,
+    "max": 59062
+   },
+   "max_ctx": 65536,
+   "seed": 0,
+   "seconds": 80.51197791099548
+  }
+ },
+ "zebralogic_map2_transfer": {
+  "transfer": {
+   "task": "zebralogic",
+   "metric": "puzzle_acc",
+   "n": 100,
+   "n_skipped": 0,
+   "cell_acc": 0.19894444444444445,
+   "parsed": 0.25,
+   "score": 0.17,
+   "puzzle_acc": 0.17,
+   "n_scored": 100,
+   "by_size": {
+    "2*2": {
+     "n": 4,
+     "score": 1.0
+    },
+    "2*3": {
+     "n": 6,
+     "score": 1.0
+    },
+    "2*4": {
+     "n": 1,
+     "score": 1.0
+    },
+    "2*5": {
+     "n": 2,
+     "score": 0.0
+    },
+    "2*6": {
+     "n": 4,
+     "score": 0.25
+    },
+    "3*2": {
+     "n": 2,
+     "score": 0.5
+    },
+    "3*3": {
+     "n": 5,
+     "score": 0.2
+    },
+    "3*4": {
+     "n": 3,
+     "score": 0.0
+    },
+    "3*5": {
+     "n": 5,
+     "score": 0.0
+    },
+    "3*6": {
+     "n": 10,
+     "score": 0.0
+    },
+    "4*2": {
+     "n": 3,
+     "score": 0.6666666666666666
+    },
+    "4*3": {
+     "n": 3,
+     "score": 0.0
+    },
+    "4*4": {
+     "n": 5,
+     "score": 0.0
+    },
+    "4*5": {
+     "n": 4,
+     "score": 0.0
+    },
+    "4*6": {
+     "n": 2,
+     "score": 0.0
+    },
+    "5*2": {
+     "n": 3,
+     "score": 0.3333333333333333
+    },
+    "5*3": {
+     "n": 2,
+     "score": 0.0
+    },
+    "5*4": {
+     "n": 2,
+     "score": 0.0
+    },
+    "5*5": {
+     "n": 6,
+     "score": 0.0
+    },
+    "5*6": {
+     "n": 2,
+     "score": 0.0
+    },
+    "6*2": {
+     "n": 6,
+     "score": 0.0
+    },
+    "6*3": {
+     "n": 6,
+     "score": 0.0
+    },
+    "6*4": {
+     "n": 4,
+     "score": 0.0
+    },
+    "6*5": {
+     "n": 6,
+     "score": 0.0
+    },
+    "6*6": {
+     "n": 4,
+     "score": 0.0
+    }
+   },
+   "by_search_space": {
+    "large": {
+     "n": 16,
+     "score": 0.0
+    },
+    "medium": {
+     "n": 35,
+     "score": 0.02857142857142857
+    },
+    "small": {
+     "n": 27,
+     "score": 0.5925925925925926
+    },
+    "xl": {
+     "n": 22,
+     "score": 0.0
+    }
+   },
+   "prompt_tokens": {
+    "min": 559,
+    "median": 896,
+    "mean": 919.5,
+    "max": 1507
+   },
+   "max_ctx": 32768,
+   "seed": 0,
+   "seconds": 1398.465614080429
+  }
+ },
+ "ruler_map2_transfer": {
+  "transfer": {
+   "task": "ruler",
+   "metric": "acc",
+   "n": 90,
+   "n_skipped": 0,
+   "score": 0.6799999999999999,
+   "acc": 0.6799999999999999,
+   "n_scored": 90,
+   "by_task": {
+    "niah_multikey_2": {
+     "n": 12,
+     "score": 0.4166666666666667
+    },
+    "niah_multikey_3": {
+     "n": 9,
+     "score": 0.0
+    },
+    "niah_multiquery": {
+     "n": 9,
+     "score": 1.0
+    },
+    "niah_multivalue": {
+     "n": 9,
+     "score": 0.7777777777777778
+    },
+    "niah_single_1": {
+     "n": 12,
+     "score": 0.6666666666666666
+    },
+    "niah_single_2": {
+     "n": 12,
+     "score": 0.9166666666666666
+    },
+    "qa_hotpot": {
+     "n": 9,
+     "score": 0.5555555555555556
+    },
+    "qa_squad": {
+     "n": 9,
+     "score": 0.8888888888888888
+    },
+    "vt": {
+     "n": 9,
+     "score": 0.911111111111111
+    }
+   },
+   "by_category": {
+    "multi-hop": {
+     "n": 9,
+     "score": 0.911111111111111
+    },
+    "qa": {
+     "n": 18,
+     "score": 0.7222222222222222
+    },
+    "retrieval": {
+     "n": 63,
+     "score": 0.6349206349206349
+    }
+   },
+   "by_length": {
+    "16384": {
+     "n": 30,
+     "score": 0.61
+    },
+    "4096": {
+     "n": 30,
+     "score": 0.7266666666666667
+    },
+    "8192": {
+     "n": 30,
+     "score": 0.7033333333333334
+    }
+   },
+   "prompt_tokens": {
+    "min": 3836,
+    "median": 8052,
+    "mean": 9423.1,
+    "max": 16349
+   },
+   "max_ctx": 32768,
+   "seed": 0,
+   "seconds": 121.63513326644897
+  }
+ },
+ "mrcr_map2_transfer": {
+  "transfer": {
+   "task": "mrcr",
+   "metric": "ratio",
+   "n": 60,
+   "n_skipped": 12,
+   "score": 0.36582050282732465,
+   "ratio": 0.36582050282732465,
+   "n_scored": 60,
+   "by_length": {
+    "16k-32k": {
+     "n": 18,
+     "score": 0.40207308861597474
+    },
+    "4k-8k": {
+     "n": 15,
+     "score": 0.2897052955381036
+    },
+    "8k-16k": {
+     "n": 27,
+     "score": 0.3839383385733472
+    }
+   },
+   "prompt_tokens": {
+    "min": 4281,
+    "median": 13558,
+    "mean": 14929.3,
+    "max": 30527
+   },
+   "max_ctx": 32768,
+   "seed": 0,
+   "seconds": 224.8748540878296
+  }
+ },
+ "longbench_v2_map2": {
+  "target": {
+   "task": "longbench_v2",
+   "metric": "acc",
+   "n": 60,
+   "n_skipped": 0,
+   "score": 0.36666666666666664,
+   "truncated": 0.7666666666666667,
+   "acc": 0.36666666666666664,
+   "n_scored": 60,
+   "by_difficulty": {
+    "easy": {
+     "n": 25,
+     "score": 0.48
+    },
+    "hard": {
+     "n": 35,
+     "score": 0.2857142857142857
+    }
+   },
+   "by_length": {
+    "long": {
+     "n": 8,
+     "score": 0.375
+    },
+    "medium": {
+     "n": 29,
+     "score": 0.27586206896551724
+    },
+    "short": {
+     "n": 23,
+     "score": 0.4782608695652174
+    }
+   },
+   "by_domain": {
+    "Code Repository Understanding": {
+     "n": 4,
+     "score": 0.5
+    },
+    "Long In-context Learning": {
+     "n": 9,
+     "score": 0.3333333333333333
+    },
+    "Long Structured Data Understanding": {
+     "n": 4,
+     "score": 0.25
+    },
+    "Long-dialogue History Understanding": {
+     "n": 5,
+     "score": 0.2
+    },
+    "Multi-Document QA": {
+     "n": 12,
+     "score": 0.16666666666666666
+    },
+    "Single-Document QA": {
+     "n": 26,
+     "score": 0.5
+    }
+   },
+   "prompt_tokens": {
+    "min": 10362,
+    "median": 31736,
+    "mean": 29282.2,
+    "max": 31737
+   },
+   "max_ctx": 32768,
+   "seed": 0,
+   "seconds": 670.4725413322449
+  },
+  "transfer": {
+   "task": "longbench_v2",
+   "metric": "acc",
+   "n": 60,
+   "n_skipped": 0,
+   "score": 0.31666666666666665,
+   "truncated": 0.7666666666666667,
+   "acc": 0.31666666666666665,
+   "n_scored": 60,
+   "by_difficulty": {
+    "easy": {
+     "n": 25,
+     "score": 0.36
+    },
+    "hard": {
+     "n": 35,
+     "score": 0.2857142857142857
+    }
+   },
+   "by_length": {
+    "long": {
+     "n": 8,
+     "score": 0.125
+    },
+    "medium": {
+     "n": 29,
+     "score": 0.20689655172413793
+    },
+    "short": {
+     "n": 23,
+     "score": 0.5217391304347826
+    }
+   },
+   "by_domain": {
+    "Code Repository Understanding": {
+     "n": 4,
+     "score": 0.0
+    },
+    "Long In-context Learning": {
+     "n": 9,
+     "score": 0.4444444444444444
+    },
+    "Long Structured Data Understanding": {
+     "n": 4,
+     "score": 0.0
+    },
+    "Long-dialogue History Understanding": {
+     "n": 5,
+     "score": 0.4
+    },
+    "Multi-Document QA": {
+     "n": 12,
+     "score": 0.3333333333333333
+    },
+    "Single-Document QA": {
+     "n": 26,
+     "score": 0.34615384615384615
+    }
+   },
+   "prompt_tokens": {
+    "min": 10362,
+    "median": 31736,
+    "mean": 29282.2,
+    "max": 31737
+   },
+   "max_ctx": 32768,
+   "seed": 0,
+   "seconds": 354.9558129310608
+  },
+  "source": {
+   "task": "longbench_v2",
+   "metric": "acc",
+   "n": 60,
+   "n_skipped": 0,
+   "score": 0.23333333333333334,
+   "truncated": 0.7666666666666667,
+   "acc": 0.23333333333333334,
+   "n_scored": 60,
+   "by_difficulty": {
+    "easy": {
+     "n": 25,
+     "score": 0.28
+    },
+    "hard": {
+     "n": 35,
+     "score": 0.2
+    }
+   },
+   "by_length": {
+    "long": {
+     "n": 8,
+     "score": 0.125
+    },
+    "medium": {
+     "n": 29,
+     "score": 0.13793103448275862
+    },
+    "short": {
+     "n": 23,
+     "score": 0.391304347826087
+    }
+   },
+   "by_domain": {
+    "Code Repository Understanding": {
+     "n": 4,
+     "score": 0.25
+    },
+    "Long In-context Learning": {
+     "n": 9,
+     "score": 0.4444444444444444
+    },
+    "Long Structured Data Understanding": {
+     "n": 4,
+     "score": 0.0
+    },
+    "Long-dialogue History Understanding": {
+     "n": 5,
+     "score": 0.2
+    },
+    "Multi-Document QA": {
+     "n": 12,
+     "score": 0.08333333333333333
+    },
+    "Single-Document QA": {
+     "n": 26,
+     "score": 0.2692307692307692
+    }
+   },
+   "prompt_tokens": {
+    "min": 10362,
+    "median": 31736,
+    "mean": 29282.2,
+    "max": 31737
+   },
+   "max_ctx": 32768,
+   "seed": 0,
+   "seconds": 107.71111798286438
+  }
+ }
+}

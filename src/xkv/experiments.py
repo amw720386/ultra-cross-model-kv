@@ -223,7 +223,7 @@ def run_mc(sm, tm, mapper, tok, limit, tails, window):
 
 
 def task_bench(src="4b", tgt="27b", mapper_name=None, lengths=(8192, 16384, 32768, 65536), reps=3, tail=32,
-               window=None, chunk=8192, native=True, warmup=True):
+               window=None, chunk=8192, native=True, warmup=True, batch=1, full_until=None):
     sm, stok = get(src)
     tm, ttok = get(tgt)
     mapper = load_mapper(mapper_name, sm, tm) if mapper_name else None
@@ -236,11 +236,14 @@ def task_bench(src="4b", tgt="27b", mapper_name=None, lengths=(8192, 16384, 3276
             ids = torch.randint(1000, 100000, (1, n), generator=g).cuda()
             native_prefill(tm, ids, chunk=chunk)
             if mapper:
-                transfer_prefill(sm, tm, mapper, ids, tail=tail, window=window, chunk=chunk)
+                transfer_prefill(sm, tm, mapper, ids, tail=tail, window=window, chunk=chunk, full_until=full_until)
         torch.cuda.empty_cache()
     for L in lengths:
-        ids = torch.randint(1000, 100000, (1, L), generator=g).cuda()
-        row = {"len": L}
+        from .decode import TailEngine
+
+        TailEngine.release()  # every length starts from the same free memory
+        ids = torch.randint(1000, 100000, (batch, L), generator=g).cuda()
+        row = {"len": L, "batch": batch}
         if native:
             ts = []
             for _ in range(reps):
@@ -254,7 +257,7 @@ def task_bench(src="4b", tgt="27b", mapper_name=None, lengths=(8192, 16384, 3276
             ts, parts = [], []
             for _ in range(reps):
                 tm_ = {}
-                c, _ = transfer_prefill(sm, tm, mapper, ids, tail=tail, window=window, chunk=chunk, timings=tm_)
+                c, _ = transfer_prefill(sm, tm, mapper, ids, tail=tail, window=window, chunk=chunk, full_until=full_until, timings=tm_)
                 del c
                 torch.cuda.empty_cache()
                 ts.append(tm_["total"])
@@ -420,9 +423,60 @@ class RetrievalSynth:
         return prompt, self.enc(q_code) + [self.end]
 
 
+class ChatSynth:
+    """Instruction-following distillation samples: (chat prompt, reference response) from public SFT data.
+
+    Long prompts come from THUDM/LongAlign-10k (document + request; the document middle is cut to fit), short
+    ones from allenai/tulu-3-sft-mixture (first user/assistant turn). Only the first `cont` response tokens are
+    used; the loss is KL to the native target on those positions, so the reference text only sets the context.
+    None of the evaluation benchmarks are drawn from these sets.
+    """
+
+    def __init__(self, tok, seed=0):
+        import random
+
+        from datasets import load_dataset
+
+        self.tok, self.rng = tok, random.Random(seed)
+        self.long = iter(load_dataset("THUDM/LongAlign-10k", split="train", streaming=True).shuffle(seed=seed))
+        self.short = iter(load_dataset("allenai/tulu-3-sft-mixture", split="train", streaming=True)
+                          .shuffle(seed=seed, buffer_size=10000))
+        self.end = tok.convert_tokens_to_ids("<|im_end|>")
+
+    def _template(self, user):
+        msgs = [{"role": "user", "content": user}]
+        try:
+            return self.tok.apply_chat_template(msgs, add_generation_prompt=True, enable_thinking=False, tokenize=False)
+        except TypeError:
+            return self.tok.apply_chat_template(msgs, add_generation_prompt=True, tokenize=False)
+
+    def _pair(self, it):
+        while True:
+            m = next(it)["messages"]
+            u = next((x["content"] for x in m if x["role"] == "user"), None)
+            a = next((x["content"] for x in m if x["role"] == "assistant"), None)
+            if u and a:
+                return u, a
+
+    def make(self, P: int, cont: int):
+        enc = lambda t: self.tok.encode(t, add_special_tokens=False)
+        for _ in range(50):
+            u, a = self._pair(self.long if P > 2048 else self.short)
+            ids = enc(self._template(u))
+            if len(ids) > P:
+                if P <= 2048:
+                    continue
+                keep_tail = min(512, P // 4)
+                ids = ids[:P - keep_tail] + ids[-keep_tail:]  # drop the document middle, keep the request
+            if len(ids) < min(P // 4, 256):
+                continue
+            return ids, (enc(a) + [self.end])[:cont]
+        raise RuntimeError("no chat sample fits")
+
+
 def task_distill(src="4b", tgt="27b", mapper_name=None, out_name=None, steps=1500, prefix=1024, cont=128,
                  tail=1, lr=2e-5, warmup=50, clip=1.0, eval_every=250, n_eval=8, source="fineweb", window=None,
-                 prefix_choices=None, retrieval_frac=0.0, niah_len=0, niah_n=10, eval_tail=None):
+                 prefix_choices=None, retrieval_frac=0.0, niah_len=0, niah_n=10, eval_tail=None, chat_frac=0.0):
     """Fine-tune the ridge maps end to end: minimize KL(native target || transferred target) on continuations.
 
     Only the maps are trained; both models stay frozen. Gradients flow from the target's continuation logits
@@ -454,6 +508,7 @@ def task_distill(src="4b", tgt="27b", mapper_name=None, out_name=None, steps=150
         return mean_dicts(rows)
 
     synth = RetrievalSynth(ttok, seed=1) if retrieval_frac else None
+    chat = ChatSynth(ttok, seed=2) if chat_frac else None
     eval_tail = eval_tail or tail
 
     def niah_eval():
@@ -470,7 +525,10 @@ def task_distill(src="4b", tgt="27b", mapper_name=None, out_name=None, steps=150
     run = 0.0
     for step, s in enumerate(train):
         P = rng.choice(lens)
-        if synth is not None and rng.random() < retrieval_frac:
+        u = rng.random()
+        if chat is not None and u < chat_frac:
+            p, c = chat.make(P, cont)
+        elif synth is not None and u < chat_frac + retrieval_frac:
             p, c = synth.make(s[:P - 80], rng.randint(1, 4))
         else:
             p, c = s[:P], s[P:P + cont]
@@ -495,6 +553,7 @@ def task_distill(src="4b", tgt="27b", mapper_name=None, out_name=None, steps=150
                   f"{time.time() - t0:.0f}s mem {torch.cuda.max_memory_allocated() / 1e9:.1f}GB", flush=True)
         if (step + 1) % eval_every == 0 or step + 1 == len(train):
             last = step + 1 == len(train)
+            mapper.save(ART / "maps" / f"{out_name or mapper_name + '-distill'}-ckpt.pt")  # survive timeouts
             hist.append({"step": step + 1, **evaluate(), **(niah_eval() if last else {})})
             print(json.dumps(hist[-1]), flush=True)
     out_name = out_name or f"{mapper_name}-distill{steps}"
@@ -505,9 +564,15 @@ def task_distill(src="4b", tgt="27b", mapper_name=None, out_name=None, steps=150
 TASKS = {k[5:]: v for k, v in globals().items() if k.startswith("task_")}
 
 
+def _extra_tasks():
+    from . import genrun, perf
+
+    return {k[5:]: v for m in (perf, genrun) for k, v in vars(m).items() if k.startswith("task_")}
+
+
 def dispatch(task: str, args: dict):
     t = time.time()
-    out = TASKS[task](**args)
+    out = {**TASKS, **_extra_tasks()}[task](**args)
     out = {"task": task, "args": args, "wall_s": time.time() - t, "result": out}
     (ART / "results").mkdir(parents=True, exist_ok=True)
     stamp = time.strftime("%Y%m%d-%H%M%S")

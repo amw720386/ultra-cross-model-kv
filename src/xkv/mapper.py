@@ -20,6 +20,8 @@ from collections import defaultdict
 import torch
 import torch.nn.functional as F
 
+from . import qwen35 as Q
+from .kernels import conv_silu, next_conv_state
 from .qwen35 import Cache, Hybrid, delta_scan, delta_state, dwconv_silu
 
 
@@ -208,37 +210,72 @@ def _mm(x, W):
 
 def transfer_prefill(src: Hybrid, tgt: Hybrid, mapper: Mapper, ids, tail: int = 1, chunk: int = 8192,
                      window: int | None = None, max_len: int | None = None, timings: dict | None = None,
-                     grad: bool = False):
+                     grad: bool = False, keep_src: bool = False, full_until: int | None = None,
+                     graph_tail: bool | None = None, sink: int = 0, between=None, native_spans=None):
+    """keep_src=True also runs every source layer and the tail through the source and returns
+    (cache, logits, source_cache) so the source can draft for speculative decoding."""
+    if full_until is not None and ids.shape[1] <= full_until:
+        window = None  # short enough: the source uses full attention; the sliding window only kicks in beyond
     with torch.set_grad_enabled(grad):
-        return _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timings, grad)
+        return _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timings, grad, keep_src,
+                                 graph_tail, sink, between, native_spans)
 
 
-def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timings, grad):
+GRAPH_TAIL_MAX = 32768  # persistent graphed tail for prompts up to this length (memory-bounded; None disables)
+
+
+def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timings, grad, keep_src=False,
+                      graph_tail=None, sink=0, between=None, native_spans=None):
     """Build the target cache for prompt `ids` (1, T) from a source prefill; return (cache, first_logits).
 
     The source prefills ids[:, :T-tail]; the target natively processes the last `tail` tokens
     ("tail repair") on top of the synthesized cache, which also yields the first-token logits.
+    native_spans: optional [(a, b), ...] inside the mapped region that the target computes natively in place
+    (e.g. tool schemas, where exact strings matter); the source still reads them for its own state.
     """
     assert tail >= 1
     sync = torch.cuda.synchronize
     T = ids.shape[1]
     Tm = T - tail
     ts = tgt.spec
-    tc = tgt.new_cache(ids.shape[0], max_len or T + 512, functional=grad)
+    if graph_tail is None:
+        graph_tail = (not grad) and GRAPH_TAIL_MAX is not None and T <= GRAPH_TAIL_MAX and T - tail > 0
+    eng = None
+    if graph_tail:
+        from .decode import TailEngine
+
+        q = 8192
+        eng = TailEngine.get(tgt, ids.shape[0], ((max(max_len or 0, T + 512) + q - 1) // q) * q, tail)
+        tc = eng.new_cache()
+    else:
+        if not grad:
+            from .decode import TailEngine
+
+            TailEngine.release()  # long prompts need the memory more than the graphed tail
+        tc = tgt.new_cache(ids.shape[0], max_len or T + 512, functional=grad)
     sync()
     t0 = time.perf_counter()
+    sc = None
     if Tm > 0:
-        sc = src.new_cache(ids.shape[0], Tm, window=window, chunk=chunk)
+        sc = src.new_cache(ids.shape[0], T if keep_src else Tm, window=window, chunk=chunk)
         kd = ts.key_dim
         cur = {"s": 0, "L": 0, "rope": None}
 
+        sink = sink if Tm > sink else 0
+        if sink:
+            # the first `sink` tokens (attention sink) are computed natively by the target
+            tgt.forward(ids[:, :sink], tc, logits=None)
+
         def cap(kind, i, x=None, **_):
-            if kind != "src" or i not in mapper.by_src or PROFILE.get("mode") == "src":
+            if kind != "src" or i not in mapper.by_src or PROFILE.get("mode") == "src" or cur.get("skip"):
                 return
-            Y = _mm(x, mapper.W[i])
+            off = max(0, sink - cur["s"])
+            if off >= x.shape[1]:
+                return
+            Y = _mm(x[:, off:] if off else x, mapper.W[i])
             if PROFILE.get("mode") == "gemm_only":
                 return
-            s, L = cur["s"], cur["L"]
+            s, L = cur["s"] + off, cur["L"] - off
             B = x.shape[0]
             for j in mapper.by_src[i]:
                 a0, a1 = mapper.slices[i][j]
@@ -248,15 +285,22 @@ def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timin
                     k = y[..., :h].reshape(B, L, ts.nkv, ts.hd)
                     v = y[..., h:].reshape(B, L, ts.nkv, ts.hd)
                     cos, sin = cur["rope"]
+                    if off:
+                        cos, sin = cos[:, off:], sin[:, off:]
                     tc.write_kv(j, s, tgt.rope(k, cos, sin), v)
                 else:
                     la = tgt.layers[j].linear_attn
                     kv = y[..., : kd + ts.value_dim]
                     a = y[..., kd + ts.value_dim: kd + ts.value_dim + ts.nv]
                     b = y[..., kd + ts.value_dim + ts.nv:]
-                    xx = torch.cat((tc.conv[j][..., kd:], kv), dim=1)
-                    tc.conv[j] = torch.cat((tc.conv[j][..., :kd], xx[:, -(ts.conv_k - 1):]), dim=-1)
-                    mixed = dwconv_silu(xx, tgt.conv_w(j)[:, kd:])
+                    if Q.FUSED_CONV and not grad:
+                        mixed = conv_silu(tc.conv[j][..., kd:], kv, tgt.conv_w(j)[:, kd:])
+                        tc.conv[j] = torch.cat((tc.conv[j][..., :kd], next_conv_state(tc.conv[j][..., kd:], kv)),
+                                               dim=-1)
+                    else:
+                        xx = torch.cat((tc.conv[j][..., kd:], kv), dim=1)
+                        tc.conv[j] = torch.cat((tc.conv[j][..., :kd], xx[:, -(ts.conv_k - 1):]), dim=-1)
+                        mixed = dwconv_silu(xx, tgt.conv_w(j)[:, kd:])
                     k = mixed[..., :kd].reshape(B, L, ts.nk, ts.dk)
                     v = mixed[..., kd:].reshape(B, L, ts.nv, ts.dv)
                     rep = ts.nv // ts.nk
@@ -266,36 +310,59 @@ def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timin
                     if PROFILE.get("mode") == "gemm":
                         continue
                     tc.S[j] = delta_state(k, v, g, b.sigmoid(), tc.S[j])
-                    if s + L == Tm:  # q channels of the conv state for the final tokens
+                    if s + L == cur["seg_end"]:  # q channels of the conv state before native tokens
                         n = ts.conv_k - 1
                         qraw = _mm(x[:, -n:], mapper.Wq[j])
                         if qraw.shape[1] < n:
                             qraw = torch.cat((tc.conv[j][:, qraw.shape[1]:, :kd], qraw), dim=1)
                         tc.conv[j] = torch.cat((qraw, tc.conv[j][..., kd:]), dim=-1)
 
-        for s in range(0, Tm, chunk):
-            e = min(s + chunk, Tm)
-            cur.update(s=s, L=e - s, rope=tgt.rope_tables(s, e - s))
-            src.forward(ids[:, s:e], sc, logits=None, window=window, cap=cap, stop_after=mapper.max_src)
-        del sc
+        spans = sorted((max(a, sink), min(b, Tm)) for a, b in (native_spans or []) if min(b, Tm) > max(a, sink))
+        segs, pos = [], 0
+        for a, b in spans:
+            if a > pos:
+                segs.append((pos, a, False))
+            segs.append((max(a, pos), b, True))
+            pos = max(pos, b)
+        if pos < Tm:
+            segs.append((pos, Tm, False))
+        for a, b, native in segs:
+            for s in range(a, b, chunk):
+                e = min(s + chunk, b)
+                cur.update(s=s, L=e - s, rope=tgt.rope_tables(s, e - s), seg_end=b, skip=native)
+                src.forward(ids[:, s:e], sc, logits=None, window=window, cap=cap,
+                            stop_after=None if keep_src else mapper.max_src)
+                if between is not None:
+                    between()
+            if native:
+                tc.len = a
+                tgt.forward(ids[:, a:b], tc, logits=None)
         tc.len = Tm
     sync()
     t1 = time.perf_counter()
-    logits = tgt.forward(ids[:, Tm:], tc, logits="last")
+    if eng is not None:
+        logits = eng.run_tail(tc, ids[:, Tm:])
+    else:
+        logits = tgt.forward(ids[:, Tm:], tc, logits="last")
     sync()
     t2 = time.perf_counter()
     if timings is not None:
         timings.update(src_and_map=t1 - t0, tail=t2 - t1, total=t2 - t0)
+    if keep_src:
+        if sc is None:
+            sc = src.new_cache(ids.shape[0], T, window=window, chunk=chunk)
+        src.prefill(ids[:, Tm:], sc, chunk=chunk, logits=None, window=window)
+        return tc, logits, sc
     return tc, logits
 
 
 @torch.no_grad()
 def native_prefill(model: Hybrid, ids, chunk: int = 8192, max_len: int | None = None, timings: dict | None = None,
-                   window: int | None = None):
+                   window: int | None = None, between=None):
     torch.cuda.synchronize()
     t0 = time.perf_counter()
     c = model.new_cache(ids.shape[0], max_len or ids.shape[1] + 512)
-    logits = model.prefill(ids, c, chunk=chunk, window=window)
+    logits = model.prefill(ids, c, chunk=chunk, window=window, between=between)
     torch.cuda.synchronize()
     if timings is not None:
         timings.update(total=time.perf_counter() - t0)
