@@ -267,3 +267,60 @@ class Decoder:
         if spec:
             stats["accepted_per_round_by_row"] = [a / max(1, r) for a, r in zip(acc_row, rounds_row)]
         return outs, stats
+
+
+class TailEngine:
+    """Persistent target cache + CUDA graph for the native tail of a transfer prefill.
+
+    The transfer writes mapped K/V straight into the persistent buffers; the recurrent state and conv window are
+    copied into static buffers and the tail runs as one graph replay (removes per-kernel launch overhead).
+    The returned cache aliases the persistent buffers, so it must be consumed before the next transfer.
+    """
+
+    _inst: dict = {}
+
+    @classmethod
+    def get(cls, model: Hybrid, B: int, cap: int, L: int):
+        key = (id(model), B, cap, L)
+        if key not in cls._inst:
+            for k in [k for k in cls._inst if k[:2] == key[:2] and k[2] != cap]:
+                del cls._inst[k]  # one capacity per (model, batch) at a time
+            torch.cuda.empty_cache()
+            cls._inst[key] = cls(model, B, cap, L)
+        return cls._inst[key]
+
+    def __init__(self, model: Hybrid, B: int, cap: int, L: int):
+        self.model, self.B, self.cap, self.L = model, B, cap, L
+        self.bc = BatchCache(model, B, cap)
+        self.ids = torch.zeros(B, L, dtype=torch.long, device=model.device)
+        self.out = torch.zeros(B, 1, model.lm_head.weight.shape[0], dtype=torch.float32, device=model.device)
+        with torch.no_grad():
+            self.g = Graphed(self._body)
+
+    def _body(self):
+        lg = step(self.model, self.bc, self.ids)
+        self.out.copy_(lg[:, -1:])
+        return self.out
+
+    def new_cache(self) -> Cache:
+        s = self.model.spec
+        c = Cache.__new__(Cache)
+        c.spec, c.max_len, c.len, c.functional = s, self.cap, 0, False
+        c.ring, c.base = False, {j: 0 for j in s.full}
+        c.k, c.v = dict(self.bc.k), dict(self.bc.v)
+        dev, dt = self.model.device, self.model.dtype
+        c.conv = {j: torch.zeros(self.B, s.conv_k - 1, s.conv_dim, device=dev, dtype=dt) for j in s.lin}
+        c.S = {j: torch.zeros(self.B, s.nv, s.dk, s.dv, device=dev, dtype=torch.float32) for j in s.lin}
+        return c
+
+    @torch.no_grad()
+    def run_tail(self, c: Cache, ids_tail):
+        for j in c.conv:
+            self.bc.conv[j].copy_(c.conv[j])
+            self.bc.S[j].copy_(c.S[j])
+        self.bc.lens.fill_(c.len)
+        self.ids.copy_(ids_tail)
+        out = self.g()
+        c.conv, c.S = dict(self.bc.conv), dict(self.bc.S)
+        c.len += ids_tail.shape[1]
+        return out

@@ -223,7 +223,7 @@ def run_mc(sm, tm, mapper, tok, limit, tails, window):
 
 
 def task_bench(src="4b", tgt="27b", mapper_name=None, lengths=(8192, 16384, 32768, 65536), reps=3, tail=32,
-               window=None, chunk=8192, native=True, warmup=True, batch=1):
+               window=None, chunk=8192, native=True, warmup=True, batch=1, full_until=None):
     sm, stok = get(src)
     tm, ttok = get(tgt)
     mapper = load_mapper(mapper_name, sm, tm) if mapper_name else None
@@ -236,7 +236,7 @@ def task_bench(src="4b", tgt="27b", mapper_name=None, lengths=(8192, 16384, 3276
             ids = torch.randint(1000, 100000, (1, n), generator=g).cuda()
             native_prefill(tm, ids, chunk=chunk)
             if mapper:
-                transfer_prefill(sm, tm, mapper, ids, tail=tail, window=window, chunk=chunk)
+                transfer_prefill(sm, tm, mapper, ids, tail=tail, window=window, chunk=chunk, full_until=full_until)
         torch.cuda.empty_cache()
     for L in lengths:
         ids = torch.randint(1000, 100000, (batch, L), generator=g).cuda()
@@ -254,7 +254,7 @@ def task_bench(src="4b", tgt="27b", mapper_name=None, lengths=(8192, 16384, 3276
             ts, parts = [], []
             for _ in range(reps):
                 tm_ = {}
-                c, _ = transfer_prefill(sm, tm, mapper, ids, tail=tail, window=window, chunk=chunk, timings=tm_)
+                c, _ = transfer_prefill(sm, tm, mapper, ids, tail=tail, window=window, chunk=chunk, full_until=full_until, timings=tm_)
                 del c
                 torch.cuda.empty_cache()
                 ts.append(tm_["total"])
@@ -550,6 +550,7 @@ def task_distill(src="4b", tgt="27b", mapper_name=None, out_name=None, steps=150
                   f"{time.time() - t0:.0f}s mem {torch.cuda.max_memory_allocated() / 1e9:.1f}GB", flush=True)
         if (step + 1) % eval_every == 0 or step + 1 == len(train):
             last = step + 1 == len(train)
+            mapper.save(ART / "maps" / f"{out_name or mapper_name + '-distill'}-ckpt.pt")  # survive timeouts
             hist.append({"step": step + 1, **evaluate(), **(niah_eval() if last else {})})
             print(json.dumps(hist[-1]), flush=True)
     out_name = out_name or f"{mapper_name}-distill{steps}"

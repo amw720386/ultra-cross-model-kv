@@ -210,14 +210,22 @@ def _mm(x, W):
 
 def transfer_prefill(src: Hybrid, tgt: Hybrid, mapper: Mapper, ids, tail: int = 1, chunk: int = 8192,
                      window: int | None = None, max_len: int | None = None, timings: dict | None = None,
-                     grad: bool = False, keep_src: bool = False):
+                     grad: bool = False, keep_src: bool = False, full_until: int | None = None,
+                     graph_tail: bool | None = None):
     """keep_src=True also runs every source layer and the tail through the source and returns
     (cache, logits, source_cache) so the source can draft for speculative decoding."""
+    if full_until is not None and ids.shape[1] <= full_until:
+        window = None  # short enough: the source uses full attention; the sliding window only kicks in beyond
     with torch.set_grad_enabled(grad):
-        return _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timings, grad, keep_src)
+        return _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timings, grad, keep_src,
+                                 graph_tail)
 
 
-def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timings, grad, keep_src=False):
+GRAPH_TAIL_MAX = 65536  # use the persistent graphed tail for prompts up to this length (None disables)
+
+
+def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timings, grad, keep_src=False,
+                      graph_tail=None):
     """Build the target cache for prompt `ids` (1, T) from a source prefill; return (cache, first_logits).
 
     The source prefills ids[:, :T-tail]; the target natively processes the last `tail` tokens
@@ -228,7 +236,17 @@ def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timin
     T = ids.shape[1]
     Tm = T - tail
     ts = tgt.spec
-    tc = tgt.new_cache(ids.shape[0], max_len or T + 512, functional=grad)
+    if graph_tail is None:
+        graph_tail = (not grad) and GRAPH_TAIL_MAX is not None and T <= GRAPH_TAIL_MAX and T - tail > 0
+    eng = None
+    if graph_tail:
+        from .decode import TailEngine
+
+        q = 8192
+        eng = TailEngine.get(tgt, ids.shape[0], ((max(max_len or 0, T + 512) + q - 1) // q) * q, tail)
+        tc = eng.new_cache()
+    else:
+        tc = tgt.new_cache(ids.shape[0], max_len or T + 512, functional=grad)
     sync()
     t0 = time.perf_counter()
     sc = None
@@ -291,7 +309,10 @@ def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timin
         tc.len = Tm
     sync()
     t1 = time.perf_counter()
-    logits = tgt.forward(ids[:, Tm:], tc, logits="last")
+    if eng is not None:
+        logits = eng.run_tail(tc, ids[:, Tm:])
+    else:
+        logits = tgt.forward(ids[:, Tm:], tc, logits="last")
     sync()
     t2 = time.perf_counter()
     if timings is not None:

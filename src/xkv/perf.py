@@ -335,3 +335,39 @@ def task_spec_debug(src="4b", tgt="27b", mapper_name="4b-27b-w8192-distill-ret",
     res["eager_batch_spec_vs_solo_plain"] = [a == b for a, b in zip(bse, solo_plain)]
     print(json.dumps(res, indent=1), flush=True)
     return res
+
+
+def task_tail_check(src="4b", tgt="27b", mapper_name="4b-27b-w8192-distill-ret", lengths=(8192, 16384, 32768),
+                    tail=128, window=8192, full_until=32768, reps=5):
+    """Graphed persistent tail vs eager tail: logits agreement and TTFT."""
+    from . import evals
+    from .experiments import get, load_mapper, teacher_forced, compare
+    from .mapper import native_prefill, transfer_prefill
+
+    sm, _ = get(src)
+    tm, tok = get(tgt)
+    mapper = load_mapper(mapper_name, sm, tm)
+    rows = []
+    for L in lengths:
+        seq = evals.load_heldout_text(tok, 1, L + 64, seed=5, split="eval", source="fineweb")[0]
+        ids = torch.tensor([seq[:L]], device="cuda")
+        cont = seq[L:L + 64]
+        row = {"len": L}
+        for gt in (False, True):
+            f = lambda: transfer_prefill(sm, tm, mapper, ids, tail=tail, window=window, full_until=full_until,
+                                         graph_tail=gt)
+            f()
+            row[f"ttft_graph{int(gt)}"] = timeit(f, reps)
+            c, lg = f()
+            row[f"logits_graph{int(gt)}"] = teacher_forced(tm, c, lg, cont)
+            del c
+        a, b = row.pop("logits_graph0"), row.pop("logits_graph1")
+        row["graph_vs_eager"] = compare(a, b, cont)
+        f = lambda: native_prefill(tm, ids)
+        f()
+        row["native"] = timeit(f, reps)
+        row["speedup_graph"] = row["native"] / row["ttft_graph1"]
+        print(json.dumps(row), flush=True)
+        rows.append(row)
+        torch.cuda.empty_cache()
+    return {"gpu": torch.cuda.get_device_name(), "rows": rows}

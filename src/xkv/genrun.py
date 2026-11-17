@@ -21,7 +21,8 @@ def stop_ids(tok):
     return ids
 
 
-def make_batch_gen(strategy, sm, tm, mapper, tok, tail=128, window=8192, batch=8, chunk=8192, log=None):
+def make_batch_gen(strategy, sm, tm, mapper, tok, tail=128, window=8192, batch=8, chunk=8192, log=None,
+                   full_until=None):
     """genevals GenFn: batched greedy decoding after a per-prompt prefill with the given strategy."""
     from .decode import Decoder
     from .mapper import native_prefill, transfer_prefill
@@ -42,7 +43,7 @@ def make_batch_gen(strategy, sm, tm, mapper, tok, tail=128, window=8192, batch=8
                 ids = torch.tensor([prompts[i]], device="cuda")
                 if strategy == "transfer":
                     c, lg = transfer_prefill(sm, tm, mapper, ids, tail=min(tail, ids.shape[1]), window=window,
-                                             chunk=chunk)
+                                             chunk=chunk, full_until=full_until)
                 else:
                     c, lg = native_prefill(model, ids, chunk=chunk)
                 dec.load(b, c, int(lg[0, -1].argmax()))
@@ -61,7 +62,7 @@ def make_batch_gen(strategy, sm, tm, mapper, tok, tail=128, window=8192, batch=8
 
 def task_gen_evals(src="4b", tgt="27b", mapper_name="4b-27b-w8192-distill-ret", benches=("arc_chat",),
                    strategies=("target", "transfer", "source"), limit=100, seed=0, tail=128, window=8192,
-                   batch=8, max_ctx=None, bench_kw=None):
+                   batch=8, max_ctx=None, bench_kw=None, full_until=None):
     from . import genevals as G
     from .experiments import ART, get, load_mapper
 
@@ -70,13 +71,14 @@ def task_gen_evals(src="4b", tgt="27b", mapper_name="4b-27b-w8192-distill-ret", 
     tm, tok = get(tgt)
     mapper = load_mapper(mapper_name, sm, tm) if any(s.startswith("transfer") for s in strategies) else None
     bench_kw = bench_kw or {}
-    res = {"config": {"mapper": mapper_name, "tail": tail, "window": window, "limit": limit, "seed": seed}}
+    res = {"config": {"mapper": mapper_name, "tail": tail, "window": window, "full_until": full_until,
+                      "limit": limit, "seed": seed}}
     for bname in benches:
         res[bname] = {}
         for strat in strategies:
             t0 = time.time()
             gen = make_batch_gen(strat, sm, tm, mapper, tok, tail=tail, window=window,
-                                 batch=bench_kw.get(bname, {}).get("batch", batch))
+                                 batch=bench_kw.get(bname, {}).get("batch", batch), full_until=full_until)
             kw = {k: v for k, v in bench_kw.get(bname, {}).items() if k != "batch"}
             try:
                 r = getattr(G, f"run_{bname}")(gen, tok, limit=limit, seed=seed, max_ctx=max_ctx, **kw)
