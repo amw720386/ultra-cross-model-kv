@@ -539,6 +539,9 @@ def task_distill(src="4b", tgt="27b", mapper_name=None, out_name=None, steps=150
     """
     import random
 
+    from . import mapper as M
+
+    M.GRAPH_TAIL_MAX = None  # no persistent graphed-tail buffers while training (memory)
     sm, stok = get(src)
     tm, ttok = get(tgt)
     mapper = load_mapper(mapper_name, sm, tm)
