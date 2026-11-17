@@ -506,9 +506,9 @@ TASKS = {k[5:]: v for k, v in globals().items() if k.startswith("task_")}
 
 
 def _extra_tasks():
-    from . import perf
+    from . import genrun, perf
 
-    return {k[5:]: v for k, v in vars(perf).items() if k.startswith("task_")}
+    return {k[5:]: v for m in (perf, genrun) for k, v in vars(m).items() if k.startswith("task_")}
 
 
 def dispatch(task: str, args: dict):

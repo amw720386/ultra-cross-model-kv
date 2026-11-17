@@ -25,6 +25,7 @@ image = (
         "numpy",
         "flash-linear-attention==0.4.1", "fla-core==0.4.1",
         "kernels",
+        "math-verify[antlr4_13_2]>=0.7", "rouge-score>=0.1.2", "nltk>=3.8",
     )
     .pip_install("https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.3/flash_attn-2.8.3+cu12torch2.8cxx11abiTRUE-cp311-cp311-linux_x86_64.whl")
     .env({"HF_HOME": "/weights/hf", "HF_HUB_ENABLE_HF_TRANSFER": "1", "PYTHONUNBUFFERED": "1", "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True"})

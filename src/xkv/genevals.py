@@ -485,7 +485,7 @@ def run_program(program: str, mode: str = "script", timeout: float = 10.0, mem_g
             kw["start_new_session"] = True
         else:
             kw["creationflags"] = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
-        p = subprocess.Popen([sys.executable, runner, prog, mode, str(mem_gb if os.name == "posix" else 0)],
+        p = subprocess.Popen([os.environ.get("XKV_EXEC_PYTHON", sys.executable), runner, prog, mode, str(mem_gb if os.name == "posix" else 0)],
                              cwd=d, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                              stdin=subprocess.DEVNULL, **kw)
         try:
@@ -521,6 +521,17 @@ def _kill_tree(p: subprocess.Popen) -> None:
 
 
 def _run_many(programs: Sequence[tuple[str, str, float, float]], workers: int | None = None) -> list[dict]:
+    if os.environ.get("XKV_EXEC_MODAL") == "1":
+        import modal  # executes in the official BigCodeBench image (modal_jobs/exec_app.py)
+
+        fn = modal.Function.from_name("xkv-exec", "run_many")
+        progs = [tuple(p) for p in programs]
+        parts = [progs[i:i + 64] for i in range(0, len(progs), 64)]
+        return [r for part in fn.map(parts) for r in part]
+    return _run_many_local(programs, workers)
+
+
+def _run_many_local(programs: Sequence[tuple[str, str, float, float]], workers: int | None = None) -> list[dict]:
     workers = workers or max(1, min(8, (os.cpu_count() or 2) // 2))
     with ThreadPoolExecutor(max_workers=workers) as ex:
         return list(ex.map(lambda a: run_program(*a), programs))
