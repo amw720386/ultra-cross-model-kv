@@ -62,11 +62,14 @@ def make_batch_gen(strategy, sm, tm, mapper, tok, tail=128, window=8192, batch=8
 
 def task_gen_evals(src="4b", tgt="27b", mapper_name="4b-27b-w8192-distill-ret", benches=("arc_chat",),
                    strategies=("target", "transfer", "source"), limit=100, seed=0, tail=128, window=8192,
-                   batch=8, max_ctx=None, bench_kw=None, full_until=None):
+                   batch=8, max_ctx=None, bench_kw=None, full_until=None, exec_modal=False, limits=None):
     from . import genevals as G
     from .experiments import ART, get, load_mapper
 
     os.environ.setdefault("XKV_GENEVALS_CACHE", str(ART / "genevals_cache"))
+    if exec_modal:  # BigCodeBench tests run in the official evaluation image (modal_jobs/exec_app.py)
+        os.environ["XKV_EXEC_MODAL"] = "1"
+    limits = limits or {}
     sm, _ = get(src)
     tm, tok = get(tgt)
     mapper = load_mapper(mapper_name, sm, tm) if any(s.startswith("transfer") for s in strategies) else None
@@ -81,7 +84,8 @@ def task_gen_evals(src="4b", tgt="27b", mapper_name="4b-27b-w8192-distill-ret", 
                                  batch=bench_kw.get(bname, {}).get("batch", batch), full_until=full_until)
             kw = {k: v for k, v in bench_kw.get(bname, {}).items() if k != "batch"}
             try:
-                r = getattr(G, f"run_{bname}")(gen, tok, limit=limit, seed=seed, max_ctx=max_ctx, **kw)
+                r = getattr(G, f"run_{bname}")(gen, tok, limit=limits.get(bname, limit), seed=seed, max_ctx=max_ctx,
+                                               **kw)
             except Exception as e:  # keep the other benchmarks going
                 import traceback
 
