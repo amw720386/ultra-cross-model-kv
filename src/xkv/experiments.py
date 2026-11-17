@@ -283,7 +283,8 @@ def make_generator(strategy, sm, tm, mapper, tok, tail=32, window=None):
 
 
 def task_longctx(src="4b", tgt="27b", mapper_name=None, prefix=32768, cont=256, n_seqs=6, windows=(None, 8192, 2048),
-                 tail=32, niah_len=32768, niah_n=20, num_keys=(1, 4), source="fineweb", lm=True):
+                 tail=32, niah_len=32768, niah_n=20, num_keys=(1, 4), source="fineweb", lm=True,
+                 niah_tails=None, baselines=True):
     sm, stok = get(src)
     tm, ttok = get(tgt)
     mapper = load_mapper(mapper_name, sm, tm)
@@ -311,10 +312,10 @@ def task_longctx(src="4b", tgt="27b", mapper_name=None, prefix=32768, cont=256, 
     res["niah"] = {}
     for nk in num_keys:
         samples = evals.make_niah(ttok, niah_len, niah_n, seed=3, num_keys=nk)
-        strategies = [("target", None), ("source", None)] + [("transfer", w) for w in windows]
-        for strat, w in strategies:
-            key = f"k{nk}-" + (strat if strat != "transfer" else f"transfer_w{w or 'full'}")
-            r = evals.run_niah(ttok, make_generator(strat, sm, tm, mapper, ttok, tail, w), samples=samples,
+        strategies = ([("target", None, tail), ("source", None, tail)] if baselines else []) +             [("transfer", w, t) for w in windows for t in (niah_tails or [tail])]
+        for strat, w, t in strategies:
+            key = f"k{nk}-" + (strat if strat != "transfer" else f"transfer_w{w or 'full'}_t{t}")
+            r = evals.run_niah(ttok, make_generator(strat, sm, tm, mapper, ttok, t, w), samples=samples,
                                max_new_tokens=24)
             res["niah"][key] = {k: v for k, v in r.items() if k != "outputs"}
             res["niah"][key]["sample_outputs"] = r.get("outputs", [])[:3]
