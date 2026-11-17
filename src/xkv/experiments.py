@@ -412,6 +412,52 @@ class RetrievalSynth:
     def enc(self, s):
         return self.tok.encode(s, add_special_tokens=False)
 
+    def make_varied(self, body: list[int], n_records: int):
+        """Harder lookups: several value types (digits, hex codes, words), multi-value keys and multi-key
+        questions; the answer must be copied exactly. Templates differ from the evaluation suites."""
+        r = self.rng
+        letters = "ABCDEFGHJKLMNPQRSTUVWXYZ"
+        words = ["amber", "falcon", "quartz", "willow", "harbor", "cobalt", "meadow", "lantern", "saffron", "glacier",
+                 "orchid", "tundra", "copper", "violet", "summit", "ember", "cedar", "marble", "nimbus", "pebble"]
+
+        def val():
+            kind = r.randrange(3)
+            if kind == 0:
+                return str(r.randint(10 ** 5, 10 ** 7 - 1))
+            if kind == 1:
+                return "".join(r.choice("0123456789abcdef") for _ in range(8)) + "-" +                     "".join(r.choice("0123456789abcdef") for _ in range(4))
+            return r.choice(words) + "-" + r.choice(words)
+
+        recs = []
+        for _ in range(n_records):
+            name = "".join(r.choice(letters) for _ in range(3)) + f"-{r.randint(100, 999)}"
+            vals = [val() for _ in range(r.choice((1, 1, 2, 3)))]
+            recs.append((name, vals))
+        body = list(body)
+        for name, vals in recs:
+            for v in vals:
+                pos = r.randint(0, len(body))
+                body[pos:pos] = self.enc(f" [registry] {name} -> {v}. ")
+        asked = r.sample(recs, k=min(len(recs), r.choice((1, 1, 2, 3))))
+        if len(asked) == 1 and len(asked[0][1]) == 1:
+            q = f"What value is registered for {asked[0][0]}? Answer with the value only."
+            ans = asked[0][1][0]
+        else:
+            q = ("List every value registered for " + ", ".join(n for n, _ in asked) +
+                 ", in the order they appear, separated by commas. Answer with the values only.")
+            order = sorted(((self._pos(body, n, v), v) for n, vs in asked for v in vs))
+            ans = ", ".join(v for _, v in order)
+        prompt = self.enc(self.pre) + body + self.enc(chr(10) * 2 + q) + self.enc(self.post)
+        return prompt, self.enc(ans) + [self.end]
+
+    def _pos(self, body, name, v):
+        needle = self.enc(f" [registry] {name} -> {v}. ")
+        n = len(needle)
+        for i in range(len(body) - n + 1):
+            if body[i:i + n] == needle:
+                return i
+        return 0
+
     def make(self, body: list[int], n_records: int):
         r = self.rng
         letters = "ABCDEFGHJKLMNPQRSTUVWXYZ"
@@ -484,7 +530,8 @@ class ChatSynth:
 
 def task_distill(src="4b", tgt="27b", mapper_name=None, out_name=None, steps=1500, prefix=1024, cont=128,
                  tail=1, lr=2e-5, warmup=50, clip=1.0, eval_every=250, n_eval=8, source="fineweb", window=None,
-                 prefix_choices=None, retrieval_frac=0.0, niah_len=0, niah_n=10, eval_tail=None, chat_frac=0.0):
+                 prefix_choices=None, retrieval_frac=0.0, niah_len=0, niah_n=10, eval_tail=None, chat_frac=0.0,
+                 tool_frac=0.0, varied_frac=0.0):
     """Fine-tune the ridge maps end to end: minimize KL(native target || transferred target) on continuations.
 
     Only the maps are trained; both models stay frozen. Gradients flow from the target's continuation logits
@@ -519,6 +566,10 @@ def task_distill(src="4b", tgt="27b", mapper_name=None, out_name=None, steps=150
 
     synth = RetrievalSynth(ttok, seed=1) if retrieval_frac else None
     chat = ChatSynth(ttok, seed=2) if chat_frac else None
+    if tool_frac:
+        from .toolsynth import ToolSynth
+
+        tools = ToolSynth(ttok, seed=3)
     eval_tail = eval_tail or tail
 
     def niah_eval():
@@ -538,8 +589,13 @@ def task_distill(src="4b", tgt="27b", mapper_name=None, out_name=None, steps=150
         u = rng.random()
         if chat is not None and u < chat_frac:
             p, c = chat.make(P, cont)
-        elif synth is not None and u < chat_frac + retrieval_frac:
-            p, c = synth.make(s[:P - 80], rng.randint(1, 4))
+        elif tool_frac and u < chat_frac + tool_frac:
+            p, c = tools.make(P, cont)
+        elif synth is not None and u < chat_frac + tool_frac + retrieval_frac:
+            if rng.random() < varied_frac:
+                p, c = synth.make_varied(s[:P - 120], rng.randint(2, 8))
+            else:
+                p, c = synth.make(s[:P - 80], rng.randint(1, 4))
         else:
             p, c = s[:P], s[P:P + cont]
         with torch.no_grad():
