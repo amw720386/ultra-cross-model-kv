@@ -230,10 +230,14 @@ def task_bench(src="4b", tgt="27b", mapper_name=None, lengths=(8192, 16384, 3276
     g = torch.Generator().manual_seed(0)
     res = {"gpu": torch.cuda.get_device_name(), "rows": []}
     if warmup:
-        ids = torch.randint(1000, 100000, (1, 4096), generator=g).cuda()
-        native_prefill(tm, ids)
-        if mapper:
-            transfer_prefill(sm, tm, mapper, ids, tail=tail, window=window)
+        # cover every code path once (short, chunked, and the sliding-window ring) before timing
+        wl = max(4096, (window or 0) + 2 * chunk + 1000)
+        for n in (4096, wl):
+            ids = torch.randint(1000, 100000, (1, n), generator=g).cuda()
+            native_prefill(tm, ids, chunk=chunk)
+            if mapper:
+                transfer_prefill(sm, tm, mapper, ids, tail=tail, window=window, chunk=chunk)
+        torch.cuda.empty_cache()
     for L in lengths:
         ids = torch.randint(1000, 100000, (1, L), generator=g).cuda()
         row = {"len": L}
