@@ -211,21 +211,21 @@ def _mm(x, W):
 def transfer_prefill(src: Hybrid, tgt: Hybrid, mapper: Mapper, ids, tail: int = 1, chunk: int = 8192,
                      window: int | None = None, max_len: int | None = None, timings: dict | None = None,
                      grad: bool = False, keep_src: bool = False, full_until: int | None = None,
-                     graph_tail: bool | None = None, sink: int = 0):
+                     graph_tail: bool | None = None, sink: int = 0, between=None):
     """keep_src=True also runs every source layer and the tail through the source and returns
     (cache, logits, source_cache) so the source can draft for speculative decoding."""
     if full_until is not None and ids.shape[1] <= full_until:
         window = None  # short enough: the source uses full attention; the sliding window only kicks in beyond
     with torch.set_grad_enabled(grad):
         return _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timings, grad, keep_src,
-                                 graph_tail, sink)
+                                 graph_tail, sink, between)
 
 
 GRAPH_TAIL_MAX = 65536  # use the persistent graphed tail for prompts up to this length (None disables)
 
 
 def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timings, grad, keep_src=False,
-                      graph_tail=None, sink=0):
+                      graph_tail=None, sink=0, between=None):
     """Build the target cache for prompt `ids` (1, T) from a source prefill; return (cache, first_logits).
 
     The source prefills ids[:, :T-tail]; the target natively processes the last `tail` tokens
@@ -316,6 +316,8 @@ def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timin
             cur.update(s=s, L=e - s, rope=tgt.rope_tables(s, e - s))
             src.forward(ids[:, s:e], sc, logits=None, window=window, cap=cap,
                         stop_after=None if keep_src else mapper.max_src)
+            if between is not None:
+                between()
         tc.len = Tm
     sync()
     t1 = time.perf_counter()
@@ -337,11 +339,11 @@ def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timin
 
 @torch.no_grad()
 def native_prefill(model: Hybrid, ids, chunk: int = 8192, max_len: int | None = None, timings: dict | None = None,
-                   window: int | None = None):
+                   window: int | None = None, between=None):
     torch.cuda.synchronize()
     t0 = time.perf_counter()
     c = model.new_cache(ids.shape[0], max_len or ids.shape[1] + 512)
-    logits = model.prefill(ids, c, chunk=chunk, window=window)
+    logits = model.prefill(ids, c, chunk=chunk, window=window, between=between)
     torch.cuda.synchronize()
     if timings is not None:
         timings.update(total=time.perf_counter() - t0)

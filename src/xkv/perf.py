@@ -428,7 +428,8 @@ def _pct(xs, q):
 
 def task_serve(src="4b", tgt="27b", mapper_name="4b-27b-chat", rates=(0.1, 0.2, 0.3, 0.45, 0.65, 0.9, 1.2),
                n_req=30, lengths=(8192, 16384, 32768), new=256, slots=8, arms=("native", "transfer"), seed=0,
-               tail=128, window=8192, full_until=32768, slo_ttft=(2.0, 5.0), offline=True, chunk=8192):
+               tail=128, window=8192, full_until=32768, slo_ttft=(2.0, 5.0), offline=True, chunk=8192,
+               interleave=False, tag=""):
     """Online serving on one GPU. Poisson arrivals at each rate; prompt length drawn from `lengths`; every request
     generates `new` tokens. Identical scheduler for both arms: FCFS, one prefill admitted per iteration into a free
     decode slot, then one batched decode step over all slots (CUDA graph, fixed `slots`). TTFT includes queueing.
@@ -444,10 +445,11 @@ def task_serve(src="4b", tgt="27b", mapper_name="4b-27b-chat", rates=(0.1, 0.2, 
     mapper = load_mapper(mapper_name, sm, tm)
     cap = _bucket(max(lengths) + new + 16)
 
-    def prefill(arm, ids):
+    def prefill(arm, ids, between=None):
         if arm == "native":
-            return native_prefill(tm, ids, chunk=chunk)
-        return transfer_prefill(sm, tm, mapper, ids, tail=tail, window=window, full_until=full_until, chunk=chunk)
+            return native_prefill(tm, ids, chunk=chunk, between=between)
+        return transfer_prefill(sm, tm, mapper, ids, tail=tail, window=window, full_until=full_until, chunk=chunk,
+                                between=between)
 
     def make_ids(L, g):
         return torch.randint(1000, 100000, (1, L), generator=g, device="cuda")
@@ -480,13 +482,29 @@ def task_serve(src="4b", tgt="27b", mapper_name="4b-27b-chat", rates=(0.1, 0.2, 
             queue, slot_req = list(reqs), [None] * slots
             torch.cuda.reset_peak_memory_stats()
             t0 = time.perf_counter()
+            state = {"done": 0}
+
+            def decode_step():
+                if not any(x is not None for x in slot_req):
+                    return
+                dec.g_plain().tolist()  # sync
+                tnow = time.perf_counter() - t0
+                for b, rr in enumerate(slot_req):
+                    if rr is None:
+                        continue
+                    rr["count"] += 1
+                    if rr["count"] >= new:
+                        rr["done"] = tnow
+                        slot_req[b] = None
+                        state["done"] += 1
+
             done = 0
-            while done < n:
+            while state["done"] + done < n:
                 now = time.perf_counter() - t0
                 free = [b for b in range(slots) if slot_req[b] is None]
                 if queue and queue[0]["arrival"] <= now and free:
                     r = queue.pop(0)
-                    c, lg = prefill(arm, make_ids(r["L"], g))
+                    c, lg = prefill(arm, make_ids(r["L"], g), between=decode_step if interleave else None)
                     r["first"] = time.perf_counter() - t0
                     dec.load(free[0], c, int(lg[0, -1].argmax()))
                     del c
@@ -496,16 +514,7 @@ def task_serve(src="4b", tgt="27b", mapper_name="4b-27b-chat", rates=(0.1, 0.2, 
                 else:
                     continue_decode = any(s is not None for s in slot_req)
                 if continue_decode:
-                    dec.g_plain().tolist()  # sync
-                    tnow = time.perf_counter() - t0
-                    for b, r in enumerate(slot_req):
-                        if r is None:
-                            continue
-                        r["count"] += 1
-                        if r["count"] >= new:
-                            r["done"] = tnow
-                            slot_req[b] = None
-                            done += 1
+                    decode_step()
                 elif queue:
                     wait = queue[0]["arrival"] - (time.perf_counter() - t0)
                     if wait > 0:
@@ -514,7 +523,8 @@ def task_serve(src="4b", tgt="27b", mapper_name="4b-27b-chat", rates=(0.1, 0.2, 
             e2e = [r["done"] - r["arrival"] for r in reqs]
             tpot = [(r["done"] - r["first"]) / (new - 1) for r in reqs]
             span = max(r["done"] for r in reqs) - min(r["arrival"] for r in reqs)
-            run = {"arm": arm, "rate": rate or "offline", "n": n, "throughput_req_s": n / span,
+            run = {"arm": arm, "rate": rate or "offline", "n": n, "slots": slots, "interleave": interleave,
+                   "chunk": chunk, "tag": tag, "throughput_req_s": n / span,
                    "output_tok_s": n * new / span, "prompt_tok_s": sum(r["L"] for r in reqs) / span,
                    "ttft_p50": _pct(ttft, .5), "ttft_p90": _pct(ttft, .9), "ttft_p99": _pct(ttft, .99),
                    "tpot_p50_ms": 1000 * _pct(tpot, .5), "tpot_p90_ms": 1000 * _pct(tpot, .9),

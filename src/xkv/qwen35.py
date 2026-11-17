@@ -364,11 +364,14 @@ class Hybrid:
             h = h[:, -1:]
         return self.lm_head(self.norm(h)).float()
 
-    def prefill(self, ids, cache: Cache, chunk: int = 8192, logits: str | None = "last", **kw):
+    def prefill(self, ids, cache: Cache, chunk: int = 8192, logits: str | None = "last", between=None, **kw):
+        """between(): optional callback run after every chunk but the last (lets a server interleave decode)."""
         out = None
         for s in range(0, ids.shape[1], chunk):
-            out = self.forward(ids[:, s:s + chunk], cache,
-                               logits=logits if s + chunk >= ids.shape[1] else None, **kw)
+            last = s + chunk >= ids.shape[1]
+            out = self.forward(ids[:, s:s + chunk], cache, logits=logits if last else None, **kw)
+            if between is not None and not last:
+                between()
         return out
 
     @torch.no_grad()
