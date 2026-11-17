@@ -118,14 +118,15 @@ The transfer uses map `4b-27b-chat`, a 128-token native tail and, up to 32K, ful
 
 | domain | native 27B | ours | OneTriangle mapped (native) |
 |---|---:|---:|---:|
-| airline | 0.74 | 0.46 | 0.59 (0.86) |
-| retail | 0.78 | 0.15 | 0.41 (0.80) |
+| airline | 0.74 | 0.46⁶ | 0.59 (0.86) |
+| retail | 0.78 | 0.15⁷ | 0.41 (0.80) |
 | telecom | not run | not run | 0.47 (0.86) |
 
 We are **behind** on agents. Agent prompts carry a long policy document and tool schemas; mapped, the 27B picks the
-wrong tool (e.g. hands off to a human instead of looking the user up). The agent configuration reads the newest
-turn (up to 4096 tokens) and the `<tools>` block natively; this improved retail from 0.06 and airline from 0.39 but
-not enough. Our user simulator and judges are the native 27B, not the official OpenAI models, so these are not
+wrong tool (e.g. hands off to a human instead of looking the user up). n = 50 tasks per domain.
+⁶ Newest turn (up to 4096 tokens) read natively; 0.39 without. Also reading the `<tools>` block natively gave 0.43
+on the 14 airline tasks that finished (native 0.79 on the same tasks).
+⁷ Newest turn and `<tools>` block read natively; 0.06 with the newest turn only. Our user simulator and judges are the native 27B, not the official OpenAI models, so these are not
 strictly comparable to OneTriangle's. Terminal-Bench 2.0 is implemented but was not run (its sandboxes need a Modal
 token secret).
 
