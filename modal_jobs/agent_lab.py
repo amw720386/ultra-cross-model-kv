@@ -22,7 +22,7 @@ from agent_common import VOLUMES, agent_image, artifacts, charge, weights
 app = modal.App("xkv-agent-lab")
 # Optional Modal secrets to attach (comma-separated names), e.g. the Harbor Modal token or an OpenAI key.
 _SECRETS = [x for x in os.environ.get("XKV_SECRETS", "").split(",") if x]
-KW = dict(image=agent_image, volumes=VOLUMES, retries=0, max_containers=1, timeout=12 * 3600,
+KW = dict(image=agent_image, volumes=VOLUMES, retries=0, max_containers=1, timeout=12 * 3600, cpu=8.0, memory=65536,
           secrets=[modal.Secret.from_name(x) for x in _SECRETS])
 
 

@@ -11,7 +11,7 @@ import modal
 from common import VOLUMES, artifacts, charge, image, weights
 
 app = modal.App("xkv-lab")
-KW = dict(image=image, volumes=VOLUMES, retries=0, max_containers=1, timeout=3 * 3600)
+KW = dict(image=image, volumes=VOLUMES, retries=0, max_containers=1, timeout=3 * 3600, cpu=8.0, memory=65536)
 
 
 def _run(task, args):

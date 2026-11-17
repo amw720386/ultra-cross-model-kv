@@ -384,8 +384,34 @@ class Hybrid:
         return out
 
 
+def freeze_length_autotune(keys=("NB",)) -> int:
+    """fla's norm kernels autotune on NB (number of row blocks), i.e. on sequence length, so every new prompt
+    length re-runs Triton autotuning (seconds each). Drop those keys so one tuned config serves all lengths."""
+    import importlib
+
+    try:
+        from triton.runtime.autotuner import Autotuner
+    except Exception:
+        return 0
+    n = 0
+    for name in ("fla.modules.fused_norm_gate", "fla.modules.l2norm", "fla.modules.layernorm",
+                 "fla.modules.convolution", "fla.modules.token_shift"):
+        try:
+            mod = importlib.import_module(name)
+        except Exception:
+            continue
+        for obj in vars(mod).values():
+            if isinstance(obj, Autotuner) and any(k in obj.keys for k in keys):
+                obj.keys = [k for k in obj.keys if k not in keys]
+                n += 1
+    STATS["autotune_keys_frozen"] = n
+    return n
+
+
 def load(path: str, device="cuda", dtype=torch.bfloat16):
     from transformers import AutoModelForImageTextToText, AutoTokenizer
+
+    freeze_length_autotune()
 
     hf = AutoModelForImageTextToText.from_pretrained(path, dtype=dtype, device_map=device)
     hf.eval()

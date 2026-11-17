@@ -371,3 +371,42 @@ def task_tail_check(src="4b", tgt="27b", mapper_name="4b-27b-w8192-distill-ret",
         rows.append(row)
         torch.cuda.empty_cache()
     return {"gpu": torch.cuda.get_device_name(), "rows": rows}
+
+
+def task_gen_profile(src="4b", tgt="27b", mapper_name="4b-27b-chat", B=8, L=5000, new=64, strategy="target",
+                     vary=False, max_new_cap=None):
+    """Where does one batched genrun call spend time? (prefill loop, decoder capture, decode)"""
+    from .decode import Decoder
+    from .experiments import get, load_mapper
+    from .genrun import make_batch_gen
+    from .mapper import native_prefill, transfer_prefill
+
+    sm, _ = get(src)
+    tm, tok = get(tgt)
+    mapper = load_mapper(mapper_name, sm, tm)
+    g = torch.Generator().manual_seed(0)
+    prompts = [torch.randint(1000, 50000, (L + 37 * i,), generator=g).tolist() for i in range(B)]
+    gen = make_batch_gen(strategy, sm, tm, mapper, tok, batch=B, full_until=32768)
+    out = {}
+    for rep in range(4):
+        if vary:
+            prompts = [torch.randint(1000, 50000, (L + 131 * rep + 37 * i,), generator=g).tolist() for i in range(B)]
+        t = time.time()
+        gen(prompts, new)
+        torch.cuda.synchronize()
+        out[f"gen_call_{rep}"] = time.time() - t
+    t = time.time()
+    for p in prompts:
+        ids = torch.tensor([p], device="cuda")
+        if strategy == "target":
+            native_prefill(tm, ids)
+        else:
+            transfer_prefill(sm, tm, mapper, ids, tail=128, window=8192, full_until=32768)
+    torch.cuda.synchronize()
+    out["prefill_loop"] = time.time() - t
+    t = time.time()
+    dec = Decoder(tm, B, _bucket(L + 37 * B + new + 16))
+    torch.cuda.synchronize()
+    out["decoder_capture"] = time.time() - t
+    print(json.dumps(out), flush=True)
+    return out
