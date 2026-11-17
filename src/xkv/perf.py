@@ -410,3 +410,120 @@ def task_gen_profile(src="4b", tgt="27b", mapper_name="4b-27b-chat", B=8, L=5000
     out["decoder_capture"] = time.time() - t
     print(json.dumps(out), flush=True)
     return out
+
+
+# --------------------------------------------------------------------------------------
+# serving under load
+# --------------------------------------------------------------------------------------
+
+
+def _pct(xs, q):
+    xs = sorted(xs)
+    if not xs:
+        return None
+    k = (len(xs) - 1) * q
+    lo, hi = int(k), min(int(k) + 1, len(xs) - 1)
+    return xs[lo] + (xs[hi] - xs[lo]) * (k - lo)
+
+
+def task_serve(src="4b", tgt="27b", mapper_name="4b-27b-chat", rates=(0.1, 0.2, 0.3, 0.45, 0.65, 0.9, 1.2),
+               n_req=30, lengths=(8192, 16384, 32768), new=256, slots=8, arms=("native", "transfer"), seed=0,
+               tail=128, window=8192, full_until=32768, slo_ttft=(2.0, 5.0), offline=True, chunk=8192):
+    """Online serving on one GPU. Poisson arrivals at each rate; prompt length drawn from `lengths`; every request
+    generates `new` tokens. Identical scheduler for both arms: FCFS, one prefill admitted per iteration into a free
+    decode slot, then one batched decode step over all slots (CUDA graph, fixed `slots`). TTFT includes queueing.
+    """
+    import random
+
+    from .decode import Decoder
+    from .experiments import get, load_mapper
+    from .mapper import native_prefill, transfer_prefill
+
+    sm, _ = get(src)
+    tm, _ = get(tgt)
+    mapper = load_mapper(mapper_name, sm, tm)
+    cap = _bucket(max(lengths) + new + 16)
+
+    def prefill(arm, ids):
+        if arm == "native":
+            return native_prefill(tm, ids, chunk=chunk)
+        return transfer_prefill(sm, tm, mapper, ids, tail=tail, window=window, full_until=full_until, chunk=chunk)
+
+    def make_ids(L, g):
+        return torch.randint(1000, 100000, (1, L), generator=g, device="cuda")
+
+    # warm every path / length once (autotune, graph capture of the persistent tail)
+    gw = torch.Generator(device="cuda").manual_seed(123)
+    for L in lengths:
+        for arm in arms:
+            c, _ = prefill(arm, make_ids(L, gw))
+            del c
+    torch.cuda.empty_cache()
+
+    def workload(rate, n, rng):
+        t, reqs = 0.0, []
+        for i in range(n):
+            t += rng.expovariate(rate) if rate else 0.0
+            reqs.append({"i": i, "arrival": t, "L": rng.choice(lengths)})
+        return reqs
+
+    res = {"gpu": torch.cuda.get_device_name(), "config": dict(n_req=n_req, lengths=list(lengths), new=new,
+                                                               slots=slots, mapper=mapper_name, tail=tail),
+           "runs": []}
+    for arm in arms:
+        dec = Decoder(tm, slots, cap)
+        plan = [(r, n_req) for r in rates] + ([(0.0, n_req)] if offline else [])
+        for rate, n in plan:
+            rng = random.Random(seed + int(rate * 1000))
+            g = torch.Generator(device="cuda").manual_seed(seed + int(rate * 1000))
+            reqs = workload(rate, n, rng)
+            queue, slot_req = list(reqs), [None] * slots
+            torch.cuda.reset_peak_memory_stats()
+            t0 = time.perf_counter()
+            done = 0
+            while done < n:
+                now = time.perf_counter() - t0
+                free = [b for b in range(slots) if slot_req[b] is None]
+                if queue and queue[0]["arrival"] <= now and free:
+                    r = queue.pop(0)
+                    c, lg = prefill(arm, make_ids(r["L"], g))
+                    r["first"] = time.perf_counter() - t0
+                    dec.load(free[0], c, int(lg[0, -1].argmax()))
+                    del c
+                    r["count"] = 1
+                    slot_req[free[0]] = r
+                    continue_decode = any(s is not None for s in slot_req)
+                else:
+                    continue_decode = any(s is not None for s in slot_req)
+                if continue_decode:
+                    dec.g_plain().tolist()  # sync
+                    tnow = time.perf_counter() - t0
+                    for b, r in enumerate(slot_req):
+                        if r is None:
+                            continue
+                        r["count"] += 1
+                        if r["count"] >= new:
+                            r["done"] = tnow
+                            slot_req[b] = None
+                            done += 1
+                elif queue:
+                    wait = queue[0]["arrival"] - (time.perf_counter() - t0)
+                    if wait > 0:
+                        time.sleep(wait)
+            ttft = [r["first"] - r["arrival"] for r in reqs]
+            e2e = [r["done"] - r["arrival"] for r in reqs]
+            tpot = [(r["done"] - r["first"]) / (new - 1) for r in reqs]
+            span = max(r["done"] for r in reqs) - min(r["arrival"] for r in reqs)
+            run = {"arm": arm, "rate": rate or "offline", "n": n, "throughput_req_s": n / span,
+                   "output_tok_s": n * new / span, "prompt_tok_s": sum(r["L"] for r in reqs) / span,
+                   "ttft_p50": _pct(ttft, .5), "ttft_p90": _pct(ttft, .9), "ttft_p99": _pct(ttft, .99),
+                   "tpot_p50_ms": 1000 * _pct(tpot, .5), "tpot_p90_ms": 1000 * _pct(tpot, .9),
+                   "e2e_p50": _pct(e2e, .5), "e2e_p99": _pct(e2e, .99),
+                   "peak_mem_gb": torch.cuda.max_memory_allocated() / 1e9}
+            for s in slo_ttft:
+                run[f"goodput_req_s_ttft<={s}s"] = sum(t <= s for t in ttft) / span
+            print(json.dumps(run), flush=True)
+            res["runs"].append(run)
+        del dec
+        torch.cuda.empty_cache()
+    return res
