@@ -578,7 +578,7 @@ def overall(res: dict, domains) -> float | None:
 def task_tau2(src="4b", tgt="27b", mapper_name="4b-27b-w8192-distill-ret", strategies=("target", "transfer"),
               domains=("airline", "retail", "telecom"), n_per_domain=None, task_ids=None, tail=128, window=8192,
               max_concurrency=8, agent_thinking=False, max_new=2048, max_prompt=131072, run_name=None,
-              agent_port=8101, user_port=8102, local_user_and_judges=True):
+              agent_port=8101, user_port=8102, local_user_and_judges=True, full_until=None):
     """tau2-bench text-v1 (English) pass^1 per domain + overall (equal domain weights) for each agent strategy.
 
     By default the user simulator and the LLM judges run on the native target (non-thinking, greedy);
@@ -593,7 +593,7 @@ def task_tau2(src="4b", tgt="27b", mapper_name="4b-27b-w8192-distill-ret", strat
     mapper = load_mapper(mapper_name, sm, tm) if any(s.startswith("transfer") for s in strategies) else None
     run_name = run_name or time.strftime("%Y%m%d-%H%M%S")
     root = ART / "tau2" / run_name
-    gen_kw = dict(tail=tail, window=window, batch=max_concurrency)  # one outstanding call per task
+    gen_kw = dict(tail=tail, window=window, batch=max_concurrency, full_until=full_until)  # one call per task
     native = make_batch_gen("target", sm, tm, mapper, tok, **gen_kw)
     res = {"config": {"strategies": list(strategies), "domains": list(domains), "n_per_domain": n_per_domain,
                       "mapper": mapper_name, "tail": tail, "window": window, "agent_thinking": agent_thinking,
