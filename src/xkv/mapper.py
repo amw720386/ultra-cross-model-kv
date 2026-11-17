@@ -221,7 +221,7 @@ def transfer_prefill(src: Hybrid, tgt: Hybrid, mapper: Mapper, ids, tail: int = 
                                  graph_tail, sink, between, native_spans)
 
 
-GRAPH_TAIL_MAX = 65536  # use the persistent graphed tail for prompts up to this length (None disables)
+GRAPH_TAIL_MAX = 32768  # persistent graphed tail for prompts up to this length (memory-bounded; None disables)
 
 
 def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timings, grad, keep_src=False,
