@@ -450,6 +450,26 @@ class RetrievalSynth:
         prompt = self.enc(self.pre) + body + self.enc(chr(10) * 2 + q) + self.enc(self.post)
         return prompt, self.enc(ans) + [self.end]
 
+    def make_copy(self, body: list[int], donor: list[int], n_notes: int):
+        """Verbatim copying: several tagged passages (cut from other text) are placed in the document; the
+        question asks to reproduce one of them exactly."""
+        r = self.rng
+        tags = r.sample(["harbor", "lantern", "quartz", "meadow", "falcon", "cobalt", "willow", "ember", "summit",
+                         "orchid", "glacier", "copper"], k=n_notes)
+        notes, at = [], 0
+        for t in tags:
+            ln = r.randint(40, 120)
+            notes.append((t, donor[at:at + ln]))
+            at += ln + r.randint(5, 50)
+        body = list(body)
+        for t, ids in notes:
+            pos = r.randint(0, len(body))
+            body[pos:pos] = self.enc(chr(10) + f"<note tag={t}>") + ids + self.enc("</note>" + chr(10))
+        t, ids = r.choice(notes)
+        q = self.enc(chr(10) * 2 + f"Reproduce the note tagged {t} exactly, word for word, with nothing else.")
+        prompt = self.enc(self.pre) + body + q + self.enc(self.post)
+        return prompt, ids + [self.end]
+
     def _pos(self, body, name, v):
         needle = self.enc(f" [registry] {name} -> {v}. ")
         n = len(needle)
@@ -531,7 +551,7 @@ class ChatSynth:
 def task_distill(src="4b", tgt="27b", mapper_name=None, out_name=None, steps=1500, prefix=1024, cont=128,
                  tail=1, lr=2e-5, warmup=50, clip=1.0, eval_every=250, n_eval=8, source="fineweb", window=None,
                  prefix_choices=None, retrieval_frac=0.0, niah_len=0, niah_n=10, eval_tail=None, chat_frac=0.0,
-                 tool_frac=0.0, varied_frac=0.0):
+                 tool_frac=0.0, varied_frac=0.0, copy_frac=0.0):
     """Fine-tune the ridge maps end to end: minimize KL(native target || transferred target) on continuations.
 
     Only the maps are trained; both models stay frozen. Gradients flow from the target's continuation logits
@@ -595,7 +615,12 @@ def task_distill(src="4b", tgt="27b", mapper_name=None, out_name=None, steps=150
         elif tool_frac and u < chat_frac + tool_frac:
             p, c = tools.make(P, cont)
         elif synth is not None and u < chat_frac + tool_frac + retrieval_frac:
-            if rng.random() < varied_frac:
+            v = rng.random()
+            if v < copy_frac:
+                donor = train[(step + 7) % len(train)]
+                p, c = synth.make_copy(s[:P - 900], donor, rng.randint(2, 6))
+                c = c[:cont]
+            elif v < copy_frac + varied_frac:
                 p, c = synth.make_varied(s[:P - 120], rng.randint(2, 8))
             else:
                 p, c = synth.make(s[:P - 80], rng.randint(1, 4))
