@@ -1,0 +1,120 @@
+{
+ "task": "longctx",
+ "args": {
+  "mapper_name": "4b-27b-r2-n32x32768-w8192",
+  "baselines": false,
+  "windows": [
+   8192,
+   2048
+  ],
+  "tail": 128,
+  "n_seqs": 4,
+  "num_keys": [
+   1,
+   4
+  ]
+ },
+ "wall_s": 486.9068331718445,
+ "result": {
+  "prefix": 32768,
+  "niah_len": 32768,
+  "lm": {
+   "w8192": {
+    "nll_ref": 2.3857697248458862,
+    "nll": 2.414777934551239,
+    "top1_agree": 0.9296875,
+    "kl": 0.04445754922926426
+   },
+   "w2048": {
+    "nll_ref": 2.3857697248458862,
+    "nll": 2.4244564175605774,
+    "top1_agree": 0.9208984375,
+    "kl": 0.05575973726809025
+   },
+   "source_native": {
+    "nll_ref": 2.3857697248458862,
+    "nll": 2.6010031402111053,
+    "top1_agree": 0.7314453125,
+    "kl": 0.3505556583404541
+   }
+  },
+  "niah": {
+   "k1-transfer_w8192_t128": {
+    "task": "niah",
+    "acc": 0.75,
+    "acc_by_depth": {
+     "0.00": 0.75,
+     "0.25": 0.75,
+     "0.50": 0.75,
+     "0.75": 0.5,
+     "1.00": 1.0
+    },
+    "n": 20,
+    "chance": 0.0,
+    "mean_tokens": 32759.0,
+    "sample_outputs": [
+     " **3188131**.\n\n*(Note: The text actually states \"318813",
+     " **209391**.\n\n(Note: The text states: \"The special magic number for rustic-island",
+     " **5351238**.\n\n(Note: The text states: \"The special magic number for quiet-is"
+    ]
+   },
+   "k1-transfer_w2048_t128": {
+    "task": "niah",
+    "acc": 0.7,
+    "acc_by_depth": {
+     "0.00": 0.75,
+     "0.25": 1.0,
+     "0.50": 0.5,
+     "0.75": 0.25,
+     "1.00": 1.0
+    },
+    "n": 20,
+    "chance": 0.0,
+    "mean_tokens": 32759.0,
+    "sample_outputs": [
+     " **3188131**.\n\n*(Note: The text actually states \"318813",
+     " **2099391**.\n\n(Note: The text contains a typo in the sentence \"The special magic",
+     " **53**.\n\nThis is found in the sentence: \"The special magic number for quiet-island is 5"
+    ]
+   },
+   "k4-transfer_w8192_t128": {
+    "task": "niah_1key",
+    "acc": 0.65,
+    "acc_by_depth": {
+     "0.00": 1.0,
+     "0.25": 0.5,
+     "0.50": 0.25,
+     "0.75": 0.5,
+     "1.00": 1.0
+    },
+    "n": 20,
+    "chance": 0.0,
+    "mean_tokens": 32758.15,
+    "sample_outputs": [
+     " **2099391**.",
+     " **1254120**.\n\n(Note: The text states: \"The special magic number for marble-is",
+     " **1602077**.\n\n(Note: The text explicitly states: \"The special magic number for steady"
+    ]
+   },
+   "k4-transfer_w2048_t128": {
+    "task": "niah_1key",
+    "acc": 0.5,
+    "acc_by_depth": {
+     "0.00": 1.0,
+     "0.25": 0.25,
+     "0.50": 0.25,
+     "0.75": 0.0,
+     "1.00": 1.0
+    },
+    "n": 20,
+    "chance": 0.0,
+    "mean_tokens": 32758.15,
+    "sample_outputs": [
+     " **2099391**.",
+     " **125**.\n\nThis is found in the sentence: \"The special magic number for marble-island is ",
+     " **263512**.\n\n(Note: The text states \"The special magic number for rustic-market is "
+    ]
+   }
+  }
+ }
+}

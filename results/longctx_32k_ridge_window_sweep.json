@@ -1,0 +1,229 @@
+{
+ "task": "longctx",
+ "args": {
+  "mapper_name": "4b-27b-r2-n256x4096"
+ },
+ "wall_s": 790.0371849536896,
+ "result": {
+  "prefix": 32768,
+  "niah_len": 32768,
+  "lm": {
+   "wfull": {
+    "nll_ref": 2.3911755879720054,
+    "nll": 2.5195113023122153,
+    "top1_agree": 0.857421875,
+    "kl": 0.13669129802534977
+   },
+   "w8192": {
+    "nll_ref": 2.3911755879720054,
+    "nll": 2.5316719015439353,
+    "top1_agree": 0.8502604166666666,
+    "kl": 0.1494550226877133
+   },
+   "w2048": {
+    "nll_ref": 2.3911755879720054,
+    "nll": 2.5671606063842773,
+    "top1_agree": 0.8352864583333334,
+    "kl": 0.18530386003355184
+   },
+   "source_native": {
+    "nll_ref": 2.3911755879720054,
+    "nll": 2.6058675249417624,
+    "top1_agree": 0.7330729166666666,
+    "kl": 0.3528994470834732
+   }
+  },
+  "niah": {
+   "k1-target": {
+    "task": "niah",
+    "acc": 1.0,
+    "acc_by_depth": {
+     "0.00": 1.0,
+     "0.25": 1.0,
+     "0.50": 1.0,
+     "0.75": 1.0,
+     "1.00": 1.0
+    },
+    "n": 20,
+    "chance": 0.0,
+    "mean_tokens": 32759.0,
+    "sample_outputs": [
+     " **3188131**.",
+     " **2099391**.",
+     " **5351238**."
+    ]
+   },
+   "k1-source": {
+    "task": "niah",
+    "acc": 1.0,
+    "acc_by_depth": {
+     "0.00": 1.0,
+     "0.25": 1.0,
+     "0.50": 1.0,
+     "0.75": 1.0,
+     "1.00": 1.0
+    },
+    "n": 20,
+    "chance": 0.0,
+    "mean_tokens": 32759.0,
+    "sample_outputs": [
+     " **3188131**.",
+     " **2099391**.",
+     " **5351238**."
+    ]
+   },
+   "k1-transfer_wfull": {
+    "task": "niah",
+    "acc": 0.9,
+    "acc_by_depth": {
+     "0.00": 0.75,
+     "0.25": 1.0,
+     "0.50": 1.0,
+     "0.75": 1.0,
+     "1.00": 0.75
+    },
+    "n": 20,
+    "chance": 0.0,
+    "mean_tokens": 32759.0,
+    "sample_outputs": [
+     " **3188131**.",
+     " **2099391**.",
+     " **5351238**."
+    ]
+   },
+   "k1-transfer_w8192": {
+    "task": "niah",
+    "acc": 0.7,
+    "acc_by_depth": {
+     "0.00": 0.75,
+     "0.25": 1.0,
+     "0.50": 0.5,
+     "0.75": 0.5,
+     "1.00": 0.75
+    },
+    "n": 20,
+    "chance": 0.0,
+    "mean_tokens": 32759.0,
+    "sample_outputs": [
+     " **3188131**.",
+     " **2099391**.",
+     " **5351238**."
+    ]
+   },
+   "k1-transfer_w2048": {
+    "task": "niah",
+    "acc": 0.55,
+    "acc_by_depth": {
+     "0.00": 0.75,
+     "0.25": 1.0,
+     "0.50": 0.25,
+     "0.75": 0.25,
+     "1.00": 0.5
+    },
+    "n": 20,
+    "chance": 0.0,
+    "mean_tokens": 32759.0,
+    "sample_outputs": [
+     " **3188131**.",
+     " **2099391**.\n\n(Note: The text contains a typo in the sentence \"The special magic",
+     " **53**.\n\nThis is found in the sentence: \"The special magic number for quiet-island is 5"
+    ]
+   },
+   "k4-target": {
+    "task": "niah_1key",
+    "acc": 1.0,
+    "acc_by_depth": {
+     "0.00": 1.0,
+     "0.25": 1.0,
+     "0.50": 1.0,
+     "0.75": 1.0,
+     "1.00": 1.0
+    },
+    "n": 20,
+    "chance": 0.0,
+    "mean_tokens": 32758.15,
+    "sample_outputs": [
+     " **2099391**.",
+     " **1254120**.",
+     " **2635012**."
+    ]
+   },
+   "k4-source": {
+    "task": "niah_1key",
+    "acc": 1.0,
+    "acc_by_depth": {
+     "0.00": 1.0,
+     "0.25": 1.0,
+     "0.50": 1.0,
+     "0.75": 1.0,
+     "1.00": 1.0
+    },
+    "n": 20,
+    "chance": 0.0,
+    "mean_tokens": 32758.15,
+    "sample_outputs": [
+     " **2099391**.",
+     " **1254120**.",
+     " **2635012**."
+    ]
+   },
+   "k4-transfer_wfull": {
+    "task": "niah_1key",
+    "acc": 0.95,
+    "acc_by_depth": {
+     "0.00": 1.0,
+     "0.25": 0.75,
+     "0.50": 1.0,
+     "0.75": 1.0,
+     "1.00": 1.0
+    },
+    "n": 20,
+    "chance": 0.0,
+    "mean_tokens": 32758.15,
+    "sample_outputs": [
+     " **2099391**.",
+     " **1254120**.",
+     " **2635012**."
+    ]
+   },
+   "k4-transfer_w8192": {
+    "task": "niah_1key",
+    "acc": 0.7,
+    "acc_by_depth": {
+     "0.00": 1.0,
+     "0.25": 0.75,
+     "0.50": 0.25,
+     "0.75": 0.5,
+     "1.00": 1.0
+    },
+    "n": 20,
+    "chance": 0.0,
+    "mean_tokens": 32758.15,
+    "sample_outputs": [
+     " **2099391**.",
+     " **1254120**.",
+     " **1602077**.\n\n(Note: The text explicitly states: \"The special magic number for steady"
+    ]
+   },
+   "k4-transfer_w2048": {
+    "task": "niah_1key",
+    "acc": 0.5,
+    "acc_by_depth": {
+     "0.00": 1.0,
+     "0.25": 0.5,
+     "0.50": 0.25,
+     "0.75": 0.0,
+     "1.00": 0.75
+    },
+    "n": 20,
+    "chance": 0.0,
+    "mean_tokens": 32758.15,
+    "sample_outputs": [
+     " **2099391**.",
+     " **1254120**.\n\n(Note: The text states, \"The special magic number for marble-is",
+     " **263**.\n\nThis is found in the sentence: \"The special magic number for rustic-market is 2"
+    ]
+   }
+  }
+ }
+}

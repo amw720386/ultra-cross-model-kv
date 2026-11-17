@@ -1,0 +1,34 @@
+{
+ "task": "profile",
+ "args": {
+  "mapper_name": "4b-27b-r2-n256x4096"
+ },
+ "wall_s": 271.5640163421631,
+ "result": {
+  "gpu": "NVIDIA H100 80GB HBM3",
+  "state_only_maxrel": 0.0,
+  "kernel_stats": {
+   "delta_state_fast": 1
+  },
+  "rows": [
+   {
+    "len": 8192,
+    "native_tgt": 0.9285489899999959,
+    "native_src": 0.26451993899999593,
+    "transfer_src": 0.4149148319999938,
+    "transfer_gemm_only": 0.36568210799998724,
+    "transfer_gemm": 0.5254309080000041,
+    "transfer_full": 0.5380110999999772
+   },
+   {
+    "len": 32768,
+    "native_tgt": 4.269119131999986,
+    "native_src": 0.9768023149999863,
+    "transfer_src": 1.2627060870000264,
+    "transfer_gemm_only": 1.242276304000029,
+    "transfer_gemm": 1.4597882209999966,
+    "transfer_full": 1.5866604779999989
+   }
+  ]
+ }
+}
