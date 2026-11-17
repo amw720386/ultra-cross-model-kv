@@ -245,11 +245,12 @@ class QwenBackend:
     """Qwen3.5 chat template + batched token generator `gen(prompts, max_new) -> list[list[int]]`."""
 
     def __init__(self, tok, gen, name, thinking=False, max_new=2048, max_prompt=131072, json_fences=False,
-                 log=None, native_tools=False):
+                 log=None, native_tools=False, native_system=False):
         from .genrun import stop_ids
 
         self.tok, self.gen, self.name, self.thinking = tok, gen, name, thinking
         self.native_tools = native_tools
+        self.native_system = native_system
         self.max_new, self.max_prompt, self.json_fences = max_new, max_prompt, json_fences
         self.stops = stop_ids(tok)
         self.log = log or (lambda s: print(s, flush=True))
@@ -261,6 +262,14 @@ class QwenBackend:
     def encode_spans(self, r: ChatRequest):
         """Token ids plus the token span of the <tools>...</tools> block (computed natively when native_tools)."""
         text = render_prompt(self.tok, r.messages, r.tools, self.thinking)
+        if self.native_system and text.startswith("<|im_start|>system"):
+            # the system turn (policy + tool schemas) is identical for every request of a domain: computed
+            # natively once and served from a prefix cache in deployment; here it is a native span
+            enc = self.tok(text, add_special_tokens=False, return_offsets_mapping=True)
+            ids, offs = enc["input_ids"], enc["offset_mapping"]
+            c1 = text.index("<|im_end|>") + len("<|im_end|>")
+            b = next((i for i, (x, y) in enumerate(offs) if x >= c1), len(ids))
+            return ids, [(0, b)]
         if not self.native_tools or "<tools>" not in text:
             return self.tok.encode(text, add_special_tokens=False), []
         enc = self.tok(text, add_special_tokens=False, return_offsets_mapping=True)
@@ -288,7 +297,8 @@ class QwenBackend:
         if prompts:
             new = [min(self.max_new, reqs[i].max_tokens or self.max_new) for i in keep]
             t = time.time()
-            toks = self.gen(prompts, max(new), spans=spans) if self.native_tools else self.gen(prompts, max(new))
+            toks = (self.gen(prompts, max(new), spans=spans) if (self.native_tools or self.native_system)
+                    else self.gen(prompts, max(new)))
             dt = time.time() - t
             for j, i in enumerate(keep):
                 ids = list(toks[j])[:new[j]]
@@ -592,7 +602,7 @@ def task_tau2(src="4b", tgt="27b", mapper_name="4b-27b-w8192-distill-ret", strat
               domains=("airline", "retail", "telecom"), n_per_domain=None, task_ids=None, tail=128, window=8192,
               max_concurrency=8, agent_thinking=False, max_new=2048, max_prompt=131072, run_name=None,
               agent_port=8101, user_port=8102, local_user_and_judges=True, full_until=None,
-              turn_tail_max=None, native_tools=False):
+              turn_tail_max=None, native_tools=False, native_system=False):
     """tau2-bench text-v1 (English) pass^1 per domain + overall (equal domain weights) for each agent strategy.
 
     By default the user simulator and the LLM judges run on the native target (non-thinking, greedy);
@@ -612,7 +622,7 @@ def task_tau2(src="4b", tgt="27b", mapper_name="4b-27b-w8192-distill-ret", strat
     native = make_batch_gen("target", sm, tm, mapper, tok, **gen_kw)
     res = {"config": {"strategies": list(strategies), "domains": list(domains), "n_per_domain": n_per_domain,
                       "mapper": mapper_name, "tail": tail, "window": window, "agent_thinking": agent_thinking,
-                      "max_concurrency": max_concurrency, "max_new": max_new, "turn_tail_max": turn_tail_max, "native_tools": native_tools, "root": str(root),
+                      "max_concurrency": max_concurrency, "max_new": max_new, "turn_tail_max": turn_tail_max, "native_tools": native_tools, "native_system": native_system, "root": str(root),
                       "benchmark": "tau2 text-v1 en", "user_sim": f"{tgt} native, non-thinking, greedy" if local_user_and_judges
                       else "official (OpenAI)"}}
     for strat in strategies:
@@ -620,6 +630,7 @@ def task_tau2(src="4b", tgt="27b", mapper_name="4b-27b-w8192-distill-ret", strat
         backends = {
             "xkv-agent": QwenBackend(tok, agent_gen, f"agent:{strat}", thinking=agent_thinking, max_new=max_new,
                                      native_tools=native_tools and strat != "target",
+                                     native_system=native_system and strat != "target",
                                      max_prompt=max_prompt),
             "xkv-user": QwenBackend(tok, native, "user", thinking=False, max_new=1024, max_prompt=max_prompt),
             "xkv-judge": QwenBackend(tok, native, "judge", thinking=False, max_new=2048, max_prompt=max_prompt,
