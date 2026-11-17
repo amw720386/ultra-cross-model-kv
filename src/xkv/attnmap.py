@@ -116,9 +116,10 @@ class AttnMap:
         self.ready_at = {j: max(ls) for j, ls in layers.items()}  # source layer after which j can be computed
         self.need = sorted({i for ls in layers.values() for i in ls})
 
-    def trainable(self):
+    def trainable(self, linear: bool = True):
         ps = []
-        for d in self.parts.values():
+        groups = (list(self.parts.values()) if linear else []) + list(getattr(self, "mlp", {}).values())
+        for d in groups:
             for k in list(d):
                 d[k] = d[k].float().requires_grad_(True)
                 ps.append(d[k])
@@ -131,12 +132,35 @@ class AttnMap:
             y = y + xs[i] @ d[i].to(xs[i].dtype)
         if self.embed:
             y = y + emb @ d["e"].to(emb.dtype) + emb_prev @ d["p"].to(emb.dtype)
+        mlp = getattr(self, "mlp", None)
+        if mlp and j in mlp:
+            m = mlp[j]
+            f = torch.cat([xs[i] for i in self.layers[j]] + ([emb, emb_prev] if self.embed else []), dim=-1)
+            hdn = torch.nn.functional.gelu(f @ m["w1"].to(f.dtype) + m["b1"].to(f.dtype))
+            y = y + hdn @ m["w2"].to(f.dtype)
         return y
 
+    def add_mlp(self, hidden: int = 1024, device="cuda"):
+        """Residual MLP per attention layer; zero-initialized output, so it starts identical to the linear map."""
+        self.mlp = {}
+        h = self.ss.hidden
+        o = 2 * self.ts.nkv * self.ts.hd
+        g = torch.Generator(device=device).manual_seed(0)
+        for j, ls in self.layers.items():
+            d_in = h * len(ls) + (2 * h if self.embed else 0)
+            self.mlp[j] = {"w1": torch.randn(d_in, hidden, device=device, generator=g) / d_in ** 0.5,
+                           "b1": torch.zeros(hidden, device=device),
+                           "w2": torch.zeros(hidden, o, device=device)}
+        return self
+
     def state_dict(self):
-        return {"layers": self.layers, "embed": self.embed,
-                "parts": {j: {str(k): v.detach().to(torch.bfloat16).cpu() for k, v in d.items()}
-                          for j, d in self.parts.items()}}
+        sd = {"layers": self.layers, "embed": self.embed,
+              "parts": {j: {str(k): v.detach().to(torch.bfloat16).cpu() for k, v in d.items()}
+                        for j, d in self.parts.items()}}
+        if getattr(self, "mlp", None):
+            sd["mlp"] = {j: {k: v.detach().to(torch.bfloat16).cpu() for k, v in d.items()}
+                         for j, d in self.mlp.items()}
+        return sd
 
     def save(self, path):
         torch.save(self.state_dict(), path)
@@ -150,6 +174,8 @@ class AttnMap:
                    for j, d in sd["parts"].items()}
         m.ready_at = {j: max(ls) for j, ls in m.layers.items()}
         m.need = sorted({i for ls in m.layers.values() for i in ls})
+        if "mlp" in sd:
+            m.mlp = sd["mlp"]
         return m
 
 
@@ -175,3 +201,84 @@ def task_calibrate_attn(src="4b", tgt="27b", n_seqs=64, seq_len=16384, radius=2,
     (ART / "maps").mkdir(parents=True, exist_ok=True)
     m.save(ART / "maps" / f"{name}.pt")
     return {"name": name, "tokens": st.n, "report": rep, "seconds": time.time() - t}
+
+
+def task_train_attn_mlp(src="4b", tgt="27b", attn_name="4b-27b-fid-attn", out_name=None, n_seqs=300, seq_len=8192,
+                        hidden=1024, lr=1e-4, inner=4, mb=2048, source="fineweb"):
+    """Direct regression of the target's native attention k|v (pre-RoPE) with a residual MLP on top of the
+    linear attention map. Loss: per-dimension standardized MSE. No backward through the target model."""
+    import time
+
+    from . import evals
+    from .experiments import ART, get
+
+    sm, _ = get(src)
+    tm, tok = get(tgt)
+    am = AttnMap.load(ART / "maps" / f"{attn_name}.pt", sm.spec, tm.spec, tm.device)
+    am.add_mlp(hidden)
+    params = [v.requires_grad_(True) for d in am.mlp.values() for v in d.values()]
+    opt = torch.optim.AdamW(params, lr=lr, weight_decay=0.0)
+    seqs = evals.load_heldout_text(tok, n_seqs, seq_len, seed=21, split="calib", source=source)
+    held = evals.load_heldout_text(tok, 2, seq_len, seed=22, split="calib", source=source)
+    need = am.need
+
+    @torch.no_grad()
+    def batch(ids):
+        xs, ys = {}, {}
+
+        def cap_src(kind, i, x=None, **_):
+            if kind == "src" and i in need:
+                xs.setdefault(i, []).append(x)
+
+        def cap_tgt(kind, j, x=None, **t):
+            if kind == "tgt_full":
+                ys.setdefault(j, []).append(torch.cat((t["k"].flatten(2), t["v"].flatten(2)), -1)[0])
+
+        sc = sm.new_cache(1, ids.shape[1])
+        sm.prefill(ids, sc, logits=None, cap=cap_src, stop_after=max(need))
+        del sc
+        tc = tm.new_cache(1, ids.shape[1])
+        tm.prefill(ids, tc, logits=None, cap=cap_tgt)
+        del tc
+        X = {i: torch.cat(v, 1)[0] for i, v in xs.items()}
+        e = sm.embed(ids)[0]
+        ep = torch.cat((torch.zeros_like(e[:1]), e[:-1]), 0)
+        return X, e, ep, {j: torch.cat(v, 0) for j, v in ys.items()}
+
+    @torch.no_grad()
+    def r2(X, e, ep, Y):
+        out = {}
+        for j in am.layers:
+            y = Y[j].float()
+            p = am.predict(j, X, e, ep).float()
+            out[j] = float(1 - ((p - y) ** 2).mean(0).sum() / ((y - y.mean(0)) ** 2).mean(0).sum())
+        return out
+
+    H = [batch(torch.tensor([s], device="cuda")) for s in held]
+    rep = lambda: {j: round(sum(r2(*h)[j] for h in H) / len(H), 4) for j in am.layers}  # noqa: E731
+    before = rep()
+    print("[mlp] heldout R2 before", before, flush=True)
+    std, t0 = {}, time.time()
+    for step, s in enumerate(seqs):
+        X, e, ep, Y = batch(torch.tensor([s], device="cuda"))
+        for j in am.layers:
+            std.setdefault(j, Y[j].float().std(0).clamp_min(1e-3))
+        for _ in range(inner):
+            perm = torch.randperm(e.shape[0], device="cuda")
+            for a in range(0, e.shape[0], mb):
+                idx = perm[a:a + mb]
+                loss = 0.0
+                for j in am.layers:
+                    p = am.predict(j, {i: X[i][idx] for i in am.layers[j]}, e[idx], ep[idx]).float()
+                    loss = loss + (((p - Y[j][idx].float()) / std[j]) ** 2).mean()
+                opt.zero_grad(set_to_none=True)
+                loss.backward()
+                opt.step()
+        if step % 25 == 0:
+            print(f"[mlp] step {step} loss/layer {float(loss) / len(am.layers):.4f} {time.time() - t0:.0f}s",
+                  flush=True)
+    after = rep()
+    print("[mlp] heldout R2 after", after, flush=True)
+    out_name = out_name or f"{attn_name}-mlp"
+    am.save(ART / "maps" / f"{out_name}.pt")
+    return {"name": out_name, "r2_before": before, "r2_after": after, "seconds": time.time() - t0}
