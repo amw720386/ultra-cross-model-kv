@@ -1039,7 +1039,7 @@ def _build_bigcodebench(tok: Any, limit: int, seed: int, max_ctx: int | None, ma
     def build(i: int) -> Item:
         d = docs[i]
         prompt = chat_prompt(tok, _EVALPLUS_INSTR.format(problem=d["instruct_prompt"].strip()),
-                             assistant_prefix=_EVALPLUS_PREFIX)
+                             assistant_prefix=_code_prefix())
         return _mk(tok, prompt, d["task_id"], max_new, oracle=d["code_prompt"] + d["canonical_solution"] + "\n```",
                    meta={"doc": dict(d)})
 
@@ -1053,7 +1053,7 @@ def _bigcodebench_program(d: dict, code: str) -> str:
 
 
 def _score_bigcodebench(items: list[Item], outputs: list[str], timeout: float = 120.0) -> list[dict]:
-    progs = [(_bigcodebench_program(it.meta["doc"], extract_code(o, "task_func", in_fence=True)), "unittest",
+    progs = [(_bigcodebench_program(it.meta["doc"], extract_code(o, "task_func", in_fence=not _code_free())), "unittest",
               timeout, 30.0) for it, o in zip(items, outputs)]
     return [{"score": float(r["passed"]), "timeout": float(r["status"] == "timeout")} for r in _run_many(progs)]
 
