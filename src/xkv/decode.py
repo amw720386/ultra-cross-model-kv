@@ -231,6 +231,8 @@ class Decoder:
         done = [t in stop_ids for t in first[:n_active]]
         rounds = 0
         accepted = 0
+        acc_row = [0] * n_active
+        rounds_row = [0] * n_active
         while not all(done) and min(len(o) for o, d in zip(outs, done) if not d) < max_new:
             rounds += 1
             if spec:
@@ -240,6 +242,8 @@ class Decoder:
                     if done[b]:
                         continue
                     accepted += K[b] - 1
+                    acc_row[b] += K[b] - 1
+                    rounds_row[b] += 1
                     for t in E[b][:K[b]]:
                         if len(outs[b]) >= max_new:
                             done[b] = True
@@ -259,5 +263,7 @@ class Decoder:
             for b in range(n_active):
                 if len(outs[b]) >= max_new:
                     done[b] = True
-        stats = {"rounds": rounds, "mean_accepted_per_round": accepted / max(1, rounds * n_active) if spec else 0.0}
+        stats = {"rounds": rounds, "mean_accepted_per_round": accepted / max(1, sum(rounds_row)) if spec else 0.0}
+        if spec:
+            stats["accepted_per_round_by_row"] = [a / max(1, r) for a, r in zip(acc_row, rounds_row)]
         return outs, stats

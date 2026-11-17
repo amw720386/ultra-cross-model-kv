@@ -284,3 +284,54 @@ def task_bench_matrix(cells, **kw):
         out.append({"cell": c, **r})
         torch.cuda.empty_cache()
     return out
+
+
+def task_spec_debug(src="4b", tgt="27b", mapper_name="4b-27b-w8192-distill-ret", L=2048, B=6, new=64, gamma=4,
+                    window=8192, tail=128):
+    """Is batched speculative decoding row-independent? Compare each row run alone (B=1) vs together."""
+    from . import evals
+    from .decode import Decoder
+    from .experiments import get, load_mapper
+    from .mapper import transfer_prefill
+
+    sm, _ = get(src)
+    tm, tok = get(tgt)
+    mapper = load_mapper(mapper_name, sm, tm)
+    texts = evals.load_heldout_text(tok, B, L, seed=11, split="eval", source="fineweb")
+    cap = _bucket(L + new + gamma + 8)
+    pre = []
+    for t in texts:
+        c, lg, sc = transfer_prefill(sm, tm, mapper, torch.tensor([t], device="cuda"), tail=tail, window=window,
+                                     keep_src=True)
+        pre.append((c, int(lg[0, -1].argmax()), sc))
+
+    def run(rows, spec, graphs=True):
+        dec = Decoder(tm, len(rows), cap, src=sm if spec else None, src_window=window, gamma=gamma,
+                      src_cap=_bucket(min(L, window) + new + gamma + 8), graphs=graphs)
+        for b, r in enumerate(rows):
+            c, f, sc = pre[r]
+            dec.load(b, c, f, sc if spec else None)
+        o, st = dec.generate(new, (), spec=spec)
+        del dec
+        torch.cuda.empty_cache()
+        return o, st
+
+    res = {}
+    solo_plain = [run([r], False)[0][0] for r in range(B)]
+    solo_spec = [run([r], True) for r in range(B)]
+    res["solo_spec_acc"] = [s[1]["mean_accepted_per_round"] for s in solo_spec]
+    res["solo_spec_exact"] = [s[0][0] == p for s, p in zip(solo_spec, solo_plain)]
+    bp, _ = run(list(range(B)), False)
+    res["batch_plain_vs_solo_plain"] = [a == b for a, b in zip(bp, solo_plain)]
+    bs, st = run(list(range(B)), True)
+    res["batch_spec_acc_rows"] = st.get("accepted_per_round_by_row")
+    res["batch_spec_vs_solo_spec"] = [a == s[0][0] for a, s in zip(bs, solo_spec)]
+    res["batch_spec_vs_solo_plain"] = [a == b for a, b in zip(bs, solo_plain)]
+    same, st2 = run([0] * B, True)
+    res["same_row_spec_acc_rows"] = st2.get("accepted_per_round_by_row")
+    res["same_row_spec_exact"] = [a == solo_plain[0] for a in same]
+    bse, st3 = run(list(range(B)), True, graphs=False)
+    res["eager_batch_spec_acc_rows"] = st3.get("accepted_per_round_by_row")
+    res["eager_batch_spec_vs_solo_plain"] = [a == b for a, b in zip(bse, solo_plain)]
+    print(json.dumps(res, indent=1), flush=True)
+    return res
