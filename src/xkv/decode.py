@@ -283,8 +283,8 @@ class TailEngine:
     def get(cls, model: Hybrid, B: int, cap: int, L: int):
         key = (id(model), B, cap, L)
         if key not in cls._inst:
-            for k in [k for k in cls._inst if k[:2] == key[:2] and k[2] != cap]:
-                del cls._inst[k]  # one capacity per (model, batch) at a time
+            for k in [k for k in cls._inst if k[0] == key[0]]:
+                del cls._inst[k]  # one engine per model at a time: bounded memory with variable caps/tails
             torch.cuda.empty_cache()
             cls._inst[key] = cls(model, B, cap, L)
         return cls._inst[key]
