@@ -145,7 +145,15 @@ def task_calibrate(src="4b", tgt="27b", n_seqs=256, seq_len=4096, radius=2, lam=
 
 
 def load_mapper(name, sm, tm):
-    return Mapper.load(ART / "maps" / f"{name}.pt", sm.spec, tm.spec, tm.device)
+    """name or 'base+attn' (base ridge/distilled maps plus a richer attention-KV map)."""
+    base, _, attn = name.partition("+")
+    m = Mapper.load(ART / "maps" / f"{base}.pt", sm.spec, tm.spec, tm.device)
+    if attn:
+        from .attnmap import AttnMap
+
+        m.attn = AttnMap.load(ART / "maps" / f"{attn}.pt", sm.spec, tm.spec, tm.device)
+        m.max_src = max(m.max_src, max(m.attn.need))
+    return m
 
 
 def task_quality(src="4b", tgt="27b", mapper_name=None, n_seqs=16, prefix=2048, cont=256, tails=(1, 8, 32, 64),
@@ -488,6 +496,8 @@ def task_distill(src="4b", tgt="27b", mapper_name=None, out_name=None, steps=150
     tm, ttok = get(tgt)
     mapper = load_mapper(mapper_name, sm, tm)
     params = mapper.trainable()
+    if getattr(mapper, "attn", None) is not None:
+        params += mapper.attn.trainable()
     opt = torch.optim.AdamW(params, lr=lr, betas=(0.9, 0.98), weight_decay=0.0)
     sched = torch.optim.lr_scheduler.LambdaLR(
         opt, lambda s: min(1.0, (s + 1) / warmup) * max(0.1, 0.5 * (1 + math.cos(math.pi * s / steps))))
@@ -554,10 +564,14 @@ def task_distill(src="4b", tgt="27b", mapper_name=None, out_name=None, steps=150
         if (step + 1) % eval_every == 0 or step + 1 == len(train):
             last = step + 1 == len(train)
             mapper.save(ART / "maps" / f"{out_name or mapper_name + '-distill'}-ckpt.pt")  # survive timeouts
+            if getattr(mapper, "attn", None) is not None:
+                mapper.attn.save(ART / "maps" / f"{out_name or mapper_name + '-distill'}-attn-ckpt.pt")
             hist.append({"step": step + 1, **evaluate(), **(niah_eval() if last else {})})
             print(json.dumps(hist[-1]), flush=True)
     out_name = out_name or f"{mapper_name}-distill{steps}"
     mapper.save(ART / "maps" / f"{out_name}.pt")
+    if getattr(mapper, "attn", None) is not None:
+        mapper.attn.save(ART / "maps" / f"{out_name}-attn.pt")
     return {"name": out_name, "history": hist, "seconds": time.time() - t0}
 
 
@@ -565,9 +579,9 @@ TASKS = {k[5:]: v for k, v in globals().items() if k.startswith("task_")}
 
 
 def _extra_tasks():
-    from . import genrun, perf
+    from . import attnmap, genrun, perf
 
-    return {k[5:]: v for m in (perf, genrun) for k, v in vars(m).items() if k.startswith("task_")}
+    return {k[5:]: v for m in (perf, genrun, attnmap) for k, v in vars(m).items() if k.startswith("task_")}
 
 
 def dispatch(task: str, args: dict):

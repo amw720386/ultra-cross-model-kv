@@ -267,11 +267,30 @@ def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timin
             # the first `sink` tokens (attention sink) are computed natively by the target
             tgt.forward(ids[:, :sink], tc, logits=None)
 
+        attn = getattr(mapper, "attn", None)
+
         def cap(kind, i, x=None, **_):
-            if kind != "src" or i not in mapper.by_src or PROFILE.get("mode") == "src" or cur.get("skip"):
+            if kind != "src" or PROFILE.get("mode") == "src" or cur.get("skip"):
                 return
             off = max(0, sink - cur["s"])
             if off >= x.shape[1]:
+                return
+            if attn is not None and i in attn.need:
+                xo = x[:, off:] if off else x
+                cur["buf"][i] = xo
+                for j, r in attn.ready_at.items():
+                    if r != i:
+                        continue
+                    B_, L_ = xo.shape[:2]
+                    y = attn.predict(j, cur["buf"], cur["emb"][:, off:], cur["emb_prev"][:, off:])
+                    h = ts.nkv * ts.hd
+                    k = y[..., :h].reshape(B_, L_, ts.nkv, ts.hd)
+                    v = y[..., h:].reshape(B_, L_, ts.nkv, ts.hd)
+                    cos, sin = cur["rope"]
+                    if off:
+                        cos, sin = cos[:, off:], sin[:, off:]
+                    tc.write_kv(j, cur["s"] + off, tgt.rope(k, cos, sin), v)
+            if i not in mapper.by_src:
                 return
             Y = _mm(x[:, off:] if off else x, mapper.W[i])
             if PROFILE.get("mode") == "gemm_only":
@@ -282,6 +301,8 @@ def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timin
                 a0, a1 = mapper.slices[i][j]
                 y = Y[..., a0:a1]
                 if ts.types[j] == "full_attention":
+                    if attn is not None:
+                        continue  # written by the richer attention map above
                     h = ts.nkv * ts.hd
                     k = y[..., :h].reshape(B, L, ts.nkv, ts.hd)
                     v = y[..., h:].reshape(B, L, ts.nkv, ts.hd)
@@ -330,7 +351,12 @@ def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timin
         for a, b, native in segs:
             for s in range(a, b, chunk):
                 e = min(s + chunk, b)
-                cur.update(s=s, L=e - s, rope=tgt.rope_tables(s, e - s), seg_end=b, skip=native)
+                cur.update(s=s, L=e - s, rope=tgt.rope_tables(s, e - s), seg_end=b, skip=native, buf={})
+                if attn is not None and not native:
+                    emb = src.embed(ids[:, max(s - 1, 0):e])
+                    if s == 0:
+                        emb = torch.cat((torch.zeros_like(emb[:, :1]), emb), dim=1)
+                    cur.update(emb=emb[:, 1:], emb_prev=emb[:, :-1])
                 src.forward(ids[:, s:e], sc, logits=None, window=window, cap=cap,
                             stop_after=None if keep_src else mapper.max_src)
                 if between is not None:
