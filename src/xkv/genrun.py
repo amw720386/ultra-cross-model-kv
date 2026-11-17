@@ -46,7 +46,8 @@ def make_batch_gen(strategy, sm, tm, mapper, tok, tail=128, window=8192, batch=8
             return tail
         return max(tail, min(turn_tail_max, len(p) - starts[-2]))
 
-    def gen(prompts, max_new):
+    def gen(prompts, max_new, spans=None):
+        """spans: optional per-prompt list of (a, b) token ranges the target computes natively (transfer only)."""
         order = sorted(range(len(prompts)), key=lambda i: -len(prompts[i]))
         out = [None] * len(prompts)
         for g0 in range(0, len(order), batch):
@@ -57,7 +58,8 @@ def make_batch_gen(strategy, sm, tm, mapper, tok, tail=128, window=8192, batch=8
                 ids = torch.tensor([prompts[i]], device="cuda")
                 if strategy == "transfer":
                     c, lg = transfer_prefill(sm, tm, mapper, ids, tail=min(tail_for(prompts[i]), ids.shape[1]), window=window,
-                                             chunk=chunk, full_until=full_until, sink=sink)
+                                             chunk=chunk, full_until=full_until, sink=sink,
+                                             native_spans=spans[i] if spans else None)
                 else:
                     c, lg = native_prefill(model, ids, chunk=chunk)
                 dec.load(b, c, int(lg[0, -1].argmax()))

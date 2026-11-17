@@ -537,3 +537,28 @@ def task_serve(src="4b", tgt="27b", mapper_name="4b-27b-chat", rates=(0.1, 0.2, 
         del dec
         torch.cuda.empty_cache()
     return res
+
+
+def task_span_check(src="4b", tgt="27b", mapper_name="4b-27b-chat", L=6000, tail=128):
+    """native_spans sanity: a span covering the whole mapped region must reproduce native prefill; a middle span
+    must sit between pure transfer and native in agreement."""
+    from . import evals
+    from .experiments import compare, get, load_mapper, teacher_forced
+    from .mapper import native_prefill, transfer_prefill
+
+    sm, _ = get(src)
+    tm, tok = get(tgt)
+    mapper = load_mapper(mapper_name, sm, tm)
+    seq = evals.load_heldout_text(tok, 1, L + 128, seed=9, split="eval", source="fineweb")[0]
+    ids, cont = torch.tensor([seq[:L]], device="cuda"), seq[L:L + 128]
+    c, lg = native_prefill(tm, ids)
+    ref = teacher_forced(tm, c, lg, cont)
+    del c
+    out = {}
+    for name, spans in (("none", None), ("all", [(0, L - tail)]), ("middle", [(1000, 3000)]),
+                        ("two", [(500, 900), (2000, 2600)])):
+        c, lg = transfer_prefill(sm, tm, mapper, ids, tail=tail, native_spans=spans, full_until=32768)
+        out[name] = compare(ref, teacher_forced(tm, c, lg, cont), cont)
+        del c
+    print(json.dumps(out, indent=1), flush=True)
+    return out

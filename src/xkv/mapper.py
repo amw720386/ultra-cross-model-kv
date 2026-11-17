@@ -211,25 +211,27 @@ def _mm(x, W):
 def transfer_prefill(src: Hybrid, tgt: Hybrid, mapper: Mapper, ids, tail: int = 1, chunk: int = 8192,
                      window: int | None = None, max_len: int | None = None, timings: dict | None = None,
                      grad: bool = False, keep_src: bool = False, full_until: int | None = None,
-                     graph_tail: bool | None = None, sink: int = 0, between=None):
+                     graph_tail: bool | None = None, sink: int = 0, between=None, native_spans=None):
     """keep_src=True also runs every source layer and the tail through the source and returns
     (cache, logits, source_cache) so the source can draft for speculative decoding."""
     if full_until is not None and ids.shape[1] <= full_until:
         window = None  # short enough: the source uses full attention; the sliding window only kicks in beyond
     with torch.set_grad_enabled(grad):
         return _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timings, grad, keep_src,
-                                 graph_tail, sink, between)
+                                 graph_tail, sink, between, native_spans)
 
 
 GRAPH_TAIL_MAX = 65536  # use the persistent graphed tail for prompts up to this length (None disables)
 
 
 def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timings, grad, keep_src=False,
-                      graph_tail=None, sink=0, between=None):
+                      graph_tail=None, sink=0, between=None, native_spans=None):
     """Build the target cache for prompt `ids` (1, T) from a source prefill; return (cache, first_logits).
 
     The source prefills ids[:, :T-tail]; the target natively processes the last `tail` tokens
     ("tail repair") on top of the synthesized cache, which also yields the first-token logits.
+    native_spans: optional [(a, b), ...] inside the mapped region that the target computes natively in place
+    (e.g. tool schemas, where exact strings matter); the source still reads them for its own state.
     """
     assert tail >= 1
     sync = torch.cuda.synchronize
@@ -261,7 +263,7 @@ def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timin
             tgt.forward(ids[:, :sink], tc, logits=None)
 
         def cap(kind, i, x=None, **_):
-            if kind != "src" or i not in mapper.by_src or PROFILE.get("mode") == "src":
+            if kind != "src" or i not in mapper.by_src or PROFILE.get("mode") == "src" or cur.get("skip"):
                 return
             off = max(0, sink - cur["s"])
             if off >= x.shape[1]:
@@ -304,20 +306,33 @@ def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timin
                     if PROFILE.get("mode") == "gemm":
                         continue
                     tc.S[j] = delta_state(k, v, g, b.sigmoid(), tc.S[j])
-                    if s + L == Tm:  # q channels of the conv state for the final tokens
+                    if s + L == cur["seg_end"]:  # q channels of the conv state before native tokens
                         n = ts.conv_k - 1
                         qraw = _mm(x[:, -n:], mapper.Wq[j])
                         if qraw.shape[1] < n:
                             qraw = torch.cat((tc.conv[j][:, qraw.shape[1]:, :kd], qraw), dim=1)
                         tc.conv[j] = torch.cat((qraw, tc.conv[j][..., kd:]), dim=-1)
 
-        for s in range(0, Tm, chunk):
-            e = min(s + chunk, Tm)
-            cur.update(s=s, L=e - s, rope=tgt.rope_tables(s, e - s))
-            src.forward(ids[:, s:e], sc, logits=None, window=window, cap=cap,
-                        stop_after=None if keep_src else mapper.max_src)
-            if between is not None:
-                between()
+        spans = sorted((max(a, sink), min(b, Tm)) for a, b in (native_spans or []) if min(b, Tm) > max(a, sink))
+        segs, pos = [], 0
+        for a, b in spans:
+            if a > pos:
+                segs.append((pos, a, False))
+            segs.append((max(a, pos), b, True))
+            pos = max(pos, b)
+        if pos < Tm:
+            segs.append((pos, Tm, False))
+        for a, b, native in segs:
+            for s in range(a, b, chunk):
+                e = min(s + chunk, b)
+                cur.update(s=s, L=e - s, rope=tgt.rope_tables(s, e - s), seg_end=b, skip=native)
+                src.forward(ids[:, s:e], sc, logits=None, window=window, cap=cap,
+                            stop_after=None if keep_src else mapper.max_src)
+                if between is not None:
+                    between()
+            if native:
+                tc.len = a
+                tgt.forward(ids[:, a:b], tc, logits=None)
         tc.len = Tm
     sync()
     t1 = time.perf_counter()
