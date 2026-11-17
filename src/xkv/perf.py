@@ -1,0 +1,286 @@
+"""Performance tasks: kernel-level TTFT profiling and decode (TPOT) benchmarks."""
+from __future__ import annotations
+
+import json
+import time
+from collections import defaultdict
+
+import torch
+
+
+def _cat(name: str) -> str:
+    n = name.lower()
+    if "flash" in n and ("fwd" in n or "attn" in n):
+        return "flash_attn"
+    if any(s in n for s in ("chunk_", "solve_tril", "recompute_w_u", "fused_recurrent", "l2norm", "kkt", "cumsum")):
+        return "fla_scan"
+    if any(s in n for s in ("gemm", "cutlass", "sm90", "nvjet", "ampere_", "cublas", "xmma", "gemv")):
+        return "gemm"
+    if "triton" in n:
+        return "triton_other"
+    if "rms" in n or "norm" in n:
+        return "norm"
+    if "copy" in n or "cat" in n or "memcpy" in n or "memset" in n:
+        return "copy"
+    return "elementwise"
+
+
+def kernel_table(fn, reps=2):
+    from torch.profiler import ProfilerActivity, profile
+
+    fn()
+    torch.cuda.synchronize()
+    with profile(activities=[ProfilerActivity.CUDA, ProfilerActivity.CPU]) as prof:
+        for _ in range(reps):
+            fn()
+        torch.cuda.synchronize()
+    by_cat, by_name = defaultdict(float), defaultdict(float)
+    for e in prof.key_averages():
+        t = getattr(e, "device_time_total", None)
+        if t is None:
+            t = getattr(e, "cuda_time_total", 0)
+        if t <= 0 or e.key.startswith("aten::") or e.key.startswith("cuda"):
+            continue
+        by_cat[_cat(e.key)] += t / reps / 1e6
+        by_name[e.key[:90]] += t / reps / 1e6
+    top = sorted(by_name.items(), key=lambda kv: -kv[1])[:25]
+    return {"by_category_s": dict(sorted(by_cat.items(), key=lambda kv: -kv[1])),
+            "gpu_busy_s": sum(by_cat.values()), "top_kernels_s": top}
+
+
+def timeit(fn, reps=3):
+    ts = []
+    for _ in range(reps):
+        torch.cuda.synchronize()
+        t = time.perf_counter()
+        fn()
+        torch.cuda.synchronize()
+        ts.append(time.perf_counter() - t)
+    return sorted(ts)[len(ts) // 2]
+
+
+def task_kprofile(src="4b", tgt="27b", mapper_name="4b-27b-w8192-distill-ret", lengths=(8192, 16384), tail=128,
+                  window=8192, chunk=8192):
+    from .experiments import get, load_mapper
+    from .mapper import native_prefill, transfer_prefill
+
+    sm, _ = get(src)
+    tm, _ = get(tgt)
+    mapper = load_mapper(mapper_name, sm, tm)
+    res = {"gpu": torch.cuda.get_device_name(), "max_src": mapper.max_src, "rows": []}
+    for L in lengths:
+        ids = torch.randint(1000, 100000, (1, L), device="cuda")
+        row = {"len": L}
+        f_nat = lambda: native_prefill(tm, ids, chunk=chunk)
+        f_src = lambda: native_prefill(sm, ids, chunk=chunk)
+        f_src_stop = lambda: sm.prefill(ids, sm.new_cache(1, L, window=window, chunk=chunk), chunk=chunk,
+                                        logits=None, window=window, stop_after=mapper.max_src)
+        tim = {}
+        f_tr = lambda: transfer_prefill(sm, tm, mapper, ids, tail=tail, window=window, chunk=chunk, timings=tim)
+        f_tail = lambda: tm.forward(ids[:, :tail], tm.new_cache(1, L + 512), logits="last")
+        for name, f in (("native_tgt", f_nat), ("native_src", f_src), ("src_stop_window", f_src_stop),
+                        ("transfer", f_tr), ("tgt_tail_only", f_tail)):
+            f()
+            row[name + "_s"] = timeit(f)
+        row["transfer_parts"] = dict(tim)
+        row["transfer_kernels"] = kernel_table(f_tr)
+        row["src_kernels"] = kernel_table(f_src_stop)
+        print(json.dumps(row, indent=1), flush=True)
+        res["rows"].append(row)
+        torch.cuda.empty_cache()
+    return res
+
+
+# --------------------------------------------------------------------------------------
+# decode
+# --------------------------------------------------------------------------------------
+
+
+def _bucket(n, q=1024):
+    return ((n + q - 1) // q) * q
+
+
+def task_decode_selftest(src="0.8b", tgt="2b", lens=(37, 300, 1500), new=48, gamma=4, window=256, chunk=512):
+    """Batched/graphed/speculative decoding reproduces plain greedy decoding token for token."""
+    from .decode import Decoder
+    from .experiments import get
+    from .mapper import native_prefill
+    from .qwen35 import STATS
+
+    sm, _ = get(src)
+    tm, tok = get(tgt)
+    stop = ()
+    g = torch.Generator().manual_seed(0)
+    prompts = [torch.randint(1000, 50000, (1, n), generator=g).cuda() for n in lens]
+    # natural text makes speculative acceptance meaningful
+    text = ("The history of science is the study of the development of science, including both the natural and "
+            "social sciences. Science is a body of empirical, theoretical, and practical knowledge about the "
+            "natural world, produced by scientists who emphasize the observation, explanation, and prediction of "
+            "real-world phenomena. ") * 40
+    tids = tok(text, return_tensors="pt").input_ids[:, :1200].cuda()
+    prompts.append(tids)
+    refs = []
+    for p in prompts:
+        c, lg = native_prefill(tm, p, max_len=p.shape[1] + new + 8)
+        refs.append(tm.greedy(c, lg, new, stop))
+    res = {"ref_lens": [len(r) for r in refs]}
+    cap = _bucket(max(p.shape[1] for p in prompts) + new + gamma + 8)
+    for graphs in (False, True):
+        for B in (len(prompts), len(prompts) + 1):
+            for spec, win in ((False, None), (True, None), (True, window)):
+                t0 = time.time()
+                dec = Decoder(tm, B, cap, src=sm if spec else None, src_window=win, gamma=gamma, graphs=graphs)
+                for b in range(B):
+                    p = prompts[min(b, len(prompts) - 1)]
+                    c, lg = native_prefill(tm, p)
+                    sc = None
+                    if spec:
+                        sc = sm.new_cache(1, p.shape[1], window=win, chunk=chunk)
+                        sm.prefill(p, sc, chunk=chunk, logits=None, window=win)
+                    dec.load(b, c, int(lg[0, -1].argmax()), sc)
+                outs, st = dec.generate(new, stop, spec=spec, n_active=len(prompts))
+                exact = [o == r for o, r in zip(outs, refs)]
+                tokacc = [sum(a == b for a, b in zip(o, r)) / len(r) for o, r in zip(outs, refs)]
+                key = f"graphs{int(graphs)}_B{B}_spec{int(spec)}_win{win}"
+                res[key] = {"exact": exact, "tok_agree": tokacc, "stats": st, "s": time.time() - t0}
+                print(key, json.dumps(res[key]), flush=True)
+                del dec
+                torch.cuda.empty_cache()
+    res["kernel_stats"] = dict(STATS)
+    return res
+
+
+def task_decode_bench(src="4b", tgt="27b", mapper_name="4b-27b-w8192-distill-ret", lengths=(2048, 32768),
+                      batches=(1, 2, 3, 4, 8, 12, 16), new=128, gamma=4, window=8192, tail=128, chunk=8192,
+                      mem_budget_gb=None, text_seed=11, arms=("native", "transfer", "transfer_spec")):
+    """TPOT / decode throughput. Equal-length real-text prompts per batch; every row decodes `new` tokens.
+
+    native: native 27B prefill + graphed 27B decode. transfer: transferred cache + the same decode.
+    transfer_spec: transferred cache + 4B-drafted speculative decode (the 4B cache comes from the transfer).
+    TPOT = decode wall time / (new - 1), first token excluded (it belongs to TTFT).
+    """
+    from . import evals
+    from .decode import Decoder
+    from .experiments import get, load_mapper
+    from .mapper import native_prefill, transfer_prefill
+
+    sm, _ = get(src)
+    tm, tok = get(tgt)
+    mapper = load_mapper(mapper_name, sm, tm)
+    free = torch.cuda.mem_get_info()[0] / 1e9
+    budget = mem_budget_gb or (free - 12)
+    s = tm.spec
+    kv_per_tok = len(s.full) * 2 * s.nkv * s.hd * 2
+    state = len(s.lin) * s.nv * s.dk * s.dv * 4
+    res = {"gpu": torch.cuda.get_device_name(), "free_gb": free, "rows": []}
+    for L in lengths:
+        texts = evals.load_heldout_text(tok, max(batches), L, seed=text_seed, split="eval", source="fineweb")
+        for B in batches:
+            cap = _bucket(L + new + gamma + 8)
+            need = B * (cap * kv_per_tok + state) / 1e9 + (L * kv_per_tok + state) / 1e9 * 2
+            if need > budget or len(texts) < B:
+                print(f"skip L={L} B={B} need={need:.1f}GB", flush=True)
+                continue
+            row = {"len": L, "batch": B}
+            outs_by_arm = {}
+            for arm in arms:
+                spec = arm == "transfer_spec"
+                t0 = time.time()
+                dec = Decoder(tm, B, cap, src=sm if spec else None, src_window=window, gamma=gamma,
+                              src_cap=_bucket(min(L, window) + new + gamma + 8))
+                cap_s = time.time() - t0
+                for b in range(B):
+                    ids = torch.tensor([texts[b]], device="cuda")
+                    sc = None
+                    if arm == "native":
+                        c, lg = native_prefill(tm, ids, chunk=chunk)
+                    elif spec:
+                        c, lg, sc = transfer_prefill(sm, tm, mapper, ids, tail=tail, window=window, chunk=chunk,
+                                                     keep_src=True)
+                    else:
+                        c, lg = transfer_prefill(sm, tm, mapper, ids, tail=tail, window=window, chunk=chunk)
+                    dec.load(b, c, int(lg[0, -1].argmax()), sc)
+                    del c, sc
+                torch.cuda.empty_cache()
+                torch.cuda.synchronize()
+                t = time.perf_counter()
+                outs, st = dec.generate(new, (), spec=spec)
+                torch.cuda.synchronize()
+                dt = time.perf_counter() - t
+                n = min(len(o) for o in outs)
+                row[arm] = {"tpot_ms": 1000 * dt / (n - 1), "tok_per_s": B * (n - 1) / dt, "graph_capture_s": cap_s,
+                            "tokens": n, **st}
+                outs_by_arm[arm] = outs
+                del dec
+                torch.cuda.empty_cache()
+            if "transfer" in outs_by_arm and "transfer_spec" in outs_by_arm:
+                a, b_ = outs_by_arm["transfer"], outs_by_arm["transfer_spec"]
+                row["spec_exact_rows"] = sum(x == y for x, y in zip(a, b_)) / B
+                row["spec_token_agree"] = sum(sum(p == q for p, q in zip(x, y)) / len(x) for x, y in zip(a, b_)) / B
+            if "native" in outs_by_arm and "transfer" in outs_by_arm:
+                a, b_ = outs_by_arm["native"], outs_by_arm["transfer"]
+                row["transfer_vs_native_token_agree"] = sum(
+                    sum(p == q for p, q in zip(x, y)) / len(x) for x, y in zip(a, b_)) / B
+            row["peak_mem_gb"] = torch.cuda.max_memory_allocated() / 1e9
+            print(json.dumps(row), flush=True)
+            res["rows"].append(row)
+    return res
+
+
+def task_ttft_ab(src="4b", tgt="27b", mapper_name="4b-27b-w8192-distill-ret", lengths=(8192, 16384), tail=128,
+                 window=8192, chunk=8192, reps=5, configs=None):
+    """A/B engine options on TTFT (native and transfer) and check numerics of the fused conv."""
+    from . import qwen35 as Q
+    from .experiments import get, load_mapper
+    from .kernels import conv_silu
+    from .mapper import native_prefill, transfer_prefill
+
+    sm, _ = get(src)
+    tm, _ = get(tgt)
+    mapper = load_mapper(mapper_name, sm, tm)
+    res = {"gpu": torch.cuda.get_device_name()}
+    # numerics: fused conv vs reference
+    g = torch.Generator(device="cuda").manual_seed(0)
+    h = torch.randn(2, 3, 10240, device="cuda", generator=g).bfloat16()
+    x = torch.randn(2, 777, 12000, device="cuda", generator=g).bfloat16()[..., 100:10340]
+    w = torch.randn(4, 10240, device="cuda", generator=g).bfloat16()
+    ref = Q._dwconv_silu(torch.cat((h, x), 1), w)
+    got = conv_silu(h, x, w)
+    res["conv_maxabs_err"] = float((ref.float() - got.float()).abs().max())
+    configs = configs or [{"name": "old", "FUSED_CONV": False, "RECUR_MAX": 16},
+                          {"name": "fused_conv", "FUSED_CONV": True, "RECUR_MAX": 16},
+                          {"name": "fused_conv+recur256", "FUSED_CONV": True, "RECUR_MAX": 256}]
+    ids_by_len = {L: torch.randint(1000, 100000, (1, L), device="cuda") for L in lengths}
+    rows = []
+    for cfg in configs:
+        for k, v in cfg.items():
+            if k != "name":
+                setattr(Q, k, v)
+        for L, ids in ids_by_len.items():
+            row = {"cfg": cfg["name"], "len": L}
+            f_nat = lambda: native_prefill(tm, ids, chunk=chunk)
+            f_tr = lambda: transfer_prefill(sm, tm, mapper, ids, tail=tail, window=window, chunk=chunk)
+            f_tail = lambda: tm.forward(ids[:, :tail], tm.new_cache(1, L + 512), logits="last")
+            for name, f in (("native", f_nat), ("transfer", f_tr), ("tail_only", f_tail)):
+                f()
+                row[name] = timeit(f, reps)
+            row["speedup"] = row["native"] / row["transfer"]
+            # logits parity of transfer vs old config is checked through agreement of first-token argmax
+            _, lg = f_tr()
+            row["first_tok"] = int(lg[0, -1].argmax())
+            print(json.dumps(row), flush=True)
+            rows.append(row)
+    res["rows"] = rows
+    return res
+
+
+def task_bench_matrix(cells, **kw):
+    """Run experiments.task_bench for several (lengths, batch) cells in one container."""
+    from .experiments import task_bench
+
+    out = []
+    for c in cells:
+        r = task_bench(**{**kw, "lengths": c["lengths"], "batch": c.get("batch", 1), "warmup": not out})
+        out.append({"cell": c, **r})
+        torch.cuda.empty_cache()
+    return out

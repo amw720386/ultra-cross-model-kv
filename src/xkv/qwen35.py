@@ -18,6 +18,8 @@ import torch.nn.functional as F
 
 _FA = None
 STATS: dict = {}
+RECUR_MAX = 256  # use the sequential fused-recurrent kernel for chunks up to this many tokens (no grad)
+FUSED_CONV = True
 
 
 def _flash():
@@ -78,7 +80,7 @@ def delta_scan(q, k, v, g, beta, state):
     chunk, recur = _gdr()
     needs_grad = torch.is_grad_enabled() and any(
         t.requires_grad for t in (q, k, v, g, beta) + ((state,) if state is not None else ()))
-    fn = recur if q.shape[1] <= 16 and not needs_grad else chunk
+    fn = recur if q.shape[1] <= RECUR_MAX and not needs_grad else chunk
     o, s = fn(q, k, v, g=g, beta=beta, initial_state=state, output_final_state=True,
               use_qk_l2norm_in_kernel=True)
     return o, s
@@ -308,9 +310,15 @@ class Hybrid:
         a = la.in_proj_a(x)
         if cap is not None:
             cap("tgt_lin", j, x=x, qkv=qkv, a=a, b=b)
-        xx = torch.cat((cache.conv[j], qkv), dim=1)
-        cache.conv[j] = xx[:, -(s.conv_k - 1):].contiguous()
-        mixed = dwconv_silu(xx, self.conv_w(j))
+        if FUSED_CONV and not torch.is_grad_enabled():
+            from .kernels import conv_silu, next_conv_state
+
+            mixed = conv_silu(cache.conv[j], qkv, self.conv_w(j))
+            cache.conv[j] = next_conv_state(cache.conv[j], qkv)
+        else:
+            xx = torch.cat((cache.conv[j], qkv), dim=1)
+            cache.conv[j] = xx[:, -(s.conv_k - 1):].contiguous()
+            mixed = dwconv_silu(xx, self.conv_w(j))
         q, k, v = torch.split(mixed, [s.key_dim, s.key_dim, s.value_dim], dim=-1)
         q = q.reshape(B, L, s.nk, s.dk)
         k = k.reshape(B, L, s.nk, s.dk)

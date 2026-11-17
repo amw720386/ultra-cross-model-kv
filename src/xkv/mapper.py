@@ -20,6 +20,8 @@ from collections import defaultdict
 import torch
 import torch.nn.functional as F
 
+from . import qwen35 as Q
+from .kernels import conv_silu, next_conv_state
 from .qwen35 import Cache, Hybrid, delta_scan, delta_state, dwconv_silu
 
 
@@ -208,12 +210,14 @@ def _mm(x, W):
 
 def transfer_prefill(src: Hybrid, tgt: Hybrid, mapper: Mapper, ids, tail: int = 1, chunk: int = 8192,
                      window: int | None = None, max_len: int | None = None, timings: dict | None = None,
-                     grad: bool = False):
+                     grad: bool = False, keep_src: bool = False):
+    """keep_src=True also runs every source layer and the tail through the source and returns
+    (cache, logits, source_cache) so the source can draft for speculative decoding."""
     with torch.set_grad_enabled(grad):
-        return _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timings, grad)
+        return _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timings, grad, keep_src)
 
 
-def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timings, grad):
+def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timings, grad, keep_src=False):
     """Build the target cache for prompt `ids` (1, T) from a source prefill; return (cache, first_logits).
 
     The source prefills ids[:, :T-tail]; the target natively processes the last `tail` tokens
@@ -227,8 +231,9 @@ def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timin
     tc = tgt.new_cache(ids.shape[0], max_len or T + 512, functional=grad)
     sync()
     t0 = time.perf_counter()
+    sc = None
     if Tm > 0:
-        sc = src.new_cache(ids.shape[0], Tm, window=window, chunk=chunk)
+        sc = src.new_cache(ids.shape[0], T if keep_src else Tm, window=window, chunk=chunk)
         kd = ts.key_dim
         cur = {"s": 0, "L": 0, "rope": None}
 
@@ -254,9 +259,14 @@ def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timin
                     kv = y[..., : kd + ts.value_dim]
                     a = y[..., kd + ts.value_dim: kd + ts.value_dim + ts.nv]
                     b = y[..., kd + ts.value_dim + ts.nv:]
-                    xx = torch.cat((tc.conv[j][..., kd:], kv), dim=1)
-                    tc.conv[j] = torch.cat((tc.conv[j][..., :kd], xx[:, -(ts.conv_k - 1):]), dim=-1)
-                    mixed = dwconv_silu(xx, tgt.conv_w(j)[:, kd:])
+                    if Q.FUSED_CONV and not grad:
+                        mixed = conv_silu(tc.conv[j][..., kd:], kv, tgt.conv_w(j)[:, kd:])
+                        tc.conv[j] = torch.cat((tc.conv[j][..., :kd], next_conv_state(tc.conv[j][..., kd:], kv)),
+                                               dim=-1)
+                    else:
+                        xx = torch.cat((tc.conv[j][..., kd:], kv), dim=1)
+                        tc.conv[j] = torch.cat((tc.conv[j][..., :kd], xx[:, -(ts.conv_k - 1):]), dim=-1)
+                        mixed = dwconv_silu(xx, tgt.conv_w(j)[:, kd:])
                     k = mixed[..., :kd].reshape(B, L, ts.nk, ts.dk)
                     v = mixed[..., kd:].reshape(B, L, ts.nv, ts.dv)
                     rep = ts.nv // ts.nk
@@ -276,8 +286,8 @@ def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timin
         for s in range(0, Tm, chunk):
             e = min(s + chunk, Tm)
             cur.update(s=s, L=e - s, rope=tgt.rope_tables(s, e - s))
-            src.forward(ids[:, s:e], sc, logits=None, window=window, cap=cap, stop_after=mapper.max_src)
-        del sc
+            src.forward(ids[:, s:e], sc, logits=None, window=window, cap=cap,
+                        stop_after=None if keep_src else mapper.max_src)
         tc.len = Tm
     sync()
     t1 = time.perf_counter()
@@ -286,6 +296,11 @@ def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timin
     t2 = time.perf_counter()
     if timings is not None:
         timings.update(src_and_map=t1 - t0, tail=t2 - t1, total=t2 - t0)
+    if keep_src:
+        if sc is None:
+            sc = src.new_cache(ids.shape[0], T, window=window, chunk=chunk)
+        src.prefill(ids[:, Tm:], sc, chunk=chunk, logits=None, window=window)
+        return tc, logits, sc
     return tc, logits
 
 

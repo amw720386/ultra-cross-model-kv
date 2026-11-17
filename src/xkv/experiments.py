@@ -223,7 +223,7 @@ def run_mc(sm, tm, mapper, tok, limit, tails, window):
 
 
 def task_bench(src="4b", tgt="27b", mapper_name=None, lengths=(8192, 16384, 32768, 65536), reps=3, tail=32,
-               window=None, chunk=8192, native=True, warmup=True):
+               window=None, chunk=8192, native=True, warmup=True, batch=1):
     sm, stok = get(src)
     tm, ttok = get(tgt)
     mapper = load_mapper(mapper_name, sm, tm) if mapper_name else None
@@ -239,8 +239,8 @@ def task_bench(src="4b", tgt="27b", mapper_name=None, lengths=(8192, 16384, 3276
                 transfer_prefill(sm, tm, mapper, ids, tail=tail, window=window, chunk=chunk)
         torch.cuda.empty_cache()
     for L in lengths:
-        ids = torch.randint(1000, 100000, (1, L), generator=g).cuda()
-        row = {"len": L}
+        ids = torch.randint(1000, 100000, (batch, L), generator=g).cuda()
+        row = {"len": L, "batch": batch}
         if native:
             ts = []
             for _ in range(reps):
@@ -505,9 +505,15 @@ def task_distill(src="4b", tgt="27b", mapper_name=None, out_name=None, steps=150
 TASKS = {k[5:]: v for k, v in globals().items() if k.startswith("task_")}
 
 
+def _extra_tasks():
+    from . import perf
+
+    return {k[5:]: v for k, v in vars(perf).items() if k.startswith("task_")}
+
+
 def dispatch(task: str, args: dict):
     t = time.time()
-    out = TASKS[task](**args)
+    out = {**TASKS, **_extra_tasks()}[task](**args)
     out = {"task": task, "args": args, "wall_s": time.time() - t, "result": out}
     (ART / "results").mkdir(parents=True, exist_ok=True)
     stamp = time.strftime("%Y%m%d-%H%M%S")
