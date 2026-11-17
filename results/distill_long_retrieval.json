@@ -1,0 +1,55 @@
+{
+ "task": "distill",
+ "args": {
+  "mapper_name": "4b-27b-r2-n32x32768-w8192",
+  "out_name": "4b-27b-w8192-distill-ret",
+  "steps": 500,
+  "prefix_choices": [
+   4096,
+   8192,
+   12288
+  ],
+  "prefix": 12288,
+  "cont": 128,
+  "tail": 64,
+  "eval_tail": 128,
+  "window": 8192,
+  "retrieval_frac": 0.5,
+  "lr": 2e-05,
+  "warmup": 30,
+  "eval_every": 250,
+  "n_eval": 4,
+  "niah_len": 32768,
+  "niah_n": 10
+ },
+ "wall_s": 1580.8607313632965,
+ "result": {
+  "name": "4b-27b-w8192-distill-ret",
+  "history": [
+   {
+    "step": 0,
+    "nll_ref": 2.2973175942897797,
+    "nll": 2.3769346475601196,
+    "top1_agree": 0.8984375,
+    "kl": 0.0843431381508708,
+    "niah_acc": 0.8
+   },
+   {
+    "step": 250,
+    "nll_ref": 2.2973175942897797,
+    "nll": 2.3124329149723053,
+    "top1_agree": 0.92578125,
+    "kl": 0.0274340589530766
+   },
+   {
+    "step": 500,
+    "nll_ref": 2.2973175942897797,
+    "nll": 2.311040371656418,
+    "top1_agree": 0.919921875,
+    "kl": 0.02537038899026811,
+    "niah_acc": 1.0
+   }
+  ],
+  "seconds": 1287.5453243255615
+ }
+}
