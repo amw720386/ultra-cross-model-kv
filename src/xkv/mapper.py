@@ -211,21 +211,22 @@ def _mm(x, W):
 def transfer_prefill(src: Hybrid, tgt: Hybrid, mapper: Mapper, ids, tail: int = 1, chunk: int = 8192,
                      window: int | None = None, max_len: int | None = None, timings: dict | None = None,
                      grad: bool = False, keep_src: bool = False, full_until: int | None = None,
-                     graph_tail: bool | None = None, sink: int = 0, between=None, native_spans=None):
+                     graph_tail: bool | None = None, sink: int = 0, between=None, native_spans=None,
+                     oracle: str | None = None):
     """keep_src=True also runs every source layer and the tail through the source and returns
     (cache, logits, source_cache) so the source can draft for speculative decoding."""
     if full_until is not None and ids.shape[1] <= full_until:
         window = None  # short enough: the source uses full attention; the sliding window only kicks in beyond
     with torch.set_grad_enabled(grad):
         return _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timings, grad, keep_src,
-                                 graph_tail, sink, between, native_spans)
+                                 graph_tail, sink, between, native_spans, oracle)
 
 
 GRAPH_TAIL_MAX = 32768  # persistent graphed tail for prompts up to this length (memory-bounded; None disables)
 
 
 def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timings, grad, keep_src=False,
-                      graph_tail=None, sink=0, between=None, native_spans=None):
+                      graph_tail=None, sink=0, between=None, native_spans=None, oracle=None):
     """Build the target cache for prompt `ids` (1, T) from a source prefill; return (cache, first_logits).
 
     The source prefills ids[:, :T-tail]; the target natively processes the last `tail` tokens
@@ -338,6 +339,19 @@ def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timin
                 tc.len = a
                 tgt.forward(ids[:, a:b], tc, logits=None)
         tc.len = Tm
+        if oracle:
+            # diagnostic only: replace one component of the mapped cache with the native one
+            cn = tgt.new_cache(ids.shape[0], Tm + 8)
+            tgt.prefill(ids[:, :Tm], cn, chunk=chunk, logits=None)
+            if oracle in ("attn", "both"):
+                for j in cn.k:
+                    tc.k[j][:, :Tm] = cn.k[j][:, :Tm]
+                    tc.v[j][:, :Tm] = cn.v[j][:, :Tm]
+            if oracle in ("lin", "both"):
+                for j in cn.S:
+                    tc.S[j] = cn.S[j].clone()
+                    tc.conv[j] = cn.conv[j].clone()
+            del cn
     sync()
     t1 = time.perf_counter()
     if eng is not None:

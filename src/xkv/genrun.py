@@ -28,7 +28,9 @@ def make_batch_gen(strategy, sm, tm, mapper, tok, tail=128, window=8192, batch=8
     from .mapper import native_prefill, transfer_prefill
 
     stops = stop_ids(tok)
-    sink = 0
+    sink, oracle = 0, None
+    if strategy.startswith("transfer") and "+oracle_" in strategy:  # diagnostic: transfer+oracle_attn|lin|both
+        strategy, oracle = strategy.split("+oracle_")[0], strategy.split("+oracle_")[1]
     if strategy.startswith("transfer") and ":s" in strategy:  # e.g. transfer:s1 -> first token computed natively
         strategy, sink = strategy.split(":s")[0], int(strategy.split(":s")[1])
     if strategy.startswith("transfer@"):  # e.g. transfer@16: only the last 16 prompt tokens run natively
@@ -59,7 +61,8 @@ def make_batch_gen(strategy, sm, tm, mapper, tok, tail=128, window=8192, batch=8
                 if strategy == "transfer":
                     c, lg = transfer_prefill(sm, tm, mapper, ids, tail=min(tail_for(prompts[i]), ids.shape[1]), window=window,
                                              chunk=chunk, full_until=full_until, sink=sink,
-                                             native_spans=spans[i] if spans else None)
+                                             native_spans=spans[i] if spans else None, oracle=oracle,
+                                             graph_tail=False if oracle else None)
                 else:
                     c, lg = native_prefill(model, ids, chunk=chunk)
                 dec.load(b, c, int(lg[0, -1].argmax()))
