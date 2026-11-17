@@ -376,9 +376,49 @@ def task_profile(src="4b", tgt="27b", mapper_name=None, lengths=(8192, 32768), t
     return res
 
 
+class RetrievalSynth:
+    """Synthetic lookup tasks for distillation: 'entry ABC-123: the access code is 482913.' records planted in
+    real text, then a chat-formatted question. Deliberately different from the eval NIAH (template, code length,
+    filler) so the needle eval stays out of distribution."""
+
+    def __init__(self, tok, seed=0):
+        import random
+
+        self.tok, self.rng = tok, random.Random(seed)
+        ph = "XXPLACEHOLDERXX"
+        try:
+            t = tok.apply_chat_template([{"role": "user", "content": ph}], add_generation_prompt=True,
+                                        enable_thinking=False, tokenize=False)
+        except TypeError:
+            t = tok.apply_chat_template([{"role": "user", "content": ph}], add_generation_prompt=True, tokenize=False)
+        self.pre, self.post = t.split(ph)
+        self.end = tok.convert_tokens_to_ids("<|im_end|>")
+
+    def enc(self, s):
+        return self.tok.encode(s, add_special_tokens=False)
+
+    def make(self, body: list[int], n_records: int):
+        r = self.rng
+        letters = "ABCDEFGHJKLMNPQRSTUVWXYZ"
+        recs = []
+        for _ in range(n_records):
+            name = "".join(r.choice(letters) for _ in range(3)) + f"-{r.randint(100, 999)}"
+            code = str(r.randint(100000, 999999))
+            recs.append((name, code))
+        q_name, q_code = r.choice(recs)
+        body = list(body)
+        for name, code in recs:
+            pos = r.randint(0, len(body))
+            body[pos:pos] = self.enc(f" Note: entry {name}: the access code is {code}. ")
+        q = self.enc(f"\n\nAccording to the text above, what is the access code for entry {q_name}? "
+                     f"Reply with the code only.") + self.enc(self.post)
+        prompt = self.enc(self.pre) + body + q
+        return prompt, self.enc(q_code) + [self.end]
+
+
 def task_distill(src="4b", tgt="27b", mapper_name=None, out_name=None, steps=1500, prefix=1024, cont=128,
                  tail=1, lr=2e-5, warmup=50, clip=1.0, eval_every=250, n_eval=8, source="fineweb", window=None,
-                 prefix_choices=None):
+                 prefix_choices=None, retrieval_frac=0.0, niah_len=0, niah_n=10, eval_tail=None):
     """Fine-tune the ridge maps end to end: minimize KL(native target || transferred target) on continuations.
 
     Only the maps are trained; both models stay frozen. Gradients flow from the target's continuation logits
@@ -405,17 +445,31 @@ def task_distill(src="4b", tgt="27b", mapper_name=None, out_name=None, steps=150
             nc, nl = native_prefill(tm, T(p))
             ref = teacher_forced(tm, nc, nl, c)
             del nc
-            tc, tl = transfer_prefill(sm, tm, mapper, T(p), tail=tail, window=window)
+            tc, tl = transfer_prefill(sm, tm, mapper, T(p), tail=eval_tail, window=window)
             rows.append(compare(ref, teacher_forced(tm, tc, tl, c), c))
         return mean_dicts(rows)
 
-    hist = [{"step": 0, **evaluate()}]
+    synth = RetrievalSynth(ttok, seed=1) if retrieval_frac else None
+    eval_tail = eval_tail or tail
+
+    def niah_eval():
+        if not niah_len:
+            return {}
+        samples = evals.make_niah(ttok, niah_len, niah_n, seed=3, num_keys=1)
+        r = evals.run_niah(ttok, make_generator("transfer", sm, tm, mapper, ttok, max(eval_tail, 128), window),
+                           samples=samples, max_new_tokens=24)
+        return {"niah_acc": r["acc"]}
+
+    hist = [{"step": 0, **evaluate(), **niah_eval()}]
     print(json.dumps(hist[-1]), flush=True)
     t0 = time.time()
     run = 0.0
     for step, s in enumerate(train):
         P = rng.choice(lens)
-        p, c = s[:P], s[P:P + cont]
+        if synth is not None and rng.random() < retrieval_frac:
+            p, c = synth.make(s[:P - 80], rng.randint(1, 4))
+        else:
+            p, c = s[:P], s[P:P + cont]
         with torch.no_grad():
             nc, nl = native_prefill(tm, T(p))
             ref = teacher_forced(tm, nc, nl, c)
@@ -436,7 +490,8 @@ def task_distill(src="4b", tgt="27b", mapper_name=None, out_name=None, steps=150
             print(f"[distill] step {step} kl {float(loss):.4f} ema {run:.4f} gn {float(gn):.3f} "
                   f"{time.time() - t0:.0f}s mem {torch.cuda.max_memory_allocated() / 1e9:.1f}GB", flush=True)
         if (step + 1) % eval_every == 0 or step + 1 == len(train):
-            hist.append({"step": step + 1, **evaluate()})
+            last = step + 1 == len(train)
+            hist.append({"step": step + 1, **evaluate(), **(niah_eval() if last else {})})
             print(json.dumps(hist[-1]), flush=True)
     out_name = out_name or f"{mapper_name}-distill{steps}"
     mapper.save(ART / "maps" / f"{out_name}.pt")

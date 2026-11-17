@@ -76,7 +76,9 @@ def _gdr():
 def delta_scan(q, k, v, g, beta, state):
     """Gated delta rule over a chunk. q,k (B,L,Hv,Dk) raw (l2norm applied in kernel), v (B,L,Hv,Dv)."""
     chunk, recur = _gdr()
-    fn = recur if q.shape[1] <= 16 else chunk
+    needs_grad = torch.is_grad_enabled() and any(
+        t.requires_grad for t in (q, k, v, g, beta) + ((state,) if state is not None else ()))
+    fn = recur if q.shape[1] <= 16 and not needs_grad else chunk
     o, s = fn(q, k, v, g=g, beta=beta, initial_state=state, output_final_state=True,
               use_qk_l2norm_in_kernel=True)
     return o, s
