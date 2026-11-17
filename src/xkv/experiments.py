@@ -239,6 +239,9 @@ def task_bench(src="4b", tgt="27b", mapper_name=None, lengths=(8192, 16384, 3276
                 transfer_prefill(sm, tm, mapper, ids, tail=tail, window=window, chunk=chunk, full_until=full_until)
         torch.cuda.empty_cache()
     for L in lengths:
+        from .decode import TailEngine
+
+        TailEngine.release()  # every length starts from the same free memory
         ids = torch.randint(1000, 100000, (batch, L), generator=g).cuda()
         row = {"len": L, "batch": batch}
         if native:

@@ -289,6 +289,13 @@ class TailEngine:
             cls._inst[key] = cls(model, B, cap, L)
         return cls._inst[key]
 
+    @classmethod
+    def release(cls):
+        """Free all persistent tail buffers and graphs (e.g. before a long prompt that does not use them)."""
+        if cls._inst:
+            cls._inst.clear()
+            torch.cuda.empty_cache()
+
     def __init__(self, model: Hybrid, B: int, cap: int, L: int):
         self.model, self.B, self.cap, self.L = model, B, cap, L
         self.bc = BatchCache(model, B, cap)

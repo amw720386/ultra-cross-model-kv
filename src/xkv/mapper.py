@@ -248,6 +248,10 @@ def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timin
         eng = TailEngine.get(tgt, ids.shape[0], ((max(max_len or 0, T + 512) + q - 1) // q) * q, tail)
         tc = eng.new_cache()
     else:
+        if not grad:
+            from .decode import TailEngine
+
+            TailEngine.release()  # long prompts need the memory more than the graphed tail
         tc = tgt.new_cache(ids.shape[0], max_len or T + 512, functional=grad)
     sync()
     t0 = time.perf_counter()
