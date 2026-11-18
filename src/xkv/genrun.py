@@ -28,7 +28,11 @@ def make_batch_gen(strategy, sm, tm, mapper, tok, tail=128, window=8192, batch=8
     from .mapper import adaptive_tail, native_prefill, transfer_prefill
 
     stops = stop_ids(tok)
-    sink, oracle = 0, None
+    sink, oracle, repair, rstate = 0, None, 0, "final"
+    if "+rep" in strategy:  # e.g. transfer@auto+rep1024 (z suffix: re-encode from a zero DeltaNet state)
+        strategy, r = strategy.split("+rep")
+        rstate = "zero" if r.endswith("z") else "final"
+        repair = int(r.rstrip("z"))
     if strategy.startswith("transfer") and "+oracle_" in strategy:  # diagnostic: transfer+oracle_attn|lin|both
         strategy, oracle = strategy.split("+oracle_")[0], strategy.split("+oracle_")[1]
     if strategy.startswith("transfer") and ":s" in strategy:  # e.g. transfer:s1 -> first token computed natively
@@ -64,6 +68,7 @@ def make_batch_gen(strategy, sm, tm, mapper, tok, tail=128, window=8192, batch=8
                     c, lg = transfer_prefill(sm, tm, mapper, ids, tail=min(tail_for(prompts[i]), ids.shape[1]), window=window,
                                              chunk=chunk, full_until=full_until, sink=sink,
                                              native_spans=spans[i] if spans else None, oracle=oracle,
+                                             repair=repair, repair_state=rstate,
                                              graph_tail=False if oracle else None)
                 else:
                     c, lg = native_prefill(model, ids, chunk=chunk)

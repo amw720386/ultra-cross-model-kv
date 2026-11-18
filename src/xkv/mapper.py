@@ -225,21 +225,23 @@ def transfer_prefill(src: Hybrid, tgt: Hybrid, mapper: Mapper, ids, tail: int = 
                      window: int | None = None, max_len: int | None = None, timings: dict | None = None,
                      grad: bool = False, keep_src: bool = False, full_until: int | None = None,
                      graph_tail: bool | None = None, sink: int = 0, between=None, native_spans=None,
-                     oracle: str | None = None):
+                     oracle: str | None = None, repair: int = 0, repair_state: str = "final", repair_block: int = 64):
     """keep_src=True also runs every source layer and the tail through the source and returns
-    (cache, logits, source_cache) so the source can draft for speculative decoding."""
+    (cache, logits, source_cache) so the source can draft for speculative decoding.
+    repair: query-aware selective repair budget (tokens); see _repair."""
     if full_until is not None and ids.shape[1] <= full_until:
         window = None  # short enough: the source uses full attention; the sliding window only kicks in beyond
     with torch.set_grad_enabled(grad):
         return _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timings, grad, keep_src,
-                                 graph_tail, sink, between, native_spans, oracle)
+                                 graph_tail, sink, between, native_spans, oracle,
+                                 (repair, repair_state, repair_block) if repair else None)
 
 
 GRAPH_TAIL_MAX = 32768  # persistent graphed tail for prompts up to this length (memory-bounded; None disables)
 
 
 def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timings, grad, keep_src=False,
-                      graph_tail=None, sink=0, between=None, native_spans=None, oracle=None):
+                      graph_tail=None, sink=0, between=None, native_spans=None, oracle=None, repair=None):
     """Build the target cache for prompt `ids` (1, T) from a source prefill; return (cache, first_logits).
 
     The source prefills ids[:, :T-tail]; the target natively processes the last `tail` tokens
@@ -270,8 +272,9 @@ def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timin
     sync()
     t0 = time.perf_counter()
     sc = None
+    src_tail_done = False
     if Tm > 0:
-        sc = src.new_cache(ids.shape[0], T if keep_src else Tm, window=window, chunk=chunk)
+        sc = src.new_cache(ids.shape[0], T if (keep_src or repair) else Tm, window=window, chunk=chunk)
         kd = ts.key_dim
         cur = {"s": 0, "L": 0, "rope": None}
 
@@ -378,6 +381,10 @@ def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timin
                 tc.len = a
                 tgt.forward(ids[:, a:b], tc, logits=None)
         tc.len = Tm
+        src_tail_done = False
+        if repair and not sc.ring and Tm > 4 * repair[2]:
+            _repair(src, tgt, mapper, sc, tc, ids, Tm, *repair, keep_src=keep_src)
+            src_tail_done = True
         if oracle:
             # diagnostic only: replace one component of the mapped cache with the native one
             cn = tgt.new_cache(ids.shape[0], Tm + 8)
@@ -404,9 +411,67 @@ def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timin
     if keep_src:
         if sc is None:
             sc = src.new_cache(ids.shape[0], T, window=window, chunk=chunk)
-        src.prefill(ids[:, Tm:], sc, chunk=chunk, logits=None, window=window)
+        if not (Tm > 0 and src_tail_done):
+            src.prefill(ids[:, Tm:], sc, chunk=chunk, logits=None, window=window)
         return tc, logits, sc
     return tc, logits
+
+
+@torch.no_grad()
+def _repair(src, tgt, mapper, sc, tc, ids, Tm, budget, state="final", block=64, keep_src=False, sink=4):
+    """Query-aware selective repair. The source reads the tail (the question) over its own, native cache; its
+    attention from the tail to the mapped region ranks `block`-token blocks (per head: max over tail queries of
+    the softmax weight; averaged over heads and the source's attention layers). The target then re-encodes the
+    top blocks natively, in order, on top of the mapped cache; only their attention KV is kept, the recurrent
+    states are restored (oracle runs show recall lives in the attention KV). state: DeltaNet state the
+    re-encoded blocks start from: 'final' (the mapped end-of-prefix state) or 'zero'."""
+    ss = src.spec
+    T = ids.shape[1]
+    rel = torch.zeros(ids.shape[0], Tm, device=ids.device, dtype=torch.float32)
+    cos, sin = src.rope_tables(Tm, T - Tm)
+    nl = [0]
+
+    def cap(kind, j, x=None, **_):
+        if kind != "tgt_full":
+            return
+        a = src.layers[j].self_attn
+        B, L, _ = x.shape
+        q, _g = a.q_proj(x).view(B, L, ss.nq, 2 * ss.hd).chunk(2, dim=-1)
+        q = src.rope(a.q_norm(q), cos, sin)
+        K = sc.k[j][:, :Tm]
+        r = ss.nq // ss.nkv
+        q = q.reshape(B, L, ss.nkv, r, ss.hd)
+        lg = torch.einsum("blgrd,btgd->bgrlt", q, K).float() * ss.hd ** -0.5
+        rel.add_(lg.softmax(-1).amax(dim=3).mean(dim=(1, 2)))
+        nl[0] += 1
+
+    sc.len = Tm
+    src.forward(ids[:, Tm:], sc, logits=None, cap=cap, stop_after=None if keep_src else mapper.max_src)
+    if not nl[0]:
+        return []
+    rel[:, :sink] = 0
+    nb = Tm // block
+    score = rel[0, : nb * block].view(nb, block).sum(-1)
+    k = max(1, min(nb, budget // block))
+    sel = sorted(score.topk(k).indices.tolist())
+    spans = []
+    for bi in sel:
+        a, b = bi * block, (bi + 1) * block
+        if spans and spans[-1][1] == a:
+            spans[-1] = (spans[-1][0], b)
+        else:
+            spans.append((a, b))
+    S0, C0 = dict(tc.S), dict(tc.conv)  # forward() replaces these tensors; the originals stay untouched
+    for a, b in spans:
+        for j in S0:
+            tc.S[j] = torch.zeros_like(S0[j]) if state == "zero" else S0[j].clone()
+            tc.conv[j] = torch.zeros_like(C0[j]) if state == "zero" else C0[j].clone()
+        tc.len = a
+        tgt.forward(ids[:, a:b], tc, logits=None)
+    tc.S.update(S0)
+    tc.conv.update(C0)
+    tc.len = Tm
+    return spans
 
 
 @torch.no_grad()
