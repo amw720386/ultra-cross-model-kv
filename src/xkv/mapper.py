@@ -14,6 +14,8 @@ scans; the target never runs its MLPs or attention over the prompt.
 """
 from __future__ import annotations
 
+import os
+
 import time
 from collections import defaultdict
 
@@ -225,16 +227,18 @@ def transfer_prefill(src: Hybrid, tgt: Hybrid, mapper: Mapper, ids, tail: int = 
                      window: int | None = None, max_len: int | None = None, timings: dict | None = None,
                      grad: bool = False, keep_src: bool = False, full_until: int | None = None,
                      graph_tail: bool | None = None, sink: int = 0, between=None, native_spans=None,
-                     oracle: str | None = None, repair: int = 0, repair_state: str = "final", repair_block: int = 64):
+                     oracle: str | None = None, repair: int = 0, repair_state: str = "final", repair_block: int = 64,
+                     repair_sep: int | None = None):
     """keep_src=True also runs every source layer and the tail through the source and returns
     (cache, logits, source_cache) so the source can draft for speculative decoding.
-    repair: query-aware selective repair budget (tokens); see _repair."""
+    repair: query-aware selective repair budget (tokens); see _repair. repair_sep: message-start token id; when set,
+    repair selects whole messages (with the message that follows) instead of scattered blocks."""
     if full_until is not None and ids.shape[1] <= full_until:
         window = None  # short enough: the source uses full attention; the sliding window only kicks in beyond
     with torch.set_grad_enabled(grad):
         return _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timings, grad, keep_src,
                                  graph_tail, sink, between, native_spans, oracle,
-                                 (repair, repair_state, repair_block) if repair else None)
+                                 (repair, repair_state, repair_block, repair_sep) if repair else None)
 
 
 GRAPH_TAIL_MAX = 32768  # persistent graphed tail for prompts up to this length (memory-bounded; None disables)
@@ -418,14 +422,17 @@ def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timin
 
 
 @torch.no_grad()
-def _repair(src, tgt, mapper, sc, tc, ids, Tm, budget, state="final", block=64, keep_src=False, sink=4,
+def _repair(src, tgt, mapper, sc, tc, ids, Tm, budget, state="final", block=64, sep=None, keep_src=False, sink=4,
             batched=True):
     """Query-aware selective repair. The source reads the tail (the question) over its own, native cache; its
     attention from the tail to the mapped region ranks `block`-token blocks (per head: max over tail queries of
     the softmax weight; averaged over heads and the source's attention layers). The target then re-encodes the
     top blocks natively, in order, on top of the mapped cache; only their attention KV is kept, the recurrent
     states are restored (oracle runs show recall lives in the attention KV). state: DeltaNet state the
-    re-encoded blocks start from: 'final' (the mapped end-of-prefix state) or 'zero'."""
+    re-encoded blocks start from: 'final' (the mapped end-of-prefix state) or 'zero'.
+    sep: message-start token id. Messages are then the repair units: a message's score is its best block score and
+    selecting it also takes the message that follows (a request and its answer); messages longer than budget/2
+    (XKV_REPAIR_UNIT_FRAC; e.g. a long system prompt) fall back to their individual blocks. Units are taken greedily by score."""
     ss = src.spec
     T = ids.shape[1]
     rel = torch.zeros(ids.shape[0], Tm, device=ids.device, dtype=torch.float32)
@@ -458,13 +465,15 @@ def _repair(src, tgt, mapper, sc, tc, ids, Tm, budget, state="final", block=64, 
     rel[:, :sink] = 0
     nb = Tm // block
     score = rel[0, : nb * block].view(nb, block).sum(-1)
-    k = max(1, min(nb, budget // block))
-    sel = sorted(score.topk(k).indices.tolist())
+    if sep is None:
+        k = max(1, min(nb, budget // block))
+        sel = [(bi * block, (bi + 1) * block) for bi in score.topk(k).indices.tolist()]
+    else:
+        sel = _unit_select(ids[0, :Tm], rel[0], sep, budget, block, sink)
     spans = []
-    for bi in sel:
-        a, b = bi * block, (bi + 1) * block
-        if spans and spans[-1][1] == a:
-            spans[-1] = (spans[-1][0], b)
+    for a, b in sorted(sel):
+        if spans and spans[-1][1] >= a:
+            spans[-1] = (spans[-1][0], max(spans[-1][1], b))
         else:
             spans.append((a, b))
     S0, C0 = dict(tc.S), dict(tc.conv)  # forward() replaces these tensors; the originals stay untouched
@@ -489,6 +498,50 @@ def _repair(src, tgt, mapper, sc, tc, ids, Tm, budget, state="final", block=64, 
     tc.conv.update(C0)
     tc.len = Tm
     return spans
+
+
+def _unit_select(ids, rel, sep, budget, block, sink):
+    """Greedy message-unit selection for _repair (see its docstring). ids, rel: (Tm,). Returns [(a, b), ...]."""
+    Tm = ids.shape[0]
+    ids, rel = ids.cpu(), rel.cpu()  # one device sync; the greedy loop below runs on the host
+    cap = int(budget * float(os.environ.get("XKV_REPAIR_UNIT_FRAC", "0.5")))  # longest message kept whole
+    st = (ids == sep).nonzero().flatten().tolist()
+    st = sorted(set([sink] + [x for x in st if x > sink]))
+    bounds = list(zip(st, st[1:] + [Tm]))
+    cs = torch.nn.functional.pad(rel.cumsum(0), (1, 0))
+
+    def best(a, b):  # best block-sized window score inside [a, b)
+        w = min(block, b - a)
+        return float((cs[a + w:b + 1] - cs[a:b - w + 1]).max())
+
+    cand = []
+    for m, (a, b) in enumerate(bounds):
+        if b - a > cap:
+            for x in range(a // block * block, b, block):
+                x, y = max(x, a), min(x + block, b)
+                cand.append((float(cs[y] - cs[x]), [(x, y)]))
+            continue
+        u = [(a, b)]
+        if m + 1 < len(bounds) and bounds[m + 1][1] - bounds[m + 1][0] <= cap:
+            u.append(bounds[m + 1])
+        cand.append((best(a, b), u))
+    cand.sort(key=lambda c: -c[0])
+    top = (Tm // block) * block  # snap units to the block grid (the varlen re-encode needs whole blocks)
+    cand = [(sc, [(a // block * block, min(-(-b // block) * block, top)) for a, b in u]) for sc, u in cand]
+    cand = [(sc, [(a, b) for a, b in u if b > a]) for sc, u in cand]
+    cover = torch.zeros(Tm, dtype=torch.bool)
+    out, used = [], 0
+    for _, u in cand:
+        new = sum(int((~cover[a:b]).sum()) for a, b in u)
+        if not new or used + new > budget:
+            continue
+        for a, b in u:
+            cover[a:b] = True
+            out.append((a, b))
+        used += new
+        if used >= budget - block // 2:
+            break
+    return out
 
 
 @torch.no_grad()

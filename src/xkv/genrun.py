@@ -22,17 +22,18 @@ def stop_ids(tok):
 
 
 def make_batch_gen(strategy, sm, tm, mapper, tok, tail=128, window=8192, batch=8, chunk=8192, log=None,
-                   full_until=None, turn_tail_max=None):
+                   full_until=None, turn_tail_max=None, turn_tail_msgs=1):
     """genevals GenFn: batched greedy decoding after a per-prompt prefill with the given strategy."""
     from .decode import Decoder
     from .mapper import adaptive_tail, native_prefill, transfer_prefill
 
     stops = stop_ids(tok)
-    sink, oracle, repair, rstate = 0, None, 0, "final"
-    if "+rep" in strategy:  # e.g. transfer@auto+rep1024 (z suffix: re-encode from a zero DeltaNet state)
-        strategy, r = strategy.split("+rep")
-        rstate = "zero" if r.endswith("z") else "final"
-        repair = int(r.rstrip("z"))
+    sink, oracle, repair, rstate, runit = 0, None, 0, "final", False
+    if "+rep" in strategy:  # e.g. transfer@auto+rep1024 (z suffix: re-encode from a zero DeltaNet state;
+        strategy, r = strategy.split("+rep")  # m suffix: whole-message repair units)
+        rstate = "zero" if "z" in r else "final"
+        runit = "m" in r
+        repair = int(r.rstrip("zm"))
     if strategy.startswith("transfer") and "+oracle_" in strategy:  # diagnostic: transfer+oracle_attn|lin|both
         strategy, oracle = strategy.split("+oracle_")[0], strategy.split("+oracle_")[1]
     if strategy.startswith("transfer") and ":s" in strategy:  # e.g. transfer:s1 -> first token computed natively
@@ -45,14 +46,16 @@ def make_batch_gen(strategy, sm, tm, mapper, tok, tail=128, window=8192, batch=8
 
     def tail_for(p):
         """turn_tail_max: the target natively reads the whole newest turn (from the last non-assistant message
-        start), up to turn_tail_max tokens; the mapped part is the system prompt and older history."""
+        start; with turn_tail_msgs=k, the last k messages), up to turn_tail_max tokens; the mapped part is the
+        system prompt and older history."""
         base = adaptive_tail(len(p)) if tail == "auto" else tail
         if not turn_tail_max:
             return base
         starts = [i for i, t in enumerate(p) if t == im_start]
         if len(starts) < 2:
             return base
-        return max(base, min(turn_tail_max, len(p) - starts[-2]))
+        k = min(turn_tail_msgs + 1, len(starts) - 1)  # never the system turn
+        return max(base, min(turn_tail_max, len(p) - starts[-k]))
 
     def gen(prompts, max_new, spans=None):
         """spans: optional per-prompt list of (a, b) token ranges the target computes natively (transfer only)."""
@@ -69,6 +72,7 @@ def make_batch_gen(strategy, sm, tm, mapper, tok, tail=128, window=8192, batch=8
                                              chunk=chunk, full_until=full_until, sink=sink,
                                              native_spans=spans[i] if spans else None, oracle=oracle,
                                              repair=repair, repair_state=rstate,
+                                             repair_sep=im_start if runit else None,
                                              graph_tail=False if oracle else None)
                 else:
                     c, lg = native_prefill(model, ids, chunk=chunk)
