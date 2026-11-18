@@ -510,6 +510,334 @@
      }
     }
    }
+  },
+  {
+   "source_file": "results/raw/gen_evals-H200-20261118-124547.json",
+   "args": {
+    "src": "2b",
+    "tgt": "27b",
+    "mapper_name": "2b-27b-fid+2b-27b-fid-attn",
+    "full_until": 32768,
+    "max_ctx": 32768,
+    "benches": [
+     "mrcr"
+    ],
+    "strategies": [
+     "transfer@auto+rep1024m",
+     "transfer@auto+rep2048m"
+    ],
+    "limits": {
+     "mrcr": 60
+    },
+    "bench_kw": {
+     "mrcr": {
+      "min_ctx": 4096,
+      "batch": 4
+     }
+    }
+   },
+   "scores": {
+    "mrcr": {
+     "transfer@auto+rep1024m": {
+      "score": 0.5222573090855326,
+      "n_scored": 60
+     },
+     "transfer@auto+rep2048m": {
+      "score": 0.642130365116342,
+      "n_scored": 60
+     }
+    }
+   },
+   "note": "message-unit repair (+repNm), MRCR dev sample (same 60 items as the other MRCR arms)"
+  },
+  {
+   "source_file": "results/raw/gen_evals-H200-20261118-125610.json",
+   "args": {
+    "src": "2b",
+    "tgt": "27b",
+    "mapper_name": "2b-27b-fid+2b-27b-fid-attn",
+    "full_until": 32768,
+    "max_ctx": 32768,
+    "benches": [
+     "mrcr"
+    ],
+    "limits": {
+     "mrcr": 60
+    },
+    "bench_kw": {
+     "mrcr": {
+      "min_ctx": 4096,
+      "batch": 4
+     }
+    },
+    "strategies": [
+     "transfer@auto+rep3072m"
+    ]
+   },
+   "scores": {
+    "mrcr": {
+     "transfer@auto+rep3072m": {
+      "score": 0.7060373724993644,
+      "n_scored": 60
+     }
+    }
+   },
+   "note": "message-unit repair, dev sample"
+  },
+  {
+   "source_file": "results/raw/gen_evals-H200-20261118-125946.json",
+   "args": {
+    "src": "2b",
+    "tgt": "27b",
+    "mapper_name": "2b-27b-fid+2b-27b-fid-attn",
+    "full_until": 32768,
+    "max_ctx": 32768,
+    "benches": [
+     "mrcr"
+    ],
+    "limits": {
+     "mrcr": 60
+    },
+    "bench_kw": {
+     "mrcr": {
+      "min_ctx": 4096,
+      "batch": 4
+     }
+    },
+    "strategies": [
+     "transfer@auto+rep1024m",
+     "transfer@auto+rep2048m"
+    ],
+    "env": {
+     "XKV_REPAIR_UNIT_FRAC": "0.9"
+    }
+   },
+   "scores": {
+    "mrcr": {
+     "transfer@auto+rep1024m": {
+      "score": 0.564096758725756,
+      "n_scored": 60
+     },
+     "transfer@auto+rep2048m": {
+      "score": 0.642130365116342,
+      "n_scored": 60
+     }
+    }
+   },
+   "note": "message-unit repair, unit cap 0.9 x budget (variant, not the default), dev sample"
+  },
+  {
+   "source_file": "results/raw/gen_evals-H200-20261118-131015.json",
+   "args": {
+    "src": "2b",
+    "tgt": "27b",
+    "mapper_name": "2b-27b-fid+2b-27b-fid-attn",
+    "full_until": 32768,
+    "max_ctx": 32768,
+    "benches": [
+     "mrcr"
+    ],
+    "limits": {
+     "mrcr": 60
+    },
+    "bench_kw": {
+     "mrcr": {
+      "min_ctx": 4096,
+      "batch": 4
+     }
+    },
+    "strategies": [
+     "transfer@auto+rep2560m",
+     "transfer@auto+rep3072m"
+    ],
+    "env": {
+     "XKV_REPAIR_UNIT_FRAC": "0.9"
+    }
+   },
+   "scores": {
+    "mrcr": {
+     "transfer@auto+rep2560m": {
+      "score": 0.658029967843882,
+      "n_scored": 60
+     },
+     "transfer@auto+rep3072m": {
+      "score": 0.6021095266586556,
+      "n_scored": 60
+     }
+    }
+   },
+   "note": "message-unit repair, unit cap 0.9 x budget (variant, not the default), dev sample"
+  },
+  {
+   "source_file": "results/raw/gen_evals-H200-20261118-133718.json",
+   "args": {
+    "src": "2b",
+    "tgt": "27b",
+    "mapper_name": "2b-27b-fid+2b-27b-fid-attn",
+    "full_until": 32768,
+    "max_ctx": 32768,
+    "benches": [
+     "mrcr"
+    ],
+    "limits": {
+     "mrcr": 120
+    },
+    "bench_kw": {
+     "mrcr": {
+      "min_ctx": 4096,
+      "batch": 4,
+      "offset": 60
+     }
+    },
+    "strategies": [
+     "target",
+     "source",
+     "transfer@auto"
+    ]
+   },
+   "scores": {
+    "mrcr": {
+     "target": {
+      "score": 0.972331376404385,
+      "n_scored": 120
+     },
+     "source": {
+      "score": 0.9311492513636658,
+      "n_scored": 120
+     },
+     "transfer@auto": {
+      "score": 0.5518623493195846,
+      "n_scored": 120
+     }
+    }
+   },
+   "note": "MRCR HELD-OUT sample: the next 120 qualifying items after the 60-item dev sample (offset 60), never used for tuning"
+  },
+  {
+   "source_file": "results/raw/gen_evals-H200-20261118-133725.json",
+   "args": {
+    "src": "2b",
+    "tgt": "27b",
+    "mapper_name": "2b-27b-fid+2b-27b-fid-attn",
+    "full_until": 32768,
+    "max_ctx": 32768,
+    "benches": [
+     "mrcr"
+    ],
+    "limits": {
+     "mrcr": 120
+    },
+    "bench_kw": {
+     "mrcr": {
+      "min_ctx": 4096,
+      "batch": 4,
+      "offset": 60
+     }
+    },
+    "strategies": [
+     "transfer@auto+rep2048m",
+     "transfer@auto+rep3072m"
+    ]
+   },
+   "scores": {
+    "mrcr": {
+     "transfer@auto+rep2048m": {
+      "score": 0.6018021441832176,
+      "n_scored": 120
+     },
+     "transfer@auto+rep3072m": {
+      "score": 0.6809780030707344,
+      "n_scored": 120
+     }
+    }
+   },
+   "note": "MRCR HELD-OUT sample (offset 60), default unit cap; config fixed before the run"
+  },
+  {
+   "source_file": "results/raw/gen_evals-H200-20261118-145023.json",
+   "args": {
+    "src": "2b",
+    "tgt": "27b",
+    "mapper_name": "2b-27b-fid+2b-27b-fid-attn",
+    "full_until": 32768,
+    "max_ctx": 32768,
+    "benches": [
+     "math500"
+    ],
+    "strategies": [
+     "target",
+     "transfer@auto"
+    ],
+    "limits": {
+     "math500": 100
+    },
+    "bench_kw": {
+     "math500": {
+      "max_new": 8192,
+      "batch": 32
+     }
+    },
+    "env": {
+     "XKV_THINKING": "1",
+     "XKV_SAVE_OUTPUTS": "1"
+    }
+   },
+   "scores": {
+    "math500": {
+     "target": {
+      "score": 0.93,
+      "n_scored": 100
+     },
+     "transfer@auto": {
+      "score": 0.93,
+      "n_scored": 100
+     }
+    }
+   },
+   "note": "thinking ON for every arm (reasoning before the answer), max_new 8192"
+  },
+  {
+   "source_file": "results/raw/gen_evals-H200-20261118-150043.json",
+   "args": {
+    "src": "2b",
+    "tgt": "27b",
+    "mapper_name": "2b-27b-fid+2b-27b-fid-attn",
+    "full_until": 32768,
+    "max_ctx": 32768,
+    "benches": [
+     "zebralogic"
+    ],
+    "strategies": [
+     "target",
+     "transfer@auto"
+    ],
+    "limits": {
+     "zebralogic": 100
+    },
+    "bench_kw": {
+     "zebralogic": {
+      "max_new": 12288,
+      "batch": 32
+     }
+    },
+    "env": {
+     "XKV_THINKING": "1",
+     "XKV_SAVE_OUTPUTS": "1"
+    }
+   },
+   "scores": {
+    "zebralogic": {
+     "target": {
+      "score": 0.95,
+      "n_scored": 100
+     },
+     "transfer@auto": {
+      "score": 0.75,
+      "n_scored": 100
+     }
+    }
+   },
+   "note": "thinking ON for every arm (reasoning before the answer), max_new 12288"
   }
  ],
  "baselines_2b_chat_map": [

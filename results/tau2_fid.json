@@ -1,6 +1,6 @@
 {
  "map": "4b-27b-fid + 4b-27b-fid-attn",
- "common": "turn_tail_max 4096 (newest turn native), native_tools (<tools> block native), 50 tasks per domain, user simulator and judge = native 27B",
+ "common": "turn_tail_max 4096 (newest turn native), native_tools (<tools> block native), 50 tasks per domain; user simulator and judge = native 27B unless args.local_user_and_judges is false (official OpenAI user simulator gpt-5.5 and judges)",
  "runs": [
   {
    "source_file": "private log of the phase-2 native run (no raw file saved; lines copied verbatim)",
@@ -253,6 +253,211 @@
     "target": {
      "telecom": {
       "pass1": 0.6,
+      "n_scored": 50,
+      "n_errored": 0
+     }
+    }
+   }
+  },
+  {
+   "source_file": "results/raw/tau2-H200-20261118-141711.json",
+   "args": {
+    "mapper_name": "4b-27b-fid+4b-27b-fid-attn",
+    "full_until": 32768,
+    "strategies": [
+     "transfer+rep2048m"
+    ],
+    "domains": [
+     "telecom"
+    ],
+    "max_concurrency": 8,
+    "turn_tail_max": 4096,
+    "turn_tail_msgs": 3,
+    "native_tools": true,
+    "run_name": "fid-rep2048m-t3-telecom"
+   },
+   "scores": {
+    "transfer+rep2048m": {
+     "telecom": {
+      "pass1": 0.32,
+      "n_scored": 50,
+      "n_errored": 0
+     }
+    }
+   }
+  },
+  {
+   "source_file": "results/raw/tau2-H200-20261118-151440.json",
+   "args": {
+    "mapper_name": "4b-27b-fid+4b-27b-fid-attn",
+    "full_until": 32768,
+    "strategies": [
+     "transfer+rep4096m"
+    ],
+    "domains": [
+     "telecom"
+    ],
+    "max_concurrency": 8,
+    "turn_tail_max": 4096,
+    "turn_tail_msgs": 3,
+    "native_tools": true,
+    "run_name": "fid-rep4096m-t3-telecom"
+   },
+   "scores": {
+    "transfer+rep4096m": {
+     "telecom": {
+      "pass1": 0.2,
+      "n_scored": 50,
+      "n_errored": 0
+     }
+    }
+   }
+  },
+  {
+   "source_file": "results/raw/tau2-H200-20261118-161836.json",
+   "args": {
+    "mapper_name": "4b-27b-fid+4b-27b-fid-attn",
+    "full_until": 32768,
+    "max_concurrency": 8,
+    "local_user_and_judges": false,
+    "turn_tail_max": 4096,
+    "turn_tail_msgs": 3,
+    "native_tools": true,
+    "strategies": [
+     "transfer+rep2048m"
+    ],
+    "domains": [
+     "telecom"
+    ],
+    "run_name": "off-rep2048m-telecom"
+   },
+   "scores": {
+    "transfer+rep2048m": {
+     "telecom": {
+      "pass1": 0.1,
+      "n_scored": 50,
+      "n_errored": 0
+     }
+    }
+   }
+  },
+  {
+   "source_file": "results/raw/tau2-H200-20261118-163042.json",
+   "args": {
+    "mapper_name": "4b-27b-fid+4b-27b-fid-attn",
+    "full_until": 32768,
+    "max_concurrency": 8,
+    "local_user_and_judges": false,
+    "strategies": [
+     "target"
+    ],
+    "domains": [
+     "telecom"
+    ],
+    "run_name": "off-native-telecom"
+   },
+   "scores": {
+    "target": {
+     "telecom": {
+      "pass1": 0.68,
+      "n_scored": 50,
+      "n_errored": 0
+     }
+    }
+   }
+  },
+  {
+   "source_file": "results/raw/tau2-H200-20261118-163718.json",
+   "args": {
+    "mapper_name": "4b-27b-fid+4b-27b-fid-attn",
+    "full_until": 32768,
+    "max_concurrency": 8,
+    "local_user_and_judges": false,
+    "strategies": [
+     "target"
+    ],
+    "domains": [
+     "retail",
+     "airline"
+    ],
+    "run_name": "off-native-ar"
+   },
+   "scores": {
+    "target": {
+     "retail": {
+      "pass1": 0.84,
+      "n_scored": 50,
+      "n_errored": 0
+     },
+     "airline": {
+      "pass1": 0.7,
+      "n_scored": 50,
+      "n_errored": 0
+     }
+    }
+   }
+  },
+  {
+   "source_file": "results/raw/tau2-H200-20261118-163900.json",
+   "args": {
+    "mapper_name": "4b-27b-fid+4b-27b-fid-attn",
+    "full_until": 32768,
+    "strategies": [
+     "transfer+rep2048m"
+    ],
+    "domains": [
+     "retail",
+     "airline"
+    ],
+    "max_concurrency": 8,
+    "turn_tail_max": 4096,
+    "turn_tail_msgs": 3,
+    "native_tools": true,
+    "run_name": "fid-rep2048m-t3-ar"
+   },
+   "scores": {
+    "transfer+rep2048m": {
+     "retail": {
+      "pass1": 0.7346938775510204,
+      "n_scored": 49,
+      "n_errored": 1
+     },
+     "airline": {
+      "pass1": 0.6,
+      "n_scored": 50,
+      "n_errored": 0
+     }
+    }
+   }
+  },
+  {
+   "source_file": "results/raw/tau2-H200-20261118-170838.json",
+   "args": {
+    "mapper_name": "4b-27b-fid+4b-27b-fid-attn",
+    "full_until": 32768,
+    "max_concurrency": 8,
+    "local_user_and_judges": false,
+    "turn_tail_max": 4096,
+    "turn_tail_msgs": 3,
+    "native_tools": true,
+    "strategies": [
+     "transfer+rep2048m"
+    ],
+    "domains": [
+     "retail",
+     "airline"
+    ],
+    "run_name": "off-rep2048m-ar"
+   },
+   "scores": {
+    "transfer+rep2048m": {
+     "retail": {
+      "pass1": 0.78,
+      "n_scored": 50,
+      "n_errored": 0
+     },
+     "airline": {
+      "pass1": 0.48,
       "n_scored": 50,
       "n_errored": 0
      }
