@@ -355,11 +355,51 @@ class Hybrid:
         o = o.transpose(1, 2).reshape(B, L, -1) * torch.sigmoid(gate)
         return attn.o_proj(o)
 
+    def _lin_segs(self, j, x, cache: Cache, segs, block: int = 64):
+        """Gated DeltaNet over several independent segments of x (1, n, D) in one varlen call: every segment
+        starts from the cache's current conv/recurrent state; the cache state is left unchanged. Segment
+        lengths must be multiples of `block` (the conv runs on `block`-token rows batched together)."""
+        s, la = self.spec, self.layers[j].linear_attn
+        B, L, _ = x.shape
+        assert B == 1 and all((e - a) % block == 0 for a, e in segs)
+        qkv, z = la.in_proj_qkv(x), la.in_proj_z(x)
+        b, a_ = la.in_proj_b(x), la.in_proj_a(x)
+        C = qkv.shape[-1]
+        rows = qkv.view(L // block, block, C)
+        hist = torch.cat((cache.conv[j][:, :, :].expand(1, -1, -1), rows[:-1, -(s.conv_k - 1):]), dim=0)             if L // block > 1 else cache.conv[j]
+        starts = torch.tensor([a // block for a, _ in segs], device=x.device)
+        hist = hist.clone()
+        hist[starts] = cache.conv[j][0]
+        if FUSED_CONV:
+            from .kernels import conv_silu
+
+            mixed = conv_silu(hist.contiguous(), rows.contiguous(), self.conv_w(j))
+        else:
+            mixed = dwconv_silu(torch.cat((hist, rows), dim=1), self.conv_w(j))
+        mixed = mixed.reshape(1, L, C)
+        q, k, v = torch.split(mixed, [s.key_dim, s.key_dim, s.value_dim], dim=-1)
+        q, k = q.reshape(1, L, s.nk, s.dk), k.reshape(1, L, s.nk, s.dk)
+        v = v.reshape(1, L, s.nv, s.dv)
+        rep = s.nv // s.nk
+        if rep > 1:
+            q, k = q.repeat_interleave(rep, dim=2), k.repeat_interleave(rep, dim=2)
+        g = -la.A_log.float().exp() * F.softplus(a_.float() + la.dt_bias)
+        cu = torch.tensor([0] + [e for _, e in segs], device=x.device, dtype=torch.int32)
+        chunk, recur = _gdr()
+        fn = recur if L <= RECUR_MAX else chunk
+        S0 = cache.S[j].expand(len(segs), -1, -1, -1).contiguous()
+        o, _ = fn(q, k, v, g=g, beta=b.sigmoid(), initial_state=S0, output_final_state=False,
+                  use_qk_l2norm_in_kernel=True, cu_seqlens=cu)
+        o = la.norm(o.reshape(-1, s.dv), z.reshape(-1, s.dv)).reshape(B, L, -1)
+        return la.out_proj(o)
+
     @torch.no_grad()
-    def forward_at(self, ids, pos, cache: Cache, ctx: int):
+    def forward_at(self, ids, pos, cache: Cache, ctx: int, segs=None):
         """Re-encode tokens ids (1, n) at absolute positions pos (n,) on top of an existing cache of length ctx,
         in one pass: attention K/V at those positions are overwritten; recurrent layers read the tokens as one
-        sequence from the cache's current state (and update it; callers restore it if they need to)."""
+        sequence from the cache's current state (and update it; callers restore it if they need to).
+        segs: optional [(s, e), ...] index ranges into ids; recurrent layers then read each range separately,
+        every one starting from the cache's state at entry."""
         h = self.embed(ids)
         f = pos.float()[:, None] * self.inv_freq[None]
         emb = torch.cat((f, f), dim=-1)
@@ -370,6 +410,8 @@ class Hybrid:
             x = layer.input_layernorm(h)
             if self.spec.types[i] == "full_attention":
                 m = self._full_at(i, x, cache, pos, ctx, rope, mask)
+            elif segs:
+                m = self._lin_segs(i, x, cache, segs)
             else:
                 m = self._lin(i, x, cache, None)
             h = h + m

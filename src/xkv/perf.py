@@ -301,6 +301,37 @@ def task_ttft_repair(src="4b", tgt="27b", mapper_name="4b-27b-fid+4b-27b-fid-att
     return {"gpu": torch.cuda.get_device_name(), "rows": rows}
 
 
+def task_segs_check(tgt="27b", L0=6000, seg_lens=(128, 64, 256, 576)):
+    """_lin_segs (varlen, one call) vs a per-segment _lin loop from the same state, on real target layers."""
+    from .experiments import get
+
+    tm, _ = get(tgt)
+    g = torch.Generator(device="cuda").manual_seed(0)
+    ids = torch.randint(1000, 100000, (1, L0), device="cuda", generator=g)
+    c = tm.new_cache(1, L0 + 2048)
+    tm.prefill(ids, c, logits=None)
+    n = sum(seg_lens)
+    out = {}
+    for j in tm.spec.lin[:3] + tm.spec.lin[-2:]:
+        x = torch.randn(1, n, tm.spec.hidden, device="cuda", generator=g).to(tm.dtype)
+        segs, o = [], 0
+        for l in seg_lens:
+            segs.append((o, o + l))
+            o += l
+        S0, C0 = c.S[j], c.conv[j]
+        ref = []
+        for a, b in segs:
+            c.S[j], c.conv[j] = S0, C0
+            ref.append(tm._lin(j, x[:, a:b], c, None))
+        c.S[j], c.conv[j] = S0, C0
+        ref = torch.cat(ref, 1).float()
+        got = tm._lin_segs(j, x, c, segs).float()
+        out[j] = {"max_abs": float((ref - got).abs().max()), "ref_abs": float(ref.abs().mean()),
+                  "state_unchanged": bool(c.S[j] is S0)}
+    print(json.dumps(out), flush=True)
+    return out
+
+
 def task_bench_matrix(cells, **kw):
     """Run experiments.task_bench for several (lengths, batch) cells in one container."""
     from .experiments import task_bench

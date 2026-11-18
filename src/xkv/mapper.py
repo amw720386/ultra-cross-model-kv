@@ -473,7 +473,11 @@ def _repair(src, tgt, mapper, sc, tc, ids, Tm, budget, state="final", block=64, 
             tc.S[j] = torch.zeros_like(S0[j]) if state == "zero" else S0[j].clone()
             tc.conv[j] = torch.zeros_like(C0[j]) if state == "zero" else C0[j].clone()
         pos = torch.cat([torch.arange(a, b, device=ids.device) for a, b in spans])
-        tgt.forward_at(ids[:, pos], pos, tc, Tm)
+        segs, o = [], 0
+        for a, b in spans:
+            segs.append((o, o + b - a))
+            o += b - a
+        tgt.forward_at(ids[:, pos], pos, tc, Tm, segs=segs)  # recurrent state reset per span, as in the loop
     else:
         for a, b in spans:
             for j in S0:
