@@ -25,7 +25,7 @@ def make_batch_gen(strategy, sm, tm, mapper, tok, tail=128, window=8192, batch=8
                    full_until=None, turn_tail_max=None):
     """genevals GenFn: batched greedy decoding after a per-prompt prefill with the given strategy."""
     from .decode import Decoder
-    from .mapper import native_prefill, transfer_prefill
+    from .mapper import adaptive_tail, native_prefill, transfer_prefill
 
     stops = stop_ids(tok)
     sink, oracle = 0, None
@@ -34,19 +34,21 @@ def make_batch_gen(strategy, sm, tm, mapper, tok, tail=128, window=8192, batch=8
     if strategy.startswith("transfer") and ":s" in strategy:  # e.g. transfer:s1 -> first token computed natively
         strategy, sink = strategy.split(":s")[0], int(strategy.split(":s")[1])
     if strategy.startswith("transfer@"):  # e.g. transfer@16: only the last 16 prompt tokens run natively
-        strategy, tail = "transfer", int(strategy.split("@")[1])
+        strategy, tail = "transfer", strategy.split("@")[1]  # transfer@auto: mapper.adaptive_tail
+        tail = tail if tail == "auto" else int(tail)
     model = sm if strategy == "source" else tm
     im_start = tok.convert_tokens_to_ids("<|im_start|>")
 
     def tail_for(p):
         """turn_tail_max: the target natively reads the whole newest turn (from the last non-assistant message
         start), up to turn_tail_max tokens; the mapped part is the system prompt and older history."""
+        base = adaptive_tail(len(p)) if tail == "auto" else tail
         if not turn_tail_max:
-            return tail
+            return base
         starts = [i for i, t in enumerate(p) if t == im_start]
         if len(starts) < 2:
-            return tail
-        return max(tail, min(turn_tail_max, len(p) - starts[-2]))
+            return base
+        return max(base, min(turn_tail_max, len(p) - starts[-2]))
 
     def gen(prompts, max_new, spans=None):
         """spans: optional per-prompt list of (a, b) token ranges the target computes natively (transfer only)."""

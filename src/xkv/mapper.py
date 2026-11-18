@@ -208,6 +208,19 @@ def _mm(x, W):
     return torch.addmm(W[-1], x.reshape(-1, x.shape[-1]), W[:-1]).view(*x.shape[:-1], W.shape[1])
 
 
+def adaptive_tail(n: int, lo: int = 128, hi: int = 512, short: int = 4096, long: int = 8192) -> int:
+    """Length-dependent native repair tail: `hi` tokens for prompts up to `short`, tapering linearly to `lo` at
+    `long` and beyond. Short prompts gain little TTFT from transfer, while exact constraint recall (puzzles, code
+    specs) depends on the mapped attention KV; >=8K prompts keep the fixed 128-token tail (TTFT unchanged)."""
+    if n <= short:
+        t = hi
+    elif n >= long:
+        t = lo
+    else:
+        t = round(hi - (hi - lo) * (n - short) / (long - short))
+    return min(t, n)
+
+
 def transfer_prefill(src: Hybrid, tgt: Hybrid, mapper: Mapper, ids, tail: int = 1, chunk: int = 8192,
                      window: int | None = None, max_len: int | None = None, timings: dict | None = None,
                      grad: bool = False, keep_src: bool = False, full_until: int | None = None,
