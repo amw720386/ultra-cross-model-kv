@@ -624,7 +624,7 @@ def task_tau2(src="4b", tgt="27b", mapper_name="4b-27b-w8192-distill-ret", strat
     from .experiments import ART, get, load_mapper
     from .genrun import make_batch_gen
 
-    sm, _ = get(src) if any(s.split("@")[0] in ("transfer", "source") for s in strategies) else (None, None)
+    sm, _ = get(src) if any(s.startswith(("transfer", "source")) for s in strategies) else (None, None)
     tm, tok = get(tgt)
     mapper = load_mapper(mapper_name, sm, tm) if any(s.startswith("transfer") for s in strategies) else None
     run_name = run_name or time.strftime("%Y%m%d-%H%M%S")
@@ -725,7 +725,7 @@ def task_terminal_bench(src="4b", tgt="27b", mapper_name="4b-27b-w8192-distill-r
     from .experiments import ART, get, load_mapper
     from .genrun import make_batch_gen
 
-    sm, _ = get(src) if any(s.split("@")[0] in ("transfer", "source") for s in strategies) else (None, None)
+    sm, _ = get(src) if any(s.startswith(("transfer", "source")) for s in strategies) else (None, None)
     tm, tok = get(tgt)
     mapper = load_mapper(mapper_name, sm, tm) if any(s.startswith("transfer") for s in strategies) else None
     run_name = run_name or time.strftime("%Y%m%d-%H%M%S")

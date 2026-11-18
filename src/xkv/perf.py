@@ -274,6 +274,33 @@ def task_ttft_ab(src="4b", tgt="27b", mapper_name="4b-27b-w8192-distill-ret", le
     return res
 
 
+def task_ttft_repair(src="4b", tgt="27b", mapper_name="4b-27b-fid+4b-27b-fid-attn", lengths=(8192, 16384, 32768),
+                     repairs=(0, 512, 1024), full_until=32768, window=8192, chunk=8192, reps=5):
+    """TTFT of the final transfer config (attention map, adaptive tail) with and without selective repair."""
+    from .experiments import get, load_mapper
+    from .mapper import adaptive_tail, native_prefill, transfer_prefill
+
+    sm, _ = get(src)
+    tm, _ = get(tgt)
+    mapper = load_mapper(mapper_name, sm, tm)
+    rows = []
+    for L in lengths:
+        ids = torch.randint(1000, 100000, (1, L), device="cuda")
+        f_nat = lambda: native_prefill(tm, ids, chunk=chunk)
+        f_nat()
+        row = {"len": L, "tail": adaptive_tail(L), "native_s": timeit(f_nat, reps)}
+        for r in repairs:
+            f = lambda: transfer_prefill(sm, tm, mapper, ids, tail=adaptive_tail(L), window=window, chunk=chunk,
+                                         full_until=full_until, repair=r)
+            f()
+            row[f"transfer_rep{r}_s"] = timeit(f, reps)
+            row[f"speedup_rep{r}"] = row["native_s"] / row[f"transfer_rep{r}_s"]
+        print(json.dumps(row), flush=True)
+        rows.append(row)
+        torch.cuda.empty_cache()
+    return {"gpu": torch.cuda.get_device_name(), "rows": rows}
+
+
 def task_bench_matrix(cells, **kw):
     """Run experiments.task_bench for several (lengths, batch) cells in one container."""
     from .experiments import task_bench
