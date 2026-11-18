@@ -298,10 +298,12 @@ def _fits(item: Item, max_ctx: int | None) -> bool:
 
 
 def _select(n_total: int, build: Callable[[int], Item | None], limit: int, seed: int,
-            max_ctx: int | None) -> tuple[list[Item], int]:
-    """Skip-and-refill selection over a seeded permutation of ``range(n_total)``."""
+            max_ctx: int | None, offset: int = 0) -> tuple[list[Item], int]:
+    """Skip-and-refill selection over a seeded permutation of ``range(n_total)``. offset: drop the first
+    ``offset`` qualifying items (a held-out set disjoint from the one ``offset`` as ``limit`` selects)."""
     items: list[tuple[int, Item]] = []
     skipped = 0
+    dropped = 0
     for i in _order(n_total, seed):
         if 0 < limit <= len(items):
             break
@@ -310,6 +312,9 @@ def _select(n_total: int, build: Callable[[int], Item | None], limit: int, seed:
             continue
         if not _fits(it, max_ctx):
             skipped += 1
+            continue
+        if dropped < offset:
+            dropped += 1
             continue
         items.append((i, it))
     items.sort(key=lambda x: x[0])
@@ -1707,7 +1712,7 @@ def _len_bin(n: int) -> str:
 
 
 def _build_mrcr(tok: Any, limit: int, seed: int, max_ctx: int | None, max_new: int = 2048,
-                needles: int = 2, min_ctx: int = 0):
+                needles: int = 2, min_ctx: int = 0, offset: int = 0):
     files = [f"{needles}needle/{needles}needle_0.parquet", f"{needles}needle/{needles}needle_1.parquet"]
     docs = _load_hf("openai/mrcr", None, "train", data_files=files)
     n_chars = docs["n_chars"]
@@ -1726,7 +1731,7 @@ def _build_mrcr(tok: Any, limit: int, seed: int, max_ctx: int | None, max_new: i
         it.groups = {"length": _len_bin(len(it.ids))}
         return it
 
-    return _select(len(docs), build, limit, seed, max_ctx)
+    return _select(len(docs), build, limit, seed, max_ctx, offset=offset)
 
 
 def mrcr_grade(response: str, answer: str, prefix: str) -> float:
@@ -1850,10 +1855,12 @@ def run_locomo(gen, tok, limit=100, seed=0, max_ctx=None, batch=8, max_new=None)
     return _run("locomo", gen, tok, limit, seed, max_ctx, batch, {"max_new": max_new})
 
 
-def run_mrcr(gen, tok, limit=100, seed=0, max_ctx=None, batch=8, max_new=None, needles=2, min_ctx=0) -> dict:
-    """OpenAI MRCR (``needles`` 2/4/8); items with prompt tokens in [min_ctx, max_ctx - max_new]."""
+def run_mrcr(gen, tok, limit=100, seed=0, max_ctx=None, batch=8, max_new=None, needles=2, min_ctx=0,
+             offset=0) -> dict:
+    """OpenAI MRCR (``needles`` 2/4/8); items with prompt tokens in [min_ctx, max_ctx - max_new].
+    offset: skip the first ``offset`` qualifying items (held-out set)."""
     return _run("mrcr", gen, tok, limit, seed, max_ctx, batch,
-                {"max_new": max_new, "needles": needles, "min_ctx": min_ctx})
+                {"max_new": max_new, "needles": needles, "min_ctx": min_ctx, "offset": offset})
 
 
 # --------------------------------------------------------------------------- #

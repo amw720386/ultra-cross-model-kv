@@ -614,7 +614,7 @@ def task_tau2(src="4b", tgt="27b", mapper_name="4b-27b-w8192-distill-ret", strat
               domains=("airline", "retail", "telecom"), n_per_domain=None, task_ids=None, tail=128, window=8192,
               max_concurrency=8, agent_thinking=False, max_new=2048, max_prompt=131072, run_name=None,
               agent_port=8101, user_port=8102, local_user_and_judges=True, full_until=None,
-              turn_tail_max=None, native_tools=False, native_system=False, native_history=False):
+              turn_tail_max=None, native_tools=False, native_system=False, native_history=False, turn_tail_msgs=1):
     """tau2-bench text-v1 (English) pass^1 per domain + overall (equal domain weights) for each agent strategy.
 
     By default the user simulator and the LLM judges run on the native target (non-thinking, greedy);
@@ -630,11 +630,11 @@ def task_tau2(src="4b", tgt="27b", mapper_name="4b-27b-w8192-distill-ret", strat
     run_name = run_name or time.strftime("%Y%m%d-%H%M%S")
     root = ART / "tau2" / run_name
     gen_kw = dict(tail=tail, window=window, batch=max_concurrency, full_until=full_until)  # one call per task
-    agent_kw = dict(gen_kw, turn_tail_max=turn_tail_max)
+    agent_kw = dict(gen_kw, turn_tail_max=turn_tail_max, turn_tail_msgs=turn_tail_msgs)
     native = make_batch_gen("target", sm, tm, mapper, tok, **gen_kw)
     res = {"config": {"strategies": list(strategies), "domains": list(domains), "n_per_domain": n_per_domain,
                       "mapper": mapper_name, "tail": tail, "window": window, "agent_thinking": agent_thinking,
-                      "max_concurrency": max_concurrency, "max_new": max_new, "turn_tail_max": turn_tail_max, "native_tools": native_tools, "native_system": native_system, "native_history": native_history, "root": str(root),
+                      "max_concurrency": max_concurrency, "max_new": max_new, "turn_tail_max": turn_tail_max, "turn_tail_msgs": turn_tail_msgs, "native_tools": native_tools, "native_system": native_system, "native_history": native_history, "root": str(root),
                       "benchmark": "tau2 text-v1 en", "user_sim": f"{tgt} native, non-thinking, greedy" if local_user_and_judges
                       else "official (OpenAI)"}}
     for strat in strategies:
