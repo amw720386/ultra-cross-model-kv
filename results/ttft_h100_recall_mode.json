@@ -130,6 +130,64 @@
      }
     ]
    }
+  },
+  {
+   "source_file": "results/raw/ttft_repair-H100-20261118-130157.json",
+   "args": {
+    "src": "2b",
+    "mapper_name": "2b-27b-fid+2b-27b-fid-attn",
+    "repairs": [
+     0,
+     2048,
+     "2048m",
+     "3072m"
+    ],
+    "msg_every": 400
+   },
+   "result": {
+    "gpu": "NVIDIA H100 80GB HBM3",
+    "rows": [
+     {
+      "len": 8192,
+      "tail": 128,
+      "native_s": 0.9101795450000054,
+      "transfer_rep0_s": 0.23122673599999644,
+      "speedup_rep0": 3.9363075427402974,
+      "transfer_rep2048_s": 0.5561753490000001,
+      "speedup_rep2048": 1.636497458286317,
+      "transfer_rep2048m_s": 0.527651426999995,
+      "speedup_rep2048m": 1.7249636756881432,
+      "transfer_rep3072m_s": 0.6670366829999921,
+      "speedup_rep3072m": 1.364511979920625
+     },
+     {
+      "len": 16384,
+      "tail": 128,
+      "native_s": 1.9078430589999869,
+      "transfer_rep0_s": 0.42645392900001866,
+      "speedup_rep0": 4.473737792669987,
+      "transfer_rep2048_s": 0.8093541150000192,
+      "speedup_rep2048": 2.357241439366675,
+      "transfer_rep2048m_s": 0.7864625050000029,
+      "speedup_rep2048m": 2.425853803418104,
+      "transfer_rep3072m_s": 0.9104632309999943,
+      "speedup_rep3072m": 2.0954641484033734
+     },
+     {
+      "len": 32768,
+      "tail": 128,
+      "native_s": 4.172905065999998,
+      "transfer_rep0_s": 0.8455055310000148,
+      "speedup_rep0": 4.935396532609939,
+      "transfer_rep2048_s": 1.3609674399999676,
+      "speedup_rep2048": 3.066131446906693,
+      "transfer_rep2048m_s": 1.3292642519999731,
+      "speedup_rep2048m": 3.1392592253357936,
+      "transfer_rep3072m_s": 1.4996695770000201,
+      "speedup_rep3072m": 2.7825496562700107
+     }
+    ]
+   }
   }
  ]
 }

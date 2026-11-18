@@ -225,13 +225,14 @@ def _stop_ids(tok: Any) -> set[int]:
 
 def chat_prompt(tok: Any, user: str | None = None, system: str | None = None,
                 assistant_prefix: str = "", messages: list[dict] | None = None) -> str:
-    """Render messages with the chat template (thinking disabled when supported)."""
+    """Render messages with the chat template (thinking disabled when supported; XKV_THINKING=1 enables it)."""
+    think = os.environ.get("XKV_THINKING") == "1"
     if messages is None:
         messages = ([{"role": "system", "content": system}] if system else []) + [
             {"role": "user", "content": user or ""}]
     try:
         text = tok.apply_chat_template(messages, add_generation_prompt=True, tokenize=False,
-                                       enable_thinking=False)
+                                       enable_thinking=think)
     except TypeError:
         text = tok.apply_chat_template(messages, add_generation_prompt=True, tokenize=False)
     except Exception:  # noqa: BLE001 - tokenizer without a chat template
@@ -298,10 +299,12 @@ def _fits(item: Item, max_ctx: int | None) -> bool:
 
 
 def _select(n_total: int, build: Callable[[int], Item | None], limit: int, seed: int,
-            max_ctx: int | None) -> tuple[list[Item], int]:
-    """Skip-and-refill selection over a seeded permutation of ``range(n_total)``."""
+            max_ctx: int | None, offset: int = 0) -> tuple[list[Item], int]:
+    """Skip-and-refill selection over a seeded permutation of ``range(n_total)``. offset: drop the first
+    ``offset`` qualifying items (a held-out set disjoint from the one ``offset`` as ``limit`` selects)."""
     items: list[tuple[int, Item]] = []
     skipped = 0
+    dropped = 0
     for i in _order(n_total, seed):
         if 0 < limit <= len(items):
             break
@@ -310,6 +313,9 @@ def _select(n_total: int, build: Callable[[int], Item | None], limit: int, seed:
             continue
         if not _fits(it, max_ctx):
             skipped += 1
+            continue
+        if dropped < offset:
+            dropped += 1
             continue
         items.append((i, it))
     items.sort(key=lambda x: x[0])
@@ -337,17 +343,24 @@ def _generate(gen: GenFn, tok: Any, items: Sequence[Item], batch: int) -> list[s
                         ids = ids[:j]
                         break
                 outs[i] = _decode(tok, ids)
+    if os.environ.get("XKV_THINKING") == "1":
+        # score only the answer after the reasoning; an unfinished reasoning block counts as no answer
+        outs = [o.split("</think>", 1)[1] if o and "</think>" in o else "" for o in outs]
     return [o or "" for o in outs]
 
 
 def _aggregate(task: str, metric: str, items: Sequence[Item], outputs: Sequence[str],
                scores: Sequence[dict], n_skipped: int, n_show: int = 3, **extra: Any) -> dict:
+    if os.environ.get("XKV_SAVE_OUTPUTS") == "1":
+        n_show = len(items)
     res: dict[str, Any] = {"task": task, "metric": metric, "n": len(items), "n_skipped": n_skipped}
     keys = sorted({k for s in scores for k, v in s.items() if v is not None})
     valid = [s for s in scores if s.get("score") is not None]
     for k in keys:
         vals = [s[k] for s in scores if s.get(k) is not None]
         res[k if k != "score" else "score"] = (sum(vals) / len(vals)) if vals else None
+    if any(s.get("judge") is not None for s in scores):  # LLM-judged run: keep the metric's own mean intact
+        res["metric"] = metric = "judge"
     res[metric] = res.get("score")
     res["n_scored"] = len(valid)
     groups: dict[str, dict[str, list[float]]] = defaultdict(lambda: defaultdict(list))
@@ -963,9 +976,25 @@ def _build_qmsum(tok: Any, limit: int, seed: int, max_ctx: int | None, max_new: 
                 "Answer the following query about the meeting transcript above. Respond with a concise "
                 f"summary of a few sentences.\n\nQuery: {query}")
         return _mk(tok, chat_prompt(tok, user), answer.strip(), max_new, groups={"query_type": kind},
-                   oracle=answer.strip())
+                   oracle=answer.strip(), meta={"query": query})
 
     return _select(len(flat), build, limit, seed, max_ctx)
+
+
+JUDGE: Callable[[list[str]], list[str]] | None = None  # set by genrun when XKV_QMSUM_JUDGE=1 (native target)
+
+QMSUM_JUDGE = (
+    "You are grading an answer to a query about a meeting transcript.\n\nQuery: {query}\n\n"
+    "Reference answer (written by an annotator who read the transcript):\n{gold}\n\n"
+    "Candidate answer:\n{pred}\n\n"
+    "Rate the candidate against the reference for correctness and coverage of the key points the query asks "
+    "for. Ignore style and length; penalize claims that contradict the reference. Reply with a single integer "
+    "from 0 (wrong or empty) to 10 (covers every key point correctly), and nothing else.")
+
+
+def _judge_int(text: str) -> float | None:
+    m = re.search(r"\b(10|[0-9])\b", text or "")
+    return int(m.group(1)) / 10 if m else None
 
 
 def _score_qmsum(items: list[Item], outputs: list[str]) -> list[dict]:
@@ -975,6 +1004,12 @@ def _score_qmsum(items: list[Item], outputs: list[str]) -> list[dict]:
         r["rouge_geo"] = (r["rouge1"] * r["rouge2"] * r["rougeL"]) ** (1 / 3)
         r["score"] = r["rougeL"]
         out.append(r)
+    if JUDGE is not None:
+        verdicts = JUDGE([QMSUM_JUDGE.format(query=it.meta.get("query", ""), gold=it.gold, pred=o.strip() or "(empty)")
+                          for it, o in zip(items, outputs)])
+        for r, v in zip(out, verdicts):
+            r["judge"] = _judge_int(v)
+            r["score"] = r["judge"] if r["judge"] is not None else 0.0
     return out
 
 
@@ -1707,7 +1742,7 @@ def _len_bin(n: int) -> str:
 
 
 def _build_mrcr(tok: Any, limit: int, seed: int, max_ctx: int | None, max_new: int = 2048,
-                needles: int = 2, min_ctx: int = 0):
+                needles: int = 2, min_ctx: int = 0, offset: int = 0):
     files = [f"{needles}needle/{needles}needle_0.parquet", f"{needles}needle/{needles}needle_1.parquet"]
     docs = _load_hf("openai/mrcr", None, "train", data_files=files)
     n_chars = docs["n_chars"]
@@ -1726,7 +1761,7 @@ def _build_mrcr(tok: Any, limit: int, seed: int, max_ctx: int | None, max_new: i
         it.groups = {"length": _len_bin(len(it.ids))}
         return it
 
-    return _select(len(docs), build, limit, seed, max_ctx)
+    return _select(len(docs), build, limit, seed, max_ctx, offset=offset)
 
 
 def mrcr_grade(response: str, answer: str, prefix: str) -> float:
@@ -1850,10 +1885,12 @@ def run_locomo(gen, tok, limit=100, seed=0, max_ctx=None, batch=8, max_new=None)
     return _run("locomo", gen, tok, limit, seed, max_ctx, batch, {"max_new": max_new})
 
 
-def run_mrcr(gen, tok, limit=100, seed=0, max_ctx=None, batch=8, max_new=None, needles=2, min_ctx=0) -> dict:
-    """OpenAI MRCR (``needles`` 2/4/8); items with prompt tokens in [min_ctx, max_ctx - max_new]."""
+def run_mrcr(gen, tok, limit=100, seed=0, max_ctx=None, batch=8, max_new=None, needles=2, min_ctx=0,
+             offset=0) -> dict:
+    """OpenAI MRCR (``needles`` 2/4/8); items with prompt tokens in [min_ctx, max_ctx - max_new].
+    offset: skip the first ``offset`` qualifying items (held-out set)."""
     return _run("mrcr", gen, tok, limit, seed, max_ctx, batch,
-                {"max_new": max_new, "needles": needles, "min_ctx": min_ctx})
+                {"max_new": max_new, "needles": needles, "min_ctx": min_ctx, "offset": offset})
 
 
 # --------------------------------------------------------------------------- #

@@ -5,9 +5,9 @@
 
 Terminal-Bench 2.0 creates its task sandboxes on Modal from inside the container, so it needs a Modal token as a
 secret (create once: `modal secret create xkv-harbor-modal MODAL_TOKEN_ID=... MODAL_TOKEN_SECRET=...`) and the
-launch must set XKV_SECRETS=xkv-harbor-modal so the secret is attached:
+app attaches it (and `xkv-openai`, for the official tau2 user simulator) to every function:
 
-    cd modal_jobs && XKV_SECRETS=xkv-harbor-modal PYTHONPATH=../src modal run agent_lab.py --task terminal_bench \
+    cd modal_jobs && PYTHONPATH=../src modal run agent_lab.py --task terminal_bench \
         --gpu H100 --minutes 600 --args '{"strategies": ["transfer"], "n_tasks": 10}'
 """
 import json
@@ -21,7 +21,9 @@ from agent_common import VOLUMES, agent_image, artifacts, charge, weights
 
 app = modal.App("xkv-agent-lab")
 # Optional Modal secrets to attach (comma-separated names), e.g. the Harbor Modal token or an OpenAI key.
-_SECRETS = [x for x in os.environ.get("XKV_SECRETS", "").split(",") if x]
+# The list must be identical at launch and inside the container (Modal re-imports this module there without the
+# launcher's environment), so it is fixed here rather than read from the environment.
+_SECRETS = ["xkv-openai", "xkv-harbor-modal"]
 KW = dict(image=agent_image, volumes=VOLUMES, retries=0, max_containers=1, timeout=12 * 3600, cpu=8.0, memory=65536,
           secrets=[modal.Secret.from_name(x) for x in _SECRETS])
 

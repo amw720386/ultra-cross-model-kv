@@ -275,23 +275,31 @@ def task_ttft_ab(src="4b", tgt="27b", mapper_name="4b-27b-w8192-distill-ret", le
 
 
 def task_ttft_repair(src="4b", tgt="27b", mapper_name="4b-27b-fid+4b-27b-fid-attn", lengths=(8192, 16384, 32768),
-                     repairs=(0, 512, 1024), full_until=32768, window=8192, chunk=8192, reps=5):
-    """TTFT of the final transfer config (attention map, adaptive tail) with and without selective repair."""
+                     repairs=(0, 512, 1024), full_until=32768, window=8192, chunk=8192, reps=5, msg_every=0):
+    """TTFT of the final transfer config (attention map, adaptive tail) with and without selective repair.
+    repairs: token budgets; an 'm' suffix (e.g. '3072m') selects whole messages. msg_every: put a message-start
+    token every msg_every tokens of the random prompt, so message-unit selection sees a chat-like structure."""
     from .experiments import get, load_mapper
     from .mapper import adaptive_tail, native_prefill, transfer_prefill
 
     sm, _ = get(src)
-    tm, _ = get(tgt)
+    tm, tok = get(tgt)
     mapper = load_mapper(mapper_name, sm, tm)
     rows = []
     for L in lengths:
         ids = torch.randint(1000, 100000, (1, L), device="cuda")
+        sep = None
+        if msg_every:
+            sep = tok.convert_tokens_to_ids("<|im_start|>")
+            ids[0, ::msg_every] = sep
         f_nat = lambda: native_prefill(tm, ids, chunk=chunk)
         f_nat()
         row = {"len": L, "tail": adaptive_tail(L), "native_s": timeit(f_nat, reps)}
         for r in repairs:
+            unit = str(r).endswith("m")
             f = lambda: transfer_prefill(sm, tm, mapper, ids, tail=adaptive_tail(L), window=window, chunk=chunk,
-                                         full_until=full_until, repair=r)
+                                         full_until=full_until, repair=int(str(r).rstrip("m")),
+                                         repair_sep=sep if unit else None)
             f()
             row[f"transfer_rep{r}_s"] = timeit(f, reps)
             row[f"speedup_rep{r}"] = row["native_s"] / row[f"transfer_rep{r}_s"]

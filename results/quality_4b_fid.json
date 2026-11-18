@@ -121,6 +121,44 @@
      }
     }
    }
+  },
+  {
+   "source_file": "results/raw/gen_evals-H200-20261118-140414.json",
+   "args": {
+    "src": "4b",
+    "tgt": "27b",
+    "mapper_name": "4b-27b-fid+4b-27b-fid-attn",
+    "full_until": 32768,
+    "benches": [
+     "qmsum"
+    ],
+    "strategies": [
+     "target",
+     "transfer@auto"
+    ],
+    "limits": {
+     "qmsum": 100
+    },
+    "env": {
+     "XKV_QMSUM_JUDGE": "1",
+     "XKV_SAVE_OUTPUTS": "1"
+    }
+   },
+   "scores": {
+    "qmsum": {
+     "target": {
+      "score": 0.4319999999999996,
+      "n_scored": 100,
+      "judge": 0.4319999999999996
+     },
+     "transfer@auto": {
+      "score": 0.36499999999999977,
+      "n_scored": 100,
+      "judge": 0.36499999999999977
+     }
+    }
+   },
+   "note": "QMSum scored by an LLM judge (native 27B, 0-10 vs the reference answer) as OneTriangle does; ROUGE-L for this pair is in the earlier run above"
   }
  ]
 }

@@ -1,0 +1,40 @@
+{
+ "what": "Terminal-Bench 2.0 via Harbor (terminus-2 agent, official task containers on Modal), 20 tasks requested; the job hit its 125-minute limit with 10 trials completed (all 10 ended by the agent time limit, AgentTimeoutError), 4 running and 6 pending; this is Harbor's result.json at that point.",
+ "config": {
+  "mapper_name": "4b-27b-fid+4b-27b-fid-attn",
+  "strategy": "transfer+rep2048m",
+  "turn_tail_max": 4096,
+  "turn_tail_msgs": 3,
+  "full_until": 32768,
+  "concurrency": 4,
+  "gpu": "H200"
+ },
+ "stats": {
+  "n_completed_trials": 10,
+  "n_errored_trials": 10,
+  "n_running_trials": 4,
+  "n_pending_trials": 6,
+  "n_cancelled_trials": 0,
+  "n_retries": 0,
+  "n_input_tokens": 6501542,
+  "n_cache_tokens": 0,
+  "n_output_tokens": 58600
+ },
+ "pass_rate": 0.1,
+ "rewards": {
+  "0.0": [
+   "gpt2-codegolf__WGsnSNt",
+   "break-filter-js-from-html__ZXLaHe8",
+   "llm-inference-batching-scheduler__u7dGJaP",
+   "write-compressor__3hU8jMZ",
+   "merge-diff-arc-agi-task__Gro3WaJ",
+   "pytorch-model-cli__hEKnsZA",
+   "reshard-c4-data__LEBTKNn",
+   "largest-eigenval__pmc4aHf",
+   "password-recovery__mYDEh4A"
+  ],
+  "1.0": [
+   "log-summary-date-ranges__h5Mfcys"
+  ]
+ }
+}
