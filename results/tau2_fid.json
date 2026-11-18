@@ -1,0 +1,263 @@
+{
+ "map": "4b-27b-fid + 4b-27b-fid-attn",
+ "common": "turn_tail_max 4096 (newest turn native), native_tools (<tools> block native), 50 tasks per domain, user simulator and judge = native 27B",
+ "runs": [
+  {
+   "source_file": "private log of the phase-2 native run (no raw file saved; lines copied verbatim)",
+   "args": {
+    "strategies": [
+     "target"
+    ],
+    "domains": [
+     "airline",
+     "retail"
+    ],
+    "max_concurrency": 8
+   },
+   "scores": {
+    "target": {
+     "airline": {
+      "pass1": 0.74,
+      "n_scored": 50,
+      "n_errored": 0
+     },
+     "retail": {
+      "pass1": 0.78,
+      "n_scored": 50,
+      "n_errored": 0
+     }
+    }
+   },
+   "note": "native 27B reference"
+  },
+  {
+   "source_file": "results/raw/tau2-H200-20261117-201814.json",
+   "args": {
+    "mapper_name": "4b-27b-fid+4b-27b-fid-attn",
+    "full_until": 32768,
+    "strategies": [
+     "transfer"
+    ],
+    "domains": [
+     "airline",
+     "retail"
+    ],
+    "max_concurrency": 8,
+    "turn_tail_max": 4096,
+    "native_tools": true,
+    "run_name": "fid-pure"
+   },
+   "scores": {
+    "transfer": {
+     "airline": {
+      "pass1": 0.26,
+      "n_scored": 50,
+      "n_errored": 0
+     },
+     "retail": {
+      "pass1": 0.6,
+      "n_scored": 50,
+      "n_errored": 0
+     }
+    }
+   },
+   "note": "pure transfer"
+  },
+  {
+   "source_file": "results/raw/tau2-H200-20261117-184806.json",
+   "args": {
+    "mapper_name": "4b-27b-fid+4b-27b-fid-attn",
+    "full_until": 32768,
+    "strategies": [
+     "transfer"
+    ],
+    "domains": [
+     "retail",
+     "airline"
+    ],
+    "max_concurrency": 8,
+    "turn_tail_max": 4096,
+    "native_history": true,
+    "run_name": "session"
+   },
+   "scores": {
+    "transfer": {
+     "retail": {
+      "pass1": 0.74,
+      "n_scored": 50,
+      "n_errored": 0
+     },
+     "airline": {
+      "pass1": 0.3469387755102041,
+      "n_scored": 49,
+      "n_errored": 1
+     }
+    }
+   },
+   "note": "session mode: only the system prompt and first user turn are mapped; every later turn is computed natively by the target (mostly native)"
+  },
+  {
+   "source_file": "results/raw/tau2-H200-20261117-233619.json",
+   "args": {
+    "mapper_name": "4b-27b-fid+4b-27b-fid-attn",
+    "full_until": 32768,
+    "strategies": [
+     "transfer+rep1024"
+    ],
+    "domains": [
+     "airline",
+     "retail"
+    ],
+    "max_concurrency": 8,
+    "turn_tail_max": 4096,
+    "native_tools": true,
+    "run_name": "fid-rep"
+   },
+   "scores": {
+    "transfer+rep1024": {
+     "airline": {
+      "pass1": 0.4,
+      "n_scored": 50,
+      "n_errored": 0
+     },
+     "retail": {
+      "pass1": 0.7,
+      "n_scored": 50,
+      "n_errored": 0
+     }
+    }
+   },
+   "note": "recall mode rep1024, sequential repair implementation"
+  },
+  {
+   "source_file": "results/raw/tau2-H200-20261118-012437.json",
+   "args": {
+    "mapper_name": "4b-27b-fid+4b-27b-fid-attn",
+    "full_until": 32768,
+    "strategies": [
+     "transfer+rep1024"
+    ],
+    "domains": [
+     "airline"
+    ],
+    "max_concurrency": 8,
+    "turn_tail_max": 4096,
+    "native_tools": true,
+    "run_name": "fid-repv1024"
+   },
+   "scores": {
+    "transfer+rep1024": {
+     "airline": {
+      "pass1": 0.32,
+      "n_scored": 50,
+      "n_errored": 0
+     }
+    }
+   },
+   "note": "recall mode rep1024, varlen repair"
+  },
+  {
+   "source_file": "results/raw/tau2-H200-20261118-013633.json",
+   "args": {
+    "mapper_name": "4b-27b-fid+4b-27b-fid-attn",
+    "full_until": 32768,
+    "strategies": [
+     "transfer+rep2048"
+    ],
+    "domains": [
+     "airline"
+    ],
+    "max_concurrency": 8,
+    "turn_tail_max": 4096,
+    "native_tools": true,
+    "run_name": "fid-repv2048"
+   },
+   "scores": {
+    "transfer+rep2048": {
+     "airline": {
+      "pass1": 0.6,
+      "n_scored": 50,
+      "n_errored": 0
+     }
+    }
+   },
+   "note": "recall mode rep2048, varlen repair"
+  },
+  {
+   "source_file": "results/raw/tau2-H200-20261118-022019.json",
+   "args": {
+    "mapper_name": "4b-27b-fid+4b-27b-fid-attn",
+    "full_until": 32768,
+    "strategies": [
+     "transfer+rep2048"
+    ],
+    "domains": [
+     "retail"
+    ],
+    "max_concurrency": 8,
+    "turn_tail_max": 4096,
+    "native_tools": true,
+    "run_name": "fid-repv2048-retail"
+   },
+   "scores": {
+    "transfer+rep2048": {
+     "retail": {
+      "pass1": 0.7,
+      "n_scored": 50,
+      "n_errored": 0
+     }
+    }
+   }
+  },
+  {
+   "source_file": "results/raw/tau2-H200-20261118-025600.json",
+   "args": {
+    "mapper_name": "4b-27b-fid+4b-27b-fid-attn",
+    "full_until": 32768,
+    "strategies": [
+     "transfer+rep2048"
+    ],
+    "domains": [
+     "telecom"
+    ],
+    "max_concurrency": 8,
+    "turn_tail_max": 4096,
+    "native_tools": true,
+    "run_name": "fid-repv2048-telecom"
+   },
+   "scores": {
+    "transfer+rep2048": {
+     "telecom": {
+      "pass1": 0.18,
+      "n_scored": 50,
+      "n_errored": 0
+     }
+    }
+   }
+  },
+  {
+   "source_file": "results/raw/tau2-H200-20261118-040322.json",
+   "args": {
+    "mapper_name": "4b-27b-fid+4b-27b-fid-attn",
+    "full_until": 32768,
+    "strategies": [
+     "target"
+    ],
+    "domains": [
+     "telecom"
+    ],
+    "max_concurrency": 8,
+    "run_name": "native-telecom"
+   },
+   "scores": {
+    "target": {
+     "telecom": {
+      "pass1": 0.6,
+      "n_scored": 50,
+      "n_errored": 0
+     }
+    }
+   }
+  }
+ ]
+}

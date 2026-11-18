@@ -1,0 +1,610 @@
+{
+ "map": "2b-27b-fid + 2b-27b-fid-attn",
+ "modes": {
+  "transfer": "pure transfer, 128-token native tail",
+  "transfer@auto": "adaptive native tail: 512 tokens for prompts <=4K, tapering to 128 at >=8K; prompts shorter than the tail are fully native",
+  "+repN": "recall mode: query-aware selective repair, N prompt tokens (64-token blocks chosen by the source's attention from the tail) re-encoded natively by the target"
+ },
+ "runs": [
+  {
+   "source_file": "results/raw/gen_evals-H200-20261117-193136.json",
+   "args": {
+    "src": "2b",
+    "mapper_name": "2b-27b-fid+2b-27b-fid-attn",
+    "full_until": 32768,
+    "benches": [
+     "ruler",
+     "mrcr",
+     "quality",
+     "zebralogic",
+     "longbench_v2",
+     "locomo"
+    ],
+    "strategies": [
+     "transfer"
+    ],
+    "limits": {
+     "ruler": 30,
+     "mrcr": 60,
+     "quality": 100,
+     "zebralogic": 100,
+     "longbench_v2": 60,
+     "locomo": 100
+    },
+    "bench_kw": {
+     "mrcr": {
+      "min_ctx": 4096,
+      "batch": 4
+     },
+     "longbench_v2": {
+      "batch": 4,
+      "max_new": 1024
+     },
+     "locomo": {
+      "batch": 4
+     }
+    },
+    "max_ctx": 32768,
+    "batch": 8
+   },
+   "scores": {
+    "ruler": {
+     "transfer": {
+      "score": 0.821111111111111,
+      "n_scored": 90
+     }
+    },
+    "mrcr": {
+     "transfer": {
+      "score": 0.5186637246820999,
+      "n_scored": 60
+     }
+    },
+    "quality": {
+     "transfer": {
+      "score": 0.79,
+      "n_scored": 100
+     }
+    },
+    "zebralogic": {
+     "transfer": {
+      "score": 0.17,
+      "n_scored": 100
+     }
+    },
+    "longbench_v2": {
+     "transfer": {
+      "score": 0.35,
+      "n_scored": 60
+     }
+    },
+    "locomo": {
+     "transfer": {
+      "score": 0.45681134894563435,
+      "n_scored": 100
+     }
+    }
+   },
+   "note": "pure transfer"
+  },
+  {
+   "source_file": "results/raw/gen_evals-H100-20261117-212927.json",
+   "args": {
+    "src": "2b",
+    "tgt": "27b",
+    "mapper_name": "2b-27b-fid+2b-27b-fid-attn",
+    "benches": [
+     "zebralogic",
+     "quality"
+    ],
+    "strategies": [
+     "transfer@auto"
+    ],
+    "limits": {
+     "zebralogic": 100,
+     "quality": 100
+    },
+    "max_ctx": 32768
+   },
+   "scores": {
+    "zebralogic": {
+     "transfer@auto": {
+      "score": 0.63,
+      "n_scored": 100
+     }
+    },
+    "quality": {
+     "transfer@auto": {
+      "score": 0.79,
+      "n_scored": 100
+     }
+    }
+   },
+   "note": "adaptive tail"
+  },
+  {
+   "source_file": "results/raw/gen_evals-H200-20261117-214305.json",
+   "args": {
+    "src": "2b",
+    "tgt": "27b",
+    "mapper_name": "2b-27b-fid+2b-27b-fid-attn",
+    "full_until": 32768,
+    "benches": [
+     "ruler",
+     "mrcr",
+     "longbench_v2"
+    ],
+    "strategies": [
+     "transfer@auto+rep512",
+     "transfer@auto+rep1024",
+     "transfer@auto+rep1024z"
+    ],
+    "limits": {
+     "ruler": 30,
+     "mrcr": 60,
+     "longbench_v2": 60
+    },
+    "bench_kw": {
+     "longbench_v2": {
+      "max_new": 1024
+     }
+    },
+    "max_ctx": 32768
+   },
+   "scores": {
+    "ruler": {
+     "transfer@auto+rep512": {
+      "score": 0.8927777777777777,
+      "n_scored": 90
+     },
+     "transfer@auto+rep1024": {
+      "score": 0.9027777777777778,
+      "n_scored": 90
+     },
+     "transfer@auto+rep1024z": {
+      "score": 0.8383333333333332,
+      "n_scored": 90
+     }
+    },
+    "mrcr": {
+     "transfer@auto+rep512": {
+      "score": 0.4572405374455522,
+      "n_scored": 60
+     },
+     "transfer@auto+rep1024": {
+      "score": 0.4965857350684915,
+      "n_scored": 60
+     },
+     "transfer@auto+rep1024z": {
+      "score": 0.26553346231704017,
+      "n_scored": 60
+     }
+    },
+    "longbench_v2": {
+     "transfer@auto+rep512": {
+      "score": 0.36666666666666664,
+      "n_scored": 60
+     },
+     "transfer@auto+rep1024": {
+      "score": 0.4,
+      "n_scored": 60
+     },
+     "transfer@auto+rep1024z": {
+      "score": 0.26666666666666666,
+      "n_scored": 60
+     }
+    }
+   },
+   "note": "repair, sequential implementation"
+  },
+  {
+   "source_file": "results/raw/gen_evals-H200-20261117-235759.json",
+   "args": {
+    "src": "2b",
+    "tgt": "27b",
+    "mapper_name": "2b-27b-fid+2b-27b-fid-attn",
+    "full_until": 32768,
+    "benches": [
+     "ruler",
+     "longbench_v2",
+     "mrcr"
+    ],
+    "strategies": [
+     "transfer@auto+rep1024",
+     "transfer@auto+rep2048"
+    ],
+    "limits": {
+     "ruler": 30,
+     "mrcr": 60,
+     "longbench_v2": 60
+    },
+    "bench_kw": {
+     "longbench_v2": {
+      "max_new": 1024
+     }
+    },
+    "max_ctx": 32768
+   },
+   "scores": {
+    "ruler": {
+     "transfer@auto+rep1024": {
+      "score": 0.9038888888888889,
+      "n_scored": 90
+     },
+     "transfer@auto+rep2048": {
+      "score": 0.9072222222222222,
+      "n_scored": 90
+     }
+    },
+    "longbench_v2": {
+     "transfer@auto+rep1024": {
+      "score": 0.4166666666666667,
+      "n_scored": 60
+     },
+     "transfer@auto+rep2048": {
+      "score": 0.4166666666666667,
+      "n_scored": 60
+     }
+    },
+    "mrcr": {
+     "transfer@auto+rep1024": {
+      "score": 0.2777787892444359,
+      "n_scored": 60
+     },
+     "transfer@auto+rep2048": {
+      "score": 0.3365197195454825,
+      "n_scored": 60
+     }
+    }
+   },
+   "note": "repair, batched implementation WITHOUT per-span DeltaNet reset (bug: MRCR drops); superseded"
+  },
+  {
+   "source_file": "results/raw/gen_evals-H200-20261118-001131.json",
+   "args": {
+    "src": "2b",
+    "tgt": "27b",
+    "mapper_name": "2b-27b-fid+2b-27b-fid-attn",
+    "full_until": 32768,
+    "benches": [
+     "mrcr",
+     "ruler",
+     "longbench_v2"
+    ],
+    "strategies": [
+     "transfer@auto+rep1024"
+    ],
+    "limits": {
+     "ruler": 30,
+     "mrcr": 60,
+     "longbench_v2": 60
+    },
+    "bench_kw": {
+     "longbench_v2": {
+      "max_new": 1024
+     }
+    },
+    "max_ctx": 32768
+   },
+   "scores": {
+    "mrcr": {
+     "transfer@auto+rep1024": {
+      "score": 0.4956402996744624,
+      "n_scored": 60
+     }
+    },
+    "ruler": {
+     "transfer@auto+rep1024": {
+      "score": 0.916111111111111,
+      "n_scored": 90
+     }
+    },
+    "longbench_v2": {
+     "transfer@auto+rep1024": {
+      "score": 0.38333333333333336,
+      "n_scored": 60
+     }
+    }
+   },
+   "note": "repair, per-span loop implementation"
+  },
+  {
+   "source_file": "results/raw/gen_evals-H200-20261118-002818.json",
+   "args": {
+    "src": "2b",
+    "tgt": "27b",
+    "mapper_name": "2b-27b-fid+2b-27b-fid-attn",
+    "full_until": 32768,
+    "benches": [
+     "mrcr",
+     "ruler",
+     "longbench_v2"
+    ],
+    "strategies": [
+     "transfer@auto+rep1024"
+    ],
+    "limits": {
+     "ruler": 30,
+     "mrcr": 60,
+     "longbench_v2": 60
+    },
+    "bench_kw": {
+     "longbench_v2": {
+      "max_new": 1024
+     }
+    },
+    "max_ctx": 32768
+   },
+   "scores": {
+    "mrcr": {
+     "transfer@auto+rep1024": {
+      "score": 0.4963230032847877,
+      "n_scored": 60
+     }
+    },
+    "ruler": {
+     "transfer@auto+rep1024": {
+      "score": 0.9049999999999999,
+      "n_scored": 90
+     }
+    },
+    "longbench_v2": {
+     "transfer@auto+rep1024": {
+      "score": 0.4,
+      "n_scored": 60
+     }
+    }
+   },
+   "note": "repair, final varlen implementation"
+  },
+  {
+   "source_file": "results/raw/gen_evals-H200-20261118-023819.json",
+   "args": {
+    "src": "2b",
+    "tgt": "27b",
+    "mapper_name": "2b-27b-fid+2b-27b-fid-attn",
+    "full_until": 32768,
+    "benches": [
+     "mrcr",
+     "zebralogic"
+    ],
+    "strategies": [
+     "transfer@auto+rep2048",
+     "transfer@auto+rep4096"
+    ],
+    "limit": 100
+   },
+   "scores": {
+    "zebralogic": {
+     "transfer@auto+rep2048": {
+      "score": 0.61,
+      "n_scored": 100
+     },
+     "transfer@auto+rep4096": {
+      "score": 0.61,
+      "n_scored": 100
+     }
+    }
+   }
+  },
+  {
+   "source_file": "results/raw/gen_evals-H200-20261118-031352.json",
+   "args": {
+    "src": "2b",
+    "tgt": "27b",
+    "mapper_name": "2b-27b-fid+2b-27b-fid-attn",
+    "full_until": 32768,
+    "max_ctx": 32768,
+    "benches": [
+     "mrcr"
+    ],
+    "strategies": [
+     "transfer@auto+rep2048",
+     "transfer@auto+rep4096"
+    ],
+    "limits": {
+     "mrcr": 60
+    },
+    "bench_kw": {
+     "mrcr": {
+      "min_ctx": 4096,
+      "batch": 4
+     }
+    }
+   },
+   "scores": {
+    "mrcr": {
+     "transfer@auto+rep2048": {
+      "score": 0.3993870888970562,
+      "n_scored": 60
+     },
+     "transfer@auto+rep4096": {
+      "score": 0.6171103617586281,
+      "n_scored": 60
+     }
+    }
+   }
+  },
+  {
+   "source_file": "results/raw/gen_evals-H200-20261118-041037.json",
+   "args": {
+    "src": "2b",
+    "tgt": "27b",
+    "mapper_name": "2b-27b-fid+2b-27b-fid-attn",
+    "full_until": 32768,
+    "max_ctx": 32768,
+    "benches": [
+     "longbench_v2"
+    ],
+    "strategies": [
+     "transfer@auto+rep1024",
+     "target",
+     "transfer@auto+rep2048"
+    ],
+    "limits": {
+     "longbench_v2": 200
+    },
+    "bench_kw": {
+     "longbench_v2": {
+      "batch": 4,
+      "max_new": 1024
+     }
+    }
+   },
+   "scores": {
+    "longbench_v2": {
+     "transfer@auto+rep1024": {
+      "score": 0.42,
+      "n_scored": 200
+     },
+     "target": {
+      "score": 0.37,
+      "n_scored": 200
+     },
+     "transfer@auto+rep2048": {
+      "score": 0.375,
+      "n_scored": 200
+     }
+    }
+   }
+  },
+  {
+   "source_file": "results/raw/gen_evals-H200-20261118-043036.json",
+   "args": {
+    "src": "2b",
+    "tgt": "27b",
+    "mapper_name": "2b-27b-fid+2b-27b-fid-attn",
+    "full_until": 32768,
+    "max_ctx": 32768,
+    "benches": [
+     "mrcr"
+    ],
+    "strategies": [
+     "target",
+     "source",
+     "transfer@auto"
+    ],
+    "limits": {
+     "mrcr": 60
+    },
+    "bench_kw": {
+     "mrcr": {
+      "min_ctx": 4096,
+      "batch": 4
+     }
+    }
+   },
+   "scores": {
+    "mrcr": {
+     "target": {
+      "score": 0.9701551089896017,
+      "n_scored": 60
+     },
+     "source": {
+      "score": 0.8717322062075658,
+      "n_scored": 60
+     },
+     "transfer@auto": {
+      "score": 0.5386454447693353,
+      "n_scored": 60
+     }
+    }
+   }
+  }
+ ],
+ "baselines_2b_chat_map": [
+  {
+   "source_file": "results/raw/gen_evals-H200-20261117-125325.json",
+   "args": {
+    "src": "2b",
+    "mapper_name": "2b-27b-chat2",
+    "full_until": 32768,
+    "benches": [
+     "zebralogic",
+     "ruler",
+     "mrcr"
+    ],
+    "strategies": [
+     "transfer"
+    ],
+    "limits": {
+     "zebralogic": 100,
+     "ruler": 30,
+     "mrcr": 60
+    },
+    "bench_kw": {
+     "mrcr": {
+      "min_ctx": 4096,
+      "batch": 4
+     }
+    },
+    "max_ctx": 32768,
+    "batch": 8
+   },
+   "scores": {
+    "zebralogic": {
+     "transfer": {
+      "score": 0.17,
+      "n_scored": 100
+     }
+    },
+    "ruler": {
+     "transfer": {
+      "score": 0.6799999999999999,
+      "n_scored": 90
+     }
+    },
+    "mrcr": {
+     "transfer": {
+      "score": 0.36582050282732465,
+      "n_scored": 60
+     }
+    }
+   }
+  },
+  {
+   "source_file": "results/raw/gen_evals-H200-20261117-132151.json",
+   "args": {
+    "src": "2b",
+    "mapper_name": "2b-27b-chat2",
+    "full_until": 32768,
+    "benches": [
+     "longbench_v2"
+    ],
+    "strategies": [
+     "target",
+     "transfer",
+     "source"
+    ],
+    "limits": {
+     "longbench_v2": 60
+    },
+    "bench_kw": {
+     "longbench_v2": {
+      "batch": 4,
+      "max_new": 1024
+     }
+    },
+    "max_ctx": 32768,
+    "batch": 8
+   },
+   "scores": {
+    "longbench_v2": {
+     "target": {
+      "score": 0.36666666666666664,
+      "n_scored": 60
+     },
+     "transfer": {
+      "score": 0.31666666666666665,
+      "n_scored": 60
+     },
+     "source": {
+      "score": 0.23333333333333334,
+      "n_scored": 60
+     }
+    }
+   },
+   "note": "includes native target and 2B alone"
+  }
+ ]
+}

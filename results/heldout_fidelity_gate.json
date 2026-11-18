@@ -1,0 +1,271 @@
+{
+ "what": "Benchmarks never used for tuning or map selection: FineWeb-Edu held-out split (32 x 4096-token prefixes, 256 teacher-forced continuation tokens; agreement and KL vs native 27B) and 5 log-likelihood multiple-choice sets (300 items each) with a 1-token native tail, i.e. the context almost fully mapped. Compares the phase-2 map (4b-27b-chat) to the phase-3 fidelity map (4b-27b-fid).",
+ "runs": [
+  {
+   "raw_name": "quality-H100-20261118-022124.json",
+   "args": {
+    "mapper_name": "4b-27b-fid+4b-27b-fid-attn",
+    "n_seqs": 32,
+    "prefix": 4096,
+    "cont": 256,
+    "tails": [
+     1,
+     128
+    ],
+    "mc_limit": 300,
+    "mc_tails": [
+     1
+    ]
+   },
+   "fineweb_teacher_forced": {
+    "tail1": {
+     "nll_ref": 2.118615500628948,
+     "nll": 2.1586939468979836,
+     "top1_agree": 0.8997802734375,
+     "kl": 0.057183768309187144
+    },
+    "tail128": {
+     "nll_ref": 2.118615500628948,
+     "nll": 2.135453086346388,
+     "top1_agree": 0.925048828125,
+     "kl": 0.030000006503541954
+    },
+    "source_native": {
+     "nll_ref": 2.118615500628948,
+     "nll": 2.369929302483797,
+     "top1_agree": 0.735595703125,
+     "kl": 0.36699185613542795
+    }
+   },
+   "multiple_choice": {
+    "hellaswag": {
+     "target": {
+      "acc": 0.6266666666666667,
+      "acc_norm": 0.8366666666666667,
+      "acc_stderr": 0.027972487412192527,
+      "n": 300
+     },
+     "source": {
+      "acc": 0.5266666666666666,
+      "acc_norm": 0.73,
+      "acc_stderr": 0.028874592695089584,
+      "n": 300
+     },
+     "transfer_tail1": {
+      "acc": 0.59,
+      "acc_norm": 0.78,
+      "acc_stderr": 0.02844345443743513,
+      "n": 300
+     }
+    },
+    "piqa": {
+     "target": {
+      "acc": 0.8033333333333333,
+      "acc_norm": 0.8233333333333334,
+      "acc_stderr": 0.02298675559401019,
+      "n": 300
+     },
+     "source": {
+      "acc": 0.7966666666666666,
+      "acc_norm": 0.8166666666666667,
+      "acc_stderr": 0.023275928749679646,
+      "n": 300
+     },
+     "transfer_tail1": {
+      "acc": 0.7966666666666666,
+      "acc_norm": 0.8166666666666667,
+      "acc_stderr": 0.023275928749679646,
+      "n": 300
+     }
+    },
+    "arc_challenge": {
+     "target": {
+      "acc": 0.5433333333333333,
+      "acc_norm": 0.6,
+      "acc_stderr": 0.028806947219396188,
+      "n": 300
+     },
+     "source": {
+      "acc": 0.5166666666666667,
+      "acc_norm": 0.5433333333333333,
+      "acc_stderr": 0.028899677829858927,
+      "n": 300
+     },
+     "transfer_tail1": {
+      "acc": 0.5266666666666666,
+      "acc_norm": 0.56,
+      "acc_stderr": 0.028874592695089584,
+      "n": 300
+     }
+    },
+    "mmlu": {
+     "target": {
+      "acc": 0.8533333333333334,
+      "acc_stderr": 0.020459238826580572,
+      "n": 300
+     },
+     "source": {
+      "acc": 0.74,
+      "acc_stderr": 0.025366873297069256,
+      "n": 300
+     },
+     "transfer_tail1": {
+      "acc": 0.6733333333333333,
+      "acc_stderr": 0.027122634635122617,
+      "n": 300
+     }
+    },
+    "winogrande": {
+     "target": {
+      "acc": 0.76,
+      "acc_stderr": 0.024698855131686844,
+      "n": 300
+     },
+     "source": {
+      "acc": 0.7433333333333333,
+      "acc_stderr": 0.02526044198731046,
+      "n": 300
+     },
+     "transfer_tail1": {
+      "acc": 0.75,
+      "acc_stderr": 0.02504177112353167,
+      "n": 300
+     }
+    }
+   }
+  },
+  {
+   "raw_name": "quality-H100-20261118-022155.json",
+   "args": {
+    "mapper_name": "4b-27b-chat",
+    "n_seqs": 32,
+    "prefix": 4096,
+    "cont": 256,
+    "tails": [
+     1,
+     128
+    ],
+    "mc_limit": 300,
+    "mc_tails": [
+     1
+    ]
+   },
+   "fineweb_teacher_forced": {
+    "tail1": {
+     "nll_ref": 2.118615500628948,
+     "nll": 2.1615047231316566,
+     "top1_agree": 0.89599609375,
+     "kl": 0.058909239538479596
+    },
+    "tail128": {
+     "nll_ref": 2.118615500628948,
+     "nll": 2.1376260593533516,
+     "top1_agree": 0.9254150390625,
+     "kl": 0.03050407524278853
+    },
+    "source_native": {
+     "nll_ref": 2.118615500628948,
+     "nll": 2.369929302483797,
+     "top1_agree": 0.735595703125,
+     "kl": 0.36699185613542795
+    }
+   },
+   "multiple_choice": {
+    "hellaswag": {
+     "target": {
+      "acc": 0.6266666666666667,
+      "acc_norm": 0.8366666666666667,
+      "acc_stderr": 0.027972487412192527,
+      "n": 300
+     },
+     "source": {
+      "acc": 0.5266666666666666,
+      "acc_norm": 0.73,
+      "acc_stderr": 0.028874592695089584,
+      "n": 300
+     },
+     "transfer_tail1": {
+      "acc": 0.5833333333333334,
+      "acc_norm": 0.7866666666666666,
+      "acc_stderr": 0.02851131064391753,
+      "n": 300
+     }
+    },
+    "piqa": {
+     "target": {
+      "acc": 0.8033333333333333,
+      "acc_norm": 0.8233333333333334,
+      "acc_stderr": 0.02298675559401019,
+      "n": 300
+     },
+     "source": {
+      "acc": 0.7966666666666666,
+      "acc_norm": 0.8166666666666667,
+      "acc_stderr": 0.023275928749679646,
+      "n": 300
+     },
+     "transfer_tail1": {
+      "acc": 0.8033333333333333,
+      "acc_norm": 0.8,
+      "acc_stderr": 0.02298675559401019,
+      "n": 300
+     }
+    },
+    "arc_challenge": {
+     "target": {
+      "acc": 0.5433333333333333,
+      "acc_norm": 0.6,
+      "acc_stderr": 0.028806947219396188,
+      "n": 300
+     },
+     "source": {
+      "acc": 0.5166666666666667,
+      "acc_norm": 0.5433333333333333,
+      "acc_stderr": 0.028899677829858927,
+      "n": 300
+     },
+     "transfer_tail1": {
+      "acc": 0.5066666666666667,
+      "acc_norm": 0.5533333333333333,
+      "acc_stderr": 0.02891317619548029,
+      "n": 300
+     }
+    },
+    "mmlu": {
+     "target": {
+      "acc": 0.8533333333333334,
+      "acc_stderr": 0.020459238826580572,
+      "n": 300
+     },
+     "source": {
+      "acc": 0.74,
+      "acc_stderr": 0.025366873297069256,
+      "n": 300
+     },
+     "transfer_tail1": {
+      "acc": 0.6866666666666666,
+      "acc_stderr": 0.026825059139630382,
+      "n": 300
+     }
+    },
+    "winogrande": {
+     "target": {
+      "acc": 0.76,
+      "acc_stderr": 0.024698855131686844,
+      "n": 300
+     },
+     "source": {
+      "acc": 0.7433333333333333,
+      "acc_stderr": 0.02526044198731046,
+      "n": 300
+     },
+     "transfer_tail1": {
+      "acc": 0.7466666666666667,
+      "acc_stderr": 0.025152082937711876,
+      "n": 300
+     }
+    }
+   }
+  }
+ ]
+}
