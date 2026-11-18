@@ -359,6 +359,8 @@ def _aggregate(task: str, metric: str, items: Sequence[Item], outputs: Sequence[
     for k in keys:
         vals = [s[k] for s in scores if s.get(k) is not None]
         res[k if k != "score" else "score"] = (sum(vals) / len(vals)) if vals else None
+    if any(s.get("judge") is not None for s in scores):  # LLM-judged run: keep the metric's own mean intact
+        res["metric"] = metric = "judge"
     res[metric] = res.get("score")
     res["n_scored"] = len(valid)
     groups: dict[str, dict[str, list[float]]] = defaultdict(lambda: defaultdict(list))
