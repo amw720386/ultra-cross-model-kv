@@ -107,6 +107,26 @@ def task_gen_evals(src="4b", tgt="27b", mapper_name="4b-27b-w8192-distill-ret", 
     tm, tok = get(tgt)
     mapper = load_mapper(mapper_name, sm, tm) if any(s.startswith("transfer") for s in strategies) else None
     res_env = dict(env or {})
+    if os.environ.get("XKV_QMSUM_JUDGE") == "1":  # LLM judge = native target, non-thinking, greedy
+        jgen = make_batch_gen("target", sm, tm, None, tok, batch=8)
+
+        def judge(texts):
+            think = os.environ.pop("XKV_THINKING", None)
+            try:
+                ids = [tok.encode(G.chat_prompt(tok, t), add_special_tokens=False) for t in texts]
+            finally:
+                if think is not None:
+                    os.environ["XKV_THINKING"] = think
+            stops = stop_ids(tok)
+            out = []
+            for k in range(0, len(ids), 8):
+                for o in jgen(ids[k:k + 8], 8):
+                    o = list(o)
+                    cut = next((j for j, t in enumerate(o) if t in stops), len(o))
+                    out.append(tok.decode(o[:cut], skip_special_tokens=True))
+            return out
+
+        G.JUDGE = judge
     bench_kw = bench_kw or {}
     res = {"config": {"mapper": mapper_name, "tail": tail, "window": window, "full_until": full_until,
                       "limit": limit, "seed": seed, "env": res_env}}
