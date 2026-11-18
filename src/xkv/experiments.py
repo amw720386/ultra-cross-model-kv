@@ -145,7 +145,15 @@ def task_calibrate(src="4b", tgt="27b", n_seqs=256, seq_len=4096, radius=2, lam=
 
 
 def load_mapper(name, sm, tm):
-    return Mapper.load(ART / "maps" / f"{name}.pt", sm.spec, tm.spec, tm.device)
+    """name or 'base+attn' (base ridge/distilled maps plus a richer attention-KV map)."""
+    base, _, attn = name.partition("+")
+    m = Mapper.load(ART / "maps" / f"{base}.pt", sm.spec, tm.spec, tm.device)
+    if attn:
+        from .attnmap import AttnMap
+
+        m.attn = AttnMap.load(ART / "maps" / f"{attn}.pt", sm.spec, tm.spec, tm.device)
+        m.max_src = max(m.max_src, max(m.attn.need))
+    return m
 
 
 def task_quality(src="4b", tgt="27b", mapper_name=None, n_seqs=16, prefix=2048, cont=256, tails=(1, 8, 32, 64),
@@ -404,6 +412,72 @@ class RetrievalSynth:
     def enc(self, s):
         return self.tok.encode(s, add_special_tokens=False)
 
+    def make_varied(self, body: list[int], n_records: int):
+        """Harder lookups: several value types (digits, hex codes, words), multi-value keys and multi-key
+        questions; the answer must be copied exactly. Templates differ from the evaluation suites."""
+        r = self.rng
+        letters = "ABCDEFGHJKLMNPQRSTUVWXYZ"
+        words = ["amber", "falcon", "quartz", "willow", "harbor", "cobalt", "meadow", "lantern", "saffron", "glacier",
+                 "orchid", "tundra", "copper", "violet", "summit", "ember", "cedar", "marble", "nimbus", "pebble"]
+
+        def val():
+            kind = r.randrange(3)
+            if kind == 0:
+                return str(r.randint(10 ** 5, 10 ** 7 - 1))
+            if kind == 1:
+                return "".join(r.choice("0123456789abcdef") for _ in range(8)) + "-" +                     "".join(r.choice("0123456789abcdef") for _ in range(4))
+            return r.choice(words) + "-" + r.choice(words)
+
+        recs = []
+        for _ in range(n_records):
+            name = "".join(r.choice(letters) for _ in range(3)) + f"-{r.randint(100, 999)}"
+            vals = [val() for _ in range(r.choice((1, 1, 2, 3)))]
+            recs.append((name, vals))
+        body = list(body)
+        for name, vals in recs:
+            for v in vals:
+                pos = r.randint(0, len(body))
+                body[pos:pos] = self.enc(f" [registry] {name} -> {v}. ")
+        asked = r.sample(recs, k=min(len(recs), r.choice((1, 1, 2, 3))))
+        if len(asked) == 1 and len(asked[0][1]) == 1:
+            q = f"What value is registered for {asked[0][0]}? Answer with the value only."
+            ans = asked[0][1][0]
+        else:
+            q = ("List every value registered for " + ", ".join(n for n, _ in asked) +
+                 ", in the order they appear, separated by commas. Answer with the values only.")
+            order = sorted(((self._pos(body, n, v), v) for n, vs in asked for v in vs))
+            ans = ", ".join(v for _, v in order)
+        prompt = self.enc(self.pre) + body + self.enc(chr(10) * 2 + q) + self.enc(self.post)
+        return prompt, self.enc(ans) + [self.end]
+
+    def make_copy(self, body: list[int], donor: list[int], n_notes: int):
+        """Verbatim copying: several tagged passages (cut from other text) are placed in the document; the
+        question asks to reproduce one of them exactly."""
+        r = self.rng
+        tags = r.sample(["harbor", "lantern", "quartz", "meadow", "falcon", "cobalt", "willow", "ember", "summit",
+                         "orchid", "glacier", "copper"], k=n_notes)
+        notes, at = [], 0
+        for t in tags:
+            ln = r.randint(40, 120)
+            notes.append((t, donor[at:at + ln]))
+            at += ln + r.randint(5, 50)
+        body = list(body)
+        for t, ids in notes:
+            pos = r.randint(0, len(body))
+            body[pos:pos] = self.enc(chr(10) + f"<note tag={t}>") + ids + self.enc("</note>" + chr(10))
+        t, ids = r.choice(notes)
+        q = self.enc(chr(10) * 2 + f"Reproduce the note tagged {t} exactly, word for word, with nothing else.")
+        prompt = self.enc(self.pre) + body + q + self.enc(self.post)
+        return prompt, ids + [self.end]
+
+    def _pos(self, body, name, v):
+        needle = self.enc(f" [registry] {name} -> {v}. ")
+        n = len(needle)
+        for i in range(len(body) - n + 1):
+            if body[i:i + n] == needle:
+                return i
+        return 0
+
     def make(self, body: list[int], n_records: int):
         r = self.rng
         letters = "ABCDEFGHJKLMNPQRSTUVWXYZ"
@@ -476,7 +550,8 @@ class ChatSynth:
 
 def task_distill(src="4b", tgt="27b", mapper_name=None, out_name=None, steps=1500, prefix=1024, cont=128,
                  tail=1, lr=2e-5, warmup=50, clip=1.0, eval_every=250, n_eval=8, source="fineweb", window=None,
-                 prefix_choices=None, retrieval_frac=0.0, niah_len=0, niah_n=10, eval_tail=None, chat_frac=0.0):
+                 prefix_choices=None, retrieval_frac=0.0, niah_len=0, niah_n=10, eval_tail=None, chat_frac=0.0,
+                 tool_frac=0.0, varied_frac=0.0, copy_frac=0.0):
     """Fine-tune the ridge maps end to end: minimize KL(native target || transferred target) on continuations.
 
     Only the maps are trained; both models stay frozen. Gradients flow from the target's continuation logits
@@ -484,10 +559,15 @@ def task_distill(src="4b", tgt="27b", mapper_name=None, out_name=None, steps=150
     """
     import random
 
+    from . import mapper as M
+
+    M.GRAPH_TAIL_MAX = None  # no persistent graphed-tail buffers while training (memory)
     sm, stok = get(src)
     tm, ttok = get(tgt)
     mapper = load_mapper(mapper_name, sm, tm)
     params = mapper.trainable()
+    if getattr(mapper, "attn", None) is not None:
+        params += mapper.attn.trainable()
     opt = torch.optim.AdamW(params, lr=lr, betas=(0.9, 0.98), weight_decay=0.0)
     sched = torch.optim.lr_scheduler.LambdaLR(
         opt, lambda s: min(1.0, (s + 1) / warmup) * max(0.1, 0.5 * (1 + math.cos(math.pi * s / steps))))
@@ -509,6 +589,10 @@ def task_distill(src="4b", tgt="27b", mapper_name=None, out_name=None, steps=150
 
     synth = RetrievalSynth(ttok, seed=1) if retrieval_frac else None
     chat = ChatSynth(ttok, seed=2) if chat_frac else None
+    if tool_frac:
+        from .toolsynth import ToolSynth
+
+        tools = ToolSynth(ttok, seed=3)
     eval_tail = eval_tail or tail
 
     def niah_eval():
@@ -528,8 +612,18 @@ def task_distill(src="4b", tgt="27b", mapper_name=None, out_name=None, steps=150
         u = rng.random()
         if chat is not None and u < chat_frac:
             p, c = chat.make(P, cont)
-        elif synth is not None and u < chat_frac + retrieval_frac:
-            p, c = synth.make(s[:P - 80], rng.randint(1, 4))
+        elif tool_frac and u < chat_frac + tool_frac:
+            p, c = tools.make(P, cont)
+        elif synth is not None and u < chat_frac + tool_frac + retrieval_frac:
+            v = rng.random()
+            if v < copy_frac:
+                donor = train[(step + 7) % len(train)]
+                p, c = synth.make_copy(s[:P - 900], donor, rng.randint(2, 6))
+                c = c[:cont]
+            elif v < copy_frac + varied_frac:
+                p, c = synth.make_varied(s[:P - 120], rng.randint(2, 8))
+            else:
+                p, c = synth.make(s[:P - 80], rng.randint(1, 4))
         else:
             p, c = s[:P], s[P:P + cont]
         with torch.no_grad():
@@ -554,10 +648,14 @@ def task_distill(src="4b", tgt="27b", mapper_name=None, out_name=None, steps=150
         if (step + 1) % eval_every == 0 or step + 1 == len(train):
             last = step + 1 == len(train)
             mapper.save(ART / "maps" / f"{out_name or mapper_name + '-distill'}-ckpt.pt")  # survive timeouts
+            if getattr(mapper, "attn", None) is not None:
+                mapper.attn.save(ART / "maps" / f"{out_name or mapper_name + '-distill'}-attn-ckpt.pt")
             hist.append({"step": step + 1, **evaluate(), **(niah_eval() if last else {})})
             print(json.dumps(hist[-1]), flush=True)
     out_name = out_name or f"{mapper_name}-distill{steps}"
     mapper.save(ART / "maps" / f"{out_name}.pt")
+    if getattr(mapper, "attn", None) is not None:
+        mapper.attn.save(ART / "maps" / f"{out_name}-attn.pt")
     return {"name": out_name, "history": hist, "seconds": time.time() - t0}
 
 
@@ -565,9 +663,9 @@ TASKS = {k[5:]: v for k, v in globals().items() if k.startswith("task_")}
 
 
 def _extra_tasks():
-    from . import genrun, perf
+    from . import attnmap, genrun, perf
 
-    return {k[5:]: v for m in (perf, genrun) for k, v in vars(m).items() if k.startswith("task_")}
+    return {k[5:]: v for m in (perf, genrun, attnmap) for k, v in vars(m).items() if k.startswith("task_")}
 
 
 def dispatch(task: str, args: dict):

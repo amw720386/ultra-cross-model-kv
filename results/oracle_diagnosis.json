@@ -1,0 +1,126 @@
+{
+ "what": "Swap in the native 27B attention KV (oracle_attn) or native DeltaNet state (oracle_lin) on top of the transfer; shows recall loss lives in the attention KV.",
+ "runs": [
+  {
+   "source_file": "results/raw/gen_evals-H200-20261117-151831.json",
+   "args": {
+    "mapper_name": "4b-27b-chat",
+    "full_until": 32768,
+    "benches": [
+     "ruler",
+     "mrcr",
+     "zebralogic"
+    ],
+    "strategies": [
+     "transfer",
+     "transfer+oracle_attn",
+     "transfer+oracle_lin"
+    ],
+    "limits": {
+     "ruler": 27,
+     "mrcr": 30,
+     "zebralogic": 40
+    },
+    "bench_kw": {
+     "ruler": {
+      "lengths": [
+       16384
+      ],
+      "batch": 4
+     },
+     "mrcr": {
+      "min_ctx": 8000,
+      "batch": 4
+     }
+    },
+    "max_ctx": 32768,
+    "batch": 8
+   },
+   "scores": {
+    "ruler": {
+     "transfer": {
+      "score": 0.7185185185185186,
+      "n_scored": 27
+     },
+     "transfer+oracle_attn": {
+      "score": 1.0,
+      "n_scored": 27
+     },
+     "transfer+oracle_lin": {
+      "score": 0.6925925925925925,
+      "n_scored": 27
+     }
+    },
+    "mrcr": {
+     "transfer": {
+      "score": 0.30406803868686155,
+      "n_scored": 30
+     },
+     "transfer+oracle_attn": {
+      "score": 0.9692389717790332,
+      "n_scored": 30
+     },
+     "transfer+oracle_lin": {
+      "score": 0.2611787715026825,
+      "n_scored": 30
+     }
+    },
+    "zebralogic": {
+     "transfer": {
+      "score": 0.425,
+      "n_scored": 40
+     },
+     "transfer+oracle_attn": {
+      "score": 0.6,
+      "n_scored": 40
+     },
+     "transfer+oracle_lin": {
+      "score": 0.25,
+      "n_scored": 40
+     }
+    }
+   },
+   "note": "4B->27B, map 4b-27b-chat, up to 64K prompts"
+  },
+  {
+   "source_file": "results/raw/gen_evals-H100-20261117-210211.json",
+   "args": {
+    "src": "2b",
+    "tgt": "27b",
+    "mapper_name": "2b-27b-fid+2b-27b-fid-attn",
+    "benches": [
+     "zebralogic"
+    ],
+    "strategies": [
+     "transfer",
+     "transfer+oracle_attn",
+     "transfer+oracle_lin",
+     "transfer@512"
+    ],
+    "limit": 40,
+    "max_ctx": 32768
+   },
+   "scores": {
+    "zebralogic": {
+     "transfer": {
+      "score": 0.125,
+      "n_scored": 40
+     },
+     "transfer+oracle_attn": {
+      "score": 0.65,
+      "n_scored": 40
+     },
+     "transfer+oracle_lin": {
+      "score": 0.225,
+      "n_scored": 40
+     },
+     "transfer@512": {
+      "score": 0.65,
+      "n_scored": 40
+     }
+    }
+   },
+   "note": "2B->27B, map 2b-27b-fid, ZebraLogic 40 puzzles"
+  }
+ ]
+}
