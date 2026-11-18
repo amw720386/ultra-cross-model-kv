@@ -418,7 +418,8 @@ def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timin
 
 
 @torch.no_grad()
-def _repair(src, tgt, mapper, sc, tc, ids, Tm, budget, state="final", block=64, keep_src=False, sink=4):
+def _repair(src, tgt, mapper, sc, tc, ids, Tm, budget, state="final", block=64, keep_src=False, sink=4,
+            batched=True):
     """Query-aware selective repair. The source reads the tail (the question) over its own, native cache; its
     attention from the tail to the mapped region ranks `block`-token blocks (per head: max over tail queries of
     the softmax weight; averaged over heads and the source's attention layers). The target then re-encodes the
@@ -441,8 +442,13 @@ def _repair(src, tgt, mapper, sc, tc, ids, Tm, budget, state="final", block=64, 
         K = sc.k[j][:, :Tm]
         r = ss.nq // ss.nkv
         q = q.reshape(B, L, ss.nkv, r, ss.hd)
-        lg = torch.einsum("blgrd,btgd->bgrlt", q, K).float() * ss.hd ** -0.5
-        rel.add_(lg.softmax(-1).amax(dim=3).mean(dim=(1, 2)))
+        best = None
+        for l0 in range(0, L, 512):  # chunk the tail queries to bound memory; max over queries is unchanged
+            lg = torch.einsum("blgrd,btgd->bgrlt", q[:, l0:l0 + 512], K).float() * ss.hd ** -0.5
+            m = lg.softmax(-1).amax(dim=3)
+            best = m if best is None else torch.maximum(best, m)
+            del lg
+        rel.add_(best.mean(dim=(1, 2)))
         nl[0] += 1
 
     sc.len = Tm
@@ -462,12 +468,19 @@ def _repair(src, tgt, mapper, sc, tc, ids, Tm, budget, state="final", block=64, 
         else:
             spans.append((a, b))
     S0, C0 = dict(tc.S), dict(tc.conv)  # forward() replaces these tensors; the originals stay untouched
-    for a, b in spans:
+    if batched:  # one pass over all selected blocks (scattered positions, causal by absolute position)
         for j in S0:
             tc.S[j] = torch.zeros_like(S0[j]) if state == "zero" else S0[j].clone()
             tc.conv[j] = torch.zeros_like(C0[j]) if state == "zero" else C0[j].clone()
-        tc.len = a
-        tgt.forward(ids[:, a:b], tc, logits=None)
+        pos = torch.cat([torch.arange(a, b, device=ids.device) for a, b in spans])
+        tgt.forward_at(ids[:, pos], pos, tc, Tm)
+    else:
+        for a, b in spans:
+            for j in S0:
+                tc.S[j] = torch.zeros_like(S0[j]) if state == "zero" else S0[j].clone()
+                tc.conv[j] = torch.zeros_like(C0[j]) if state == "zero" else C0[j].clone()
+            tc.len = a
+            tgt.forward(ids[:, a:b], tc, logits=None)
     tc.S.update(S0)
     tc.conv.update(C0)
     tc.len = Tm

@@ -333,6 +333,48 @@ class Hybrid:
         o = la.norm(o.reshape(-1, s.dv), z.reshape(-1, s.dv)).reshape(B, L, -1)
         return la.out_proj(o)
 
+    def _full_at(self, j, x, cache: Cache, pos, ctx: int, rope, mask):
+        """Attention for tokens at scattered absolute positions `pos` (sorted): their K/V are written in place,
+        and each attends to every cache key at a position <= its own (keys < ctx)."""
+        s, attn = self.spec, self.layers[j].self_attn
+        B, L, _ = x.shape
+        q, gate = attn.q_proj(x).view(B, L, s.nq, 2 * s.hd).chunk(2, dim=-1)
+        gate = gate.reshape(B, L, s.nq * s.hd)
+        q = attn.q_norm(q)
+        k = attn.k_norm(attn.k_proj(x).view(B, L, s.nkv, s.hd))
+        v = attn.v_proj(x).view(B, L, s.nkv, s.hd)
+        cos, sin = rope
+        q, kr = self.rope(q, cos, sin), self.rope(k, cos, sin)
+        cache.k[j][:, pos] = kr
+        cache.v[j][:, pos] = v
+        r = s.nq // s.nkv  # expand KV heads: SDPA's memory-efficient kernel takes a mask but not GQA
+        K = cache.k[j][:, :ctx].repeat_interleave(r, dim=2).transpose(1, 2)
+        V = cache.v[j][:, :ctx].repeat_interleave(r, dim=2).transpose(1, 2)
+        o = F.scaled_dot_product_attention(q.transpose(1, 2), K, V, attn_mask=mask)
+        del K, V
+        o = o.transpose(1, 2).reshape(B, L, -1) * torch.sigmoid(gate)
+        return attn.o_proj(o)
+
+    @torch.no_grad()
+    def forward_at(self, ids, pos, cache: Cache, ctx: int):
+        """Re-encode tokens ids (1, n) at absolute positions pos (n,) on top of an existing cache of length ctx,
+        in one pass: attention K/V at those positions are overwritten; recurrent layers read the tokens as one
+        sequence from the cache's current state (and update it; callers restore it if they need to)."""
+        h = self.embed(ids)
+        f = pos.float()[:, None] * self.inv_freq[None]
+        emb = torch.cat((f, f), dim=-1)
+        rope = emb.cos().to(self.dtype)[None, :, None, :], emb.sin().to(self.dtype)[None, :, None, :]
+        mask = (torch.arange(ctx, device=pos.device)[None, :] <= pos[:, None])[None, None]
+        for i in range(self.spec.n_layers):
+            layer = self.layers[i]
+            x = layer.input_layernorm(h)
+            if self.spec.types[i] == "full_attention":
+                m = self._full_at(i, x, cache, pos, ctx, rope, mask)
+            else:
+                m = self._lin(i, x, cache, None)
+            h = h + m
+            h = h + layer.mlp(layer.post_attention_layernorm(h))
+
     # ---- forward ----------------------------------------------------------------------
     def forward(self, ids, cache: Cache, logits: str | None = "last", window: int | None = None,
                 cap: Callable | None = None, stop_after: int | None = None, inputs_embeds=None):
