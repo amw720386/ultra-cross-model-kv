@@ -1,0 +1,110 @@
+{
+ "what": "Telecom trajectory analysis from the tau2 results.json files on the artifacts volume: first lookup tool the agent calls, terminations, and the most common tool errors.",
+ "runs": {
+  "27b-sim native (tau2-H200-20261118-040322)": {
+   "n": 50,
+   "first_tool_call": {
+    "get_customer_by_phone": 48,
+    "get_details_by_id": 2
+   },
+   "termination": {
+    "user_stop": 49,
+    "too_many_errors": 1
+   },
+   "top_tool_errors": {
+    "Error: Tool 'can_send_mms' not found.": 4,
+    "Error: Tool 'toggle_data' not found.": 3,
+    "Error: Tool 'check_network_status' not found.": 3,
+    "Error: Tool 'check_sim_status' not found.": 3,
+    "Error: Unknown ID format or type: 555-123-2002": 2,
+    "Error: Tool 'check_app_permissions' not found.": 2
+   },
+   "policy_chars": 23318
+  },
+  "27b-sim transfer+rep2048 (tau2-H200-20261118-025600)": {
+   "n": 50,
+   "first_tool_call": {
+    "get_details_by_id": 19,
+    "get_customer_by_phone": 18,
+    "get_customer_by_name": 9
+   },
+   "termination": {
+    "too_many_errors": 30,
+    "user_stop": 14,
+    "max_steps": 6
+   },
+   "top_tool_errors": {
+    "Error: Unknown ID format or type: 555-123-2002": 137,
+    "Error: Tool 'check_network_status' not found.": 38,
+    "Error: Unknown ID format or type: 5551232002": 25,
+    "Error: Tool 'check_apn_settings' not found.": 17,
+    "Error: Tool 'check_status_bar' not found.": 12,
+    "Error: Unknown ID format or type: Mamadou Diallo": 11
+   },
+   "policy_chars": 23318
+  },
+  "27b-sim transfer+rep2048m (tau2-H200-20261118-141711)": {
+   "n": 50,
+   "first_tool_call": {
+    "get_customer_by_name": 18,
+    "get_customer_by_phone": 21,
+    "get_details_by_id": 9,
+    "transfer_to_human_agents": 1
+   },
+   "termination": {
+    "too_many_errors": 19,
+    "user_stop": 25,
+    "max_steps": 6
+   },
+   "top_tool_errors": {
+    "Error: Unknown ID format or type: 555-123-2002": 58,
+    "Error: Tool 'check_network_status' not found.": 27,
+    "Error: Tool 'check_status_bar' not found.": 19,
+    "Error: Tool 'check_apn_settings' not found.": 15,
+    "Error: Tool 'can_send_mms' not found.": 12,
+    "Error: Tool 'check_network_mode_preference' not found.": 10
+   },
+   "policy_chars": 23318
+  },
+  "official-sim native (tau2-H200-20261118-163042)": {
+   "n": 50,
+   "first_tool_call": {
+    "get_customer_by_phone": 50
+   },
+   "termination": {
+    "user_stop": 50
+   },
+   "top_tool_errors": {
+    "Error: Tool 'can_send_mms' not found.": 8,
+    "Error: Tool 'toggle_airplane_mode' not found.": 4,
+    "Error: Tool 'check_apn_settings' not found.": 4,
+    "Error: Tool 'toggle_data' not found.": 2,
+    "Error: Tool 'run_speed_test' not found.": 2,
+    "Error: Tool 'check_sim_status' not found.": 2
+   },
+   "policy_chars": 23318
+  },
+  "official-sim transfer+rep2048m (tau2-H200-20261118-161836)": {
+   "n": 50,
+   "first_tool_call": {
+    "get_details_by_id": 39,
+    "get_details_by_phone": 2,
+    "get_customer_by_name": 6,
+    "get_customer_by_phone": 3
+   },
+   "termination": {
+    "too_many_errors": 42,
+    "user_stop": 8
+   },
+   "top_tool_errors": {
+    "Error: Unknown ID format or type: 555-123-2002": 290,
+    "Error: Unknown ID format or type: 5551232002": 55,
+    "Error: Tool 'check_network_status' not found.": 24,
+    "Error: Unknown ID format or type: Mamadou Diallo": 8,
+    "Error: Tool 'check_status_bar' not found.": 7,
+    "Error: Plan with ID Priya Patil not found": 7
+   },
+   "policy_chars": 23318
+  }
+ }
+}
