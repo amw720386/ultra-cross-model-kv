@@ -1,0 +1,1012 @@
+{
+ "what": "Teacher-forced tau2 replay: agent requests logged from a native 27B tau2 run (telecom, retail) are answered again by each variant; tool_match = same next tool as the logged reply, full_match = same tool and arguments, first_tool_match = on each conversation's first tool call. telecom_err = the 42 requests where the protected short-tail run made its first invalid (user-side) tool call; there the reference is that invalid call and invalid_tool_rate is the share of replies calling a tool the agent does not own.",
+ "runs": [
+  {
+   "source_file": "results/raw/tau2_replay-H200-20261118-201637.json",
+   "args": {
+    "mapper_name": "4b-27b-fid+4b-27b-fid-attn",
+    "run_name": "replay",
+    "domains": [
+     "telecom"
+    ],
+    "record": false,
+    "max_prompts": 160,
+    "max_new": 128,
+    "variants": [
+     {
+      "name": "native",
+      "strategy": "target"
+     },
+     {
+      "name": "cur_rep2048m",
+      "strategy": "transfer@auto+rep2048m",
+      "native_tools": true,
+      "turn_tail_max": 4096,
+      "turn_tail_msgs": 3
+     },
+     {
+      "name": "norep",
+      "strategy": "transfer@auto",
+      "native_tools": true,
+      "turn_tail_max": 4096,
+      "turn_tail_msgs": 3
+     },
+     {
+      "name": "oracle_attn",
+      "strategy": "transfer@auto+oracle_attn",
+      "native_tools": true,
+      "turn_tail_max": 4096,
+      "turn_tail_msgs": 3
+     },
+     {
+      "name": "oracle_lin",
+      "strategy": "transfer@auto+oracle_lin",
+      "native_tools": true,
+      "turn_tail_max": 4096,
+      "turn_tail_msgs": 3
+     },
+     {
+      "name": "native_system",
+      "strategy": "transfer@auto",
+      "native_system": true,
+      "turn_tail_max": 4096,
+      "turn_tail_msgs": 3
+     },
+     {
+      "name": "source_4b",
+      "strategy": "source"
+     }
+    ]
+   },
+   "domains": {
+    "telecom": {
+     "n_requests": 828,
+     "n_picked": 160,
+     "n_first_tool": 50,
+     "native": {
+      "tool_match": 0.9812,
+      "full_match": 0.95,
+      "first_tool_match": 1.0,
+      "first_full_match": 1.0,
+      "tool_turn_match": 0.989,
+      "tool_turn_full_match": 0.9341,
+      "spec": {
+       "name": "native",
+       "strategy": "target"
+      },
+      "first_tool_counts": {
+       "get_customer_by_phone": 49,
+       "get_details_by_id": 1
+      }
+     },
+     "cur_rep2048m": {
+      "tool_match": 0.6125,
+      "full_match": 0.5062,
+      "first_tool_match": 0.38,
+      "first_full_match": 0.2,
+      "tool_turn_match": 0.5165,
+      "tool_turn_full_match": 0.3297,
+      "spec": {
+       "name": "cur_rep2048m",
+       "strategy": "transfer@auto+rep2048m",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3
+      },
+      "first_tool_counts": {
+       "get_customer_by_name": 13,
+       "get_customer_by_phone": 20,
+       "text": 7,
+       "get_details_by_id": 10
+      }
+     },
+     "norep": {
+      "tool_match": 0.6562,
+      "full_match": 0.6062,
+      "first_tool_match": 0.96,
+      "first_full_match": 0.96,
+      "tool_turn_match": 0.8022,
+      "tool_turn_full_match": 0.7143,
+      "spec": {
+       "name": "norep",
+       "strategy": "transfer@auto",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3
+      },
+      "first_tool_counts": {
+       "get_customer_by_phone": 49,
+       "text": 1
+      }
+     },
+     "oracle_attn": {
+      "tool_match": 0.8375,
+      "full_match": 0.8,
+      "first_tool_match": 0.88,
+      "first_full_match": 0.88,
+      "tool_turn_match": 0.8022,
+      "tool_turn_full_match": 0.7363,
+      "spec": {
+       "name": "oracle_attn",
+       "strategy": "transfer@auto+oracle_attn",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3
+      },
+      "first_tool_counts": {
+       "get_customer_by_phone": 44,
+       "run_speed_test": 1,
+       "text": 5
+      }
+     },
+     "oracle_lin": {
+      "tool_match": 0.6875,
+      "full_match": 0.6375,
+      "first_tool_match": 0.94,
+      "first_full_match": 0.94,
+      "tool_turn_match": 0.7802,
+      "tool_turn_full_match": 0.6923,
+      "spec": {
+       "name": "oracle_lin",
+       "strategy": "transfer@auto+oracle_lin",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3
+      },
+      "first_tool_counts": {
+       "get_customer_by_phone": 48,
+       "text": 1,
+       "get_details_by_id": 1
+      }
+     },
+     "native_system": {
+      "tool_match": 0.7937,
+      "full_match": 0.7375,
+      "first_tool_match": 0.98,
+      "first_full_match": 0.98,
+      "tool_turn_match": 0.8242,
+      "tool_turn_full_match": 0.7253,
+      "spec": {
+       "name": "native_system",
+       "strategy": "transfer@auto",
+       "native_system": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3
+      },
+      "first_tool_counts": {
+       "get_customer_by_phone": 49,
+       "run_speed_test": 1
+      }
+     },
+     "source_4b": {
+      "tool_match": 0.8063,
+      "full_match": 0.7812,
+      "first_tool_match": 0.98,
+      "first_full_match": 0.98,
+      "tool_turn_match": 0.7692,
+      "tool_turn_full_match": 0.7253,
+      "spec": {
+       "name": "source_4b",
+       "strategy": "source"
+      },
+      "first_tool_counts": {
+       "get_customer_by_phone": 49,
+       "text": 1
+      }
+     }
+    }
+   }
+  },
+  {
+   "source_file": "results/raw/tau2_replay-H200-20261118-215923.json",
+   "args": {
+    "mapper_name": "4b-27b-fid+4b-27b-fid-attn",
+    "run_name": "replay",
+    "domains": [
+     "telecom",
+     "retail"
+    ],
+    "record": false,
+    "max_prompts": 160,
+    "max_new": 128,
+    "variants": [
+     {
+      "name": "prot_rep2048m_nosys",
+      "strategy": "transfer@auto+rep2048m",
+      "native_tools": true,
+      "turn_tail_max": 4096,
+      "turn_tail_msgs": 3,
+      "env": {
+       "XKV_REPAIR_SKIP_FIRST": "1"
+      }
+     },
+     {
+      "name": "prot_rep4096m",
+      "strategy": "transfer@auto+rep4096m",
+      "native_tools": true,
+      "turn_tail_max": 4096,
+      "turn_tail_msgs": 3
+     },
+     {
+      "name": "prot_rep1024m",
+      "strategy": "transfer@auto+rep1024m",
+      "native_tools": true,
+      "turn_tail_max": 4096,
+      "turn_tail_msgs": 3
+     },
+     {
+      "name": "prot_rep2048m",
+      "strategy": "transfer@auto+rep2048m",
+      "native_tools": true,
+      "turn_tail_max": 4096,
+      "turn_tail_msgs": 3
+     },
+     {
+      "name": "norep",
+      "strategy": "transfer@auto",
+      "native_tools": true,
+      "turn_tail_max": 4096,
+      "turn_tail_msgs": 3
+     },
+     {
+      "name": "cur_rep2048m",
+      "strategy": "transfer@auto+rep2048m",
+      "native_tools": true,
+      "turn_tail_max": 4096,
+      "turn_tail_msgs": 3,
+      "env": {
+       "XKV_REPAIR_PROTECT": "0"
+      }
+     },
+     {
+      "name": "native",
+      "strategy": "target"
+     }
+    ]
+   },
+   "domains": {
+    "telecom": {
+     "n_requests": 828,
+     "n_picked": 160,
+     "n_first_tool": 50,
+     "prot_rep2048m_nosys": {
+      "tool_match": 0.6937,
+      "full_match": 0.6625,
+      "first_tool_match": 0.96,
+      "first_full_match": 0.96,
+      "tool_turn_match": 0.7692,
+      "tool_turn_full_match": 0.7143,
+      "spec": {
+       "name": "prot_rep2048m_nosys",
+       "strategy": "transfer@auto+rep2048m",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3,
+       "env": {
+        "XKV_REPAIR_SKIP_FIRST": "1"
+       }
+      },
+      "first_tool_counts": {
+       "get_customer_by_phone": 49,
+       "text": 1
+      }
+     },
+     "prot_rep4096m": {
+      "tool_match": 0.7688,
+      "full_match": 0.7375,
+      "first_tool_match": 0.88,
+      "first_full_match": 0.88,
+      "tool_turn_match": 0.7363,
+      "tool_turn_full_match": 0.6813,
+      "spec": {
+       "name": "prot_rep4096m",
+       "strategy": "transfer@auto+rep4096m",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3
+      },
+      "first_tool_counts": {
+       "get_customer_by_phone": 44,
+       "text": 6
+      }
+     },
+     "prot_rep1024m": {
+      "tool_match": 0.7562,
+      "full_match": 0.7188,
+      "first_tool_match": 0.96,
+      "first_full_match": 0.96,
+      "tool_turn_match": 0.8022,
+      "tool_turn_full_match": 0.7363,
+      "spec": {
+       "name": "prot_rep1024m",
+       "strategy": "transfer@auto+rep1024m",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3
+      },
+      "first_tool_counts": {
+       "get_customer_by_phone": 49,
+       "text": 1
+      }
+     },
+     "prot_rep2048m": {
+      "tool_match": 0.7625,
+      "full_match": 0.7188,
+      "first_tool_match": 0.94,
+      "first_full_match": 0.94,
+      "tool_turn_match": 0.7912,
+      "tool_turn_full_match": 0.7143,
+      "spec": {
+       "name": "prot_rep2048m",
+       "strategy": "transfer@auto+rep2048m",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3
+      },
+      "first_tool_counts": {
+       "get_customer_by_phone": 48,
+       "text": 2
+      }
+     },
+     "norep": {
+      "tool_match": 0.6438,
+      "full_match": 0.6,
+      "first_tool_match": 0.96,
+      "first_full_match": 0.96,
+      "tool_turn_match": 0.7802,
+      "tool_turn_full_match": 0.7033,
+      "spec": {
+       "name": "norep",
+       "strategy": "transfer@auto",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3
+      },
+      "first_tool_counts": {
+       "get_customer_by_phone": 49,
+       "text": 1
+      }
+     },
+     "cur_rep2048m": {
+      "tool_match": 0.6312,
+      "full_match": 0.5125,
+      "first_tool_match": 0.42,
+      "first_full_match": 0.2,
+      "tool_turn_match": 0.5385,
+      "tool_turn_full_match": 0.3297,
+      "spec": {
+       "name": "cur_rep2048m",
+       "strategy": "transfer@auto+rep2048m",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3,
+       "env": {
+        "XKV_REPAIR_PROTECT": "0"
+       }
+      },
+      "first_tool_counts": {
+       "get_customer_by_phone": 22,
+       "get_customer_by_name": 12,
+       "text": 9,
+       "get_customer_by_phone_number": 1,
+       "get_details_by_id": 6
+      }
+     },
+     "native": {
+      "tool_match": 0.9437,
+      "full_match": 0.925,
+      "first_tool_match": 1.0,
+      "first_full_match": 1.0,
+      "tool_turn_match": 0.9231,
+      "tool_turn_full_match": 0.8901,
+      "spec": {
+       "name": "native",
+       "strategy": "target"
+      },
+      "first_tool_counts": {
+       "get_customer_by_phone": 49,
+       "get_details_by_id": 1
+      }
+     }
+    },
+    "retail": {
+     "n_requests": 691,
+     "n_picked": 160,
+     "n_first_tool": 51,
+     "prot_rep2048m_nosys": {
+      "tool_match": 0.9187,
+      "full_match": 0.9125,
+      "first_tool_match": 0.9608,
+      "first_full_match": 0.9412,
+      "tool_turn_match": 0.9474,
+      "tool_turn_full_match": 0.9368,
+      "spec": {
+       "name": "prot_rep2048m_nosys",
+       "strategy": "transfer@auto+rep2048m",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3,
+       "env": {
+        "XKV_REPAIR_SKIP_FIRST": "1"
+       }
+      },
+      "first_tool_counts": {
+       "find_user_id_by_email": 10,
+       "find_user_id_by_name_zip": 36,
+       "transfer_to_human_agents": 1,
+       "text": 2,
+       "list_all_product_types": 2
+      }
+     },
+     "prot_rep4096m": {
+      "tool_match": 0.9062,
+      "full_match": 0.875,
+      "first_tool_match": 0.9608,
+      "first_full_match": 0.9216,
+      "tool_turn_match": 0.9158,
+      "tool_turn_full_match": 0.8632,
+      "spec": {
+       "name": "prot_rep4096m",
+       "strategy": "transfer@auto+rep4096m",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3
+      },
+      "first_tool_counts": {
+       "find_user_id_by_email": 11,
+       "find_user_id_by_name_zip": 37,
+       "transfer_to_human_agents": 1,
+       "text": 2
+      }
+     },
+     "prot_rep1024m": {
+      "tool_match": 0.9,
+      "full_match": 0.875,
+      "first_tool_match": 0.9608,
+      "first_full_match": 0.9216,
+      "tool_turn_match": 0.9158,
+      "tool_turn_full_match": 0.8737,
+      "spec": {
+       "name": "prot_rep1024m",
+       "strategy": "transfer@auto+rep1024m",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3
+      },
+      "first_tool_counts": {
+       "find_user_id_by_email": 11,
+       "find_user_id_by_name_zip": 37,
+       "transfer_to_human_agents": 1,
+       "text": 2
+      }
+     },
+     "prot_rep2048m": {
+      "tool_match": 0.9,
+      "full_match": 0.875,
+      "first_tool_match": 0.9608,
+      "first_full_match": 0.9216,
+      "tool_turn_match": 0.9263,
+      "tool_turn_full_match": 0.8842,
+      "spec": {
+       "name": "prot_rep2048m",
+       "strategy": "transfer@auto+rep2048m",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3
+      },
+      "first_tool_counts": {
+       "find_user_id_by_email": 11,
+       "find_user_id_by_name_zip": 37,
+       "transfer_to_human_agents": 1,
+       "text": 2
+      }
+     },
+     "norep": {
+      "tool_match": 0.875,
+      "full_match": 0.8688,
+      "first_tool_match": 0.9608,
+      "first_full_match": 0.9412,
+      "tool_turn_match": 0.9263,
+      "tool_turn_full_match": 0.9158,
+      "spec": {
+       "name": "norep",
+       "strategy": "transfer@auto",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3
+      },
+      "first_tool_counts": {
+       "find_user_id_by_email": 10,
+       "find_user_id_by_name_zip": 36,
+       "transfer_to_human_agents": 1,
+       "text": 2,
+       "list_all_product_types": 2
+      }
+     },
+     "cur_rep2048m": {
+      "tool_match": 0.925,
+      "full_match": 0.9062,
+      "first_tool_match": 1.0,
+      "first_full_match": 0.9804,
+      "tool_turn_match": 0.9474,
+      "tool_turn_full_match": 0.9158,
+      "spec": {
+       "name": "cur_rep2048m",
+       "strategy": "transfer@auto+rep2048m",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3,
+       "env": {
+        "XKV_REPAIR_PROTECT": "0"
+       }
+      },
+      "first_tool_counts": {
+       "find_user_id_by_email": 11,
+       "find_user_id_by_name_zip": 37,
+       "transfer_to_human_agents": 1,
+       "list_all_product_types": 2
+      }
+     },
+     "native": {
+      "tool_match": 0.9938,
+      "full_match": 0.9688,
+      "first_tool_match": 1.0,
+      "first_full_match": 0.9804,
+      "tool_turn_match": 0.9895,
+      "tool_turn_full_match": 0.9474,
+      "spec": {
+       "name": "native",
+       "strategy": "target"
+      },
+      "first_tool_counts": {
+       "find_user_id_by_email": 11,
+       "find_user_id_by_name_zip": 37,
+       "transfer_to_human_agents": 1,
+       "list_all_product_types": 2
+      }
+     }
+    }
+   }
+  },
+  {
+   "source_file": "results/raw/tau2_replay-H200-20261118-221113.json",
+   "args": {
+    "mapper_name": "4b-27b-fid+4b-27b-fid-attn",
+    "run_name": "replay",
+    "domains": [
+     "telecom"
+    ],
+    "record": false,
+    "max_prompts": 160,
+    "max_new": 128,
+    "variants": [
+     {
+      "name": "prot_rep2048m_t6",
+      "strategy": "transfer@auto+rep2048m",
+      "native_tools": true,
+      "turn_tail_max": 8192,
+      "turn_tail_msgs": 6
+     },
+     {
+      "name": "prot_rep2048m_t10",
+      "strategy": "transfer@auto+rep2048m",
+      "native_tools": true,
+      "turn_tail_max": 8192,
+      "turn_tail_msgs": 10
+     },
+     {
+      "name": "norep_t6",
+      "strategy": "transfer@auto",
+      "native_tools": true,
+      "turn_tail_max": 8192,
+      "turn_tail_msgs": 6
+     },
+     {
+      "name": "prot_rep2048_t6_oracle_attn",
+      "strategy": "transfer@auto+oracle_attn",
+      "native_tools": true,
+      "turn_tail_max": 8192,
+      "turn_tail_msgs": 6
+     }
+    ]
+   },
+   "domains": {
+    "telecom": {
+     "n_requests": 828,
+     "n_picked": 160,
+     "n_first_tool": 50,
+     "prot_rep2048m_t6": {
+      "tool_match": 0.7688,
+      "full_match": 0.7375,
+      "first_tool_match": 0.94,
+      "first_full_match": 0.94,
+      "tool_turn_match": 0.8132,
+      "tool_turn_full_match": 0.7582,
+      "spec": {
+       "name": "prot_rep2048m_t6",
+       "strategy": "transfer@auto+rep2048m",
+       "native_tools": true,
+       "turn_tail_max": 8192,
+       "turn_tail_msgs": 6
+      },
+      "first_tool_counts": {
+       "get_customer_by_phone": 46,
+       "get_details_by_id": 1,
+       "text": 3
+      }
+     },
+     "prot_rep2048m_t10": {
+      "tool_match": 0.7875,
+      "full_match": 0.7688,
+      "first_tool_match": 0.92,
+      "first_full_match": 0.92,
+      "tool_turn_match": 0.7912,
+      "tool_turn_full_match": 0.7582,
+      "spec": {
+       "name": "prot_rep2048m_t10",
+       "strategy": "transfer@auto+rep2048m",
+       "native_tools": true,
+       "turn_tail_max": 8192,
+       "turn_tail_msgs": 10
+      },
+      "first_tool_counts": {
+       "get_customer_by_phone": 46,
+       "text": 4
+      }
+     },
+     "norep_t6": {
+      "tool_match": 0.725,
+      "full_match": 0.6875,
+      "first_tool_match": 0.96,
+      "first_full_match": 0.96,
+      "tool_turn_match": 0.7802,
+      "tool_turn_full_match": 0.7143,
+      "spec": {
+       "name": "norep_t6",
+       "strategy": "transfer@auto",
+       "native_tools": true,
+       "turn_tail_max": 8192,
+       "turn_tail_msgs": 6
+      },
+      "first_tool_counts": {
+       "get_customer_by_phone": 49,
+       "text": 1
+      }
+     },
+     "prot_rep2048_t6_oracle_attn": {
+      "tool_match": 0.8313,
+      "full_match": 0.8063,
+      "first_tool_match": 0.92,
+      "first_full_match": 0.92,
+      "tool_turn_match": 0.8022,
+      "tool_turn_full_match": 0.7582,
+      "spec": {
+       "name": "prot_rep2048_t6_oracle_attn",
+       "strategy": "transfer@auto+oracle_attn",
+       "native_tools": true,
+       "turn_tail_max": 8192,
+       "turn_tail_msgs": 6
+      },
+      "first_tool_counts": {
+       "get_customer_by_phone": 46,
+       "run_speed_test": 1,
+       "text": 3
+      }
+     }
+    }
+   }
+  },
+  {
+   "source_file": "results/raw/tau2_replay-H200-20261118-221722.json",
+   "args": {
+    "mapper_name": "4b-27b-fid+4b-27b-fid-attn",
+    "run_name": "replay",
+    "domains": [
+     "telecom_err"
+    ],
+    "record": false,
+    "max_prompts": 60,
+    "max_new": 128,
+    "variants": [
+     {
+      "name": "native",
+      "strategy": "target"
+     },
+     {
+      "name": "prot_rep2048m",
+      "strategy": "transfer@auto+rep2048m",
+      "native_tools": true,
+      "turn_tail_max": 4096,
+      "turn_tail_msgs": 3
+     },
+     {
+      "name": "norep",
+      "strategy": "transfer@auto",
+      "native_tools": true,
+      "turn_tail_max": 4096,
+      "turn_tail_msgs": 3
+     },
+     {
+      "name": "native_system",
+      "strategy": "transfer@auto",
+      "native_system": true,
+      "turn_tail_max": 4096,
+      "turn_tail_msgs": 3
+     },
+     {
+      "name": "native_system_rep2048m",
+      "strategy": "transfer@auto+rep2048m",
+      "native_system": true,
+      "turn_tail_max": 4096,
+      "turn_tail_msgs": 3
+     },
+     {
+      "name": "oracle_attn",
+      "strategy": "transfer@auto+oracle_attn",
+      "native_tools": true,
+      "turn_tail_max": 4096,
+      "turn_tail_msgs": 3
+     },
+     {
+      "name": "oracle_lin",
+      "strategy": "transfer@auto+oracle_lin",
+      "native_tools": true,
+      "turn_tail_max": 4096,
+      "turn_tail_msgs": 3
+     },
+     {
+      "name": "prot_rep4096m_t10",
+      "strategy": "transfer@auto+rep4096m",
+      "native_tools": true,
+      "turn_tail_max": 8192,
+      "turn_tail_msgs": 10
+     },
+     {
+      "name": "source_4b",
+      "strategy": "source"
+     }
+    ]
+   },
+   "domains": {
+    "telecom_err": {
+     "n_requests": 42,
+     "n_picked": 42,
+     "n_first_tool": 0,
+     "native": {
+      "tool_match": 0.0952,
+      "full_match": 0.0238,
+      "first_tool_match": null,
+      "first_full_match": null,
+      "tool_turn_match": 0.0952,
+      "tool_turn_full_match": 0.0238,
+      "spec": {
+       "name": "native",
+       "strategy": "target"
+      },
+      "first_tool_counts": {},
+      "invalid_tool_rate": 0.0952,
+      "action_counts": {
+       "text": 36,
+       "get_details_by_id": 1,
+       "can_send_mms": 2,
+       "enable_roaming": 1,
+       "toggle_airplane_mode": 1,
+       "check_network_status": 1
+      }
+     },
+     "prot_rep2048m": {
+      "tool_match": 0.9286,
+      "full_match": 0.9048,
+      "first_tool_match": null,
+      "first_full_match": null,
+      "tool_turn_match": 0.9286,
+      "tool_turn_full_match": 0.9048,
+      "spec": {
+       "name": "prot_rep2048m",
+       "strategy": "transfer@auto+rep2048m",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3
+      },
+      "first_tool_counts": {},
+      "invalid_tool_rate": 0.9762,
+      "action_counts": {
+       "can_send_mms": 18,
+       "check_status_bar": 2,
+       "run_speed_test": 8,
+       "check_network_status": 11,
+       "get_details_by_id": 1,
+       "toggle_data": 1,
+       "toggle_airplane_mode": 1
+      }
+     },
+     "norep": {
+      "tool_match": 0.2857,
+      "full_match": 0.2619,
+      "first_tool_match": null,
+      "first_full_match": null,
+      "tool_turn_match": 0.2857,
+      "tool_turn_full_match": 0.2619,
+      "spec": {
+       "name": "norep",
+       "strategy": "transfer@auto",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3
+      },
+      "first_tool_counts": {},
+      "invalid_tool_rate": 0.4524,
+      "action_counts": {
+       "enable_roaming": 7,
+       "get_details_by_id": 10,
+       "run_speed_test": 9,
+       "check_network_status": 4,
+       "text": 1,
+       "check_status_bar": 1,
+       "get_data_usage": 5,
+       "check_apn_settings": 2,
+       "toggle_airplane_mode": 1,
+       "can_send_mms": 2
+      }
+     },
+     "native_system": {
+      "tool_match": 0.119,
+      "full_match": 0.0476,
+      "first_tool_match": null,
+      "first_full_match": null,
+      "tool_turn_match": 0.119,
+      "tool_turn_full_match": 0.0476,
+      "spec": {
+       "name": "native_system",
+       "strategy": "transfer@auto",
+       "native_system": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3
+      },
+      "first_tool_counts": {},
+      "invalid_tool_rate": 0.1429,
+      "action_counts": {
+       "text": 25,
+       "get_details_by_id": 5,
+       "can_send_mms": 1,
+       "check_network_status": 2,
+       "get_data_usage": 3,
+       "check_sim_status": 1,
+       "enable_roaming": 3,
+       "run_speed_test": 1,
+       "toggle_airplane_mode": 1
+      }
+     },
+     "native_system_rep2048m": {
+      "tool_match": 0.0952,
+      "full_match": 0.0476,
+      "first_tool_match": null,
+      "first_full_match": null,
+      "tool_turn_match": 0.0952,
+      "tool_turn_full_match": 0.0476,
+      "spec": {
+       "name": "native_system_rep2048m",
+       "strategy": "transfer@auto+rep2048m",
+       "native_system": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3
+      },
+      "first_tool_counts": {},
+      "invalid_tool_rate": 0.0952,
+      "action_counts": {
+       "text": 34,
+       "can_send_mms": 1,
+       "get_details_by_id": 2,
+       "enable_roaming": 1,
+       "run_speed_test": 1,
+       "transfer_to_human_agents": 1,
+       "check_network_status": 1,
+       "check_status_bar": 1
+      }
+     },
+     "oracle_attn": {
+      "tool_match": 0.0952,
+      "full_match": 0.0238,
+      "first_tool_match": null,
+      "first_full_match": null,
+      "tool_turn_match": 0.0952,
+      "tool_turn_full_match": 0.0238,
+      "spec": {
+       "name": "oracle_attn",
+       "strategy": "transfer@auto+oracle_attn",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3
+      },
+      "first_tool_counts": {},
+      "invalid_tool_rate": 0.0952,
+      "action_counts": {
+       "text": 35,
+       "get_details_by_id": 2,
+       "enable_roaming": 1,
+       "can_send_mms": 1,
+       "run_speed_test": 1,
+       "toggle_airplane_mode": 1,
+       "check_network_status": 1
+      }
+     },
+     "oracle_lin": {
+      "tool_match": 0.2381,
+      "full_match": 0.1429,
+      "first_tool_match": null,
+      "first_full_match": null,
+      "tool_turn_match": 0.2381,
+      "tool_turn_full_match": 0.1429,
+      "spec": {
+       "name": "oracle_lin",
+       "strategy": "transfer@auto+oracle_lin",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3
+      },
+      "first_tool_counts": {},
+      "invalid_tool_rate": 0.4762,
+      "action_counts": {
+       "check_apn_settings": 2,
+       "enable_roaming": 7,
+       "can_send_mms": 3,
+       "check_network_status": 12,
+       "text": 4,
+       "get_details_by_id": 7,
+       "run_speed_test": 2,
+       "get_data_usage": 4,
+       "toggle_airplane_mode": 1
+      }
+     },
+     "prot_rep4096m_t10": {
+      "tool_match": 0.0476,
+      "full_match": 0.0238,
+      "first_tool_match": null,
+      "first_full_match": null,
+      "tool_turn_match": 0.0476,
+      "tool_turn_full_match": 0.0238,
+      "spec": {
+       "name": "prot_rep4096m_t10",
+       "strategy": "transfer@auto+rep4096m",
+       "native_tools": true,
+       "turn_tail_max": 8192,
+       "turn_tail_msgs": 10
+      },
+      "first_tool_counts": {},
+      "invalid_tool_rate": 0.0714,
+      "action_counts": {
+       "text": 30,
+       "get_data_usage": 5,
+       "get_bills_for_customer": 1,
+       "can_send_mms": 1,
+       "enable_roaming": 2,
+       "check_network_status": 1,
+       "check_status_bar": 1,
+       "get_details_by_id": 1
+      }
+     },
+     "source_4b": {
+      "tool_match": 0.0,
+      "full_match": 0.0,
+      "first_tool_match": null,
+      "first_full_match": null,
+      "tool_turn_match": 0.0,
+      "tool_turn_full_match": 0.0,
+      "spec": {
+       "name": "source_4b",
+       "strategy": "source"
+      },
+      "first_tool_counts": {},
+      "invalid_tool_rate": 0.0,
+      "action_counts": {
+       "text": 19,
+       "enable_roaming": 9,
+       "get_details_by_id": 10,
+       "get_data_usage": 4
+      }
+     }
+    }
+   }
+  }
+ ]
+}

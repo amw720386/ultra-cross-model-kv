@@ -1,40 +1,164 @@
 {
- "what": "Terminal-Bench 2.0 via Harbor (terminus-2 agent, official task containers on Modal), 20 tasks requested; the job hit its 125-minute limit with 10 trials completed (all 10 ended by the agent time limit, AgentTimeoutError), 4 running and 6 pending; this is Harbor's result.json at that point.",
- "config": {
-  "mapper_name": "4b-27b-fid+4b-27b-fid-attn",
-  "strategy": "transfer+rep2048m",
-  "turn_tail_max": 4096,
-  "turn_tail_msgs": 3,
-  "full_until": 32768,
-  "concurrency": 4,
-  "gpu": "H200"
- },
- "stats": {
-  "n_completed_trials": 10,
-  "n_errored_trials": 10,
-  "n_running_trials": 4,
-  "n_pending_trials": 6,
-  "n_cancelled_trials": 0,
-  "n_retries": 0,
-  "n_input_tokens": 6501542,
-  "n_cache_tokens": 0,
-  "n_output_tokens": 58600
- },
- "pass_rate": 0.1,
- "rewards": {
-  "0.0": [
-   "gpt2-codegolf__WGsnSNt",
-   "break-filter-js-from-html__ZXLaHe8",
-   "llm-inference-batching-scheduler__u7dGJaP",
-   "write-compressor__3hU8jMZ",
-   "merge-diff-arc-agi-task__Gro3WaJ",
-   "pytorch-model-cli__hEKnsZA",
-   "reshard-c4-data__LEBTKNn",
-   "largest-eigenval__pmc4aHf",
-   "password-recovery__mYDEh4A"
-  ],
-  "1.0": [
-   "log-summary-date-ranges__h5Mfcys"
-  ]
+ "what": "Terminal-Bench 2.0 via Harbor (terminus-2 agent, official task containers on Modal), the same 10 tasks for native 27B and recall mode, run side by side. Most trials on both arms end at Harbor's per-task agent time limit (AgentTimeoutError), so the pass rate mostly measures how many agent turns fit in the limit.",
+ "runs": [
+  {
+   "source_file": "results/raw/terminal_bench-H200-20261119-013017.json",
+   "strategy": "target",
+   "args": {
+    "mapper_name": "4b-27b-fid+4b-27b-fid-attn",
+    "full_until": 32768,
+    "strategies": [
+     "target"
+    ],
+    "task_names": [
+     "gpt2-codegolf",
+     "break-filter-js-from-html",
+     "llm-inference-batching-scheduler",
+     "write-compressor",
+     "merge-diff-arc-agi-task",
+     "pytorch-model-cli",
+     "reshard-c4-data",
+     "largest-eigenval",
+     "password-recovery",
+     "log-summary-date-ranges"
+    ],
+    "n_tasks": null,
+    "concurrency": 5,
+    "turn_tail_max": 8192,
+    "turn_tail_msgs": 10,
+    "run_name": "tb2-target"
+   },
+   "pass_rate": 0.2,
+   "n_errored_trials": 8,
+   "rewards": {
+    "0.0": [
+     "gpt2-codegolf__BtX53M7",
+     "llm-inference-batching-scheduler__th8Uzrj",
+     "break-filter-js-from-html__HaXU5JP",
+     "write-compressor__mv9yxTZ",
+     "merge-diff-arc-agi-task__ZPmfTw6",
+     "pytorch-model-cli__sBySebF",
+     "largest-eigenval__WAaC6Sr",
+     "password-recovery__rcow3EX"
+    ],
+    "1.0": [
+     "reshard-c4-data__CrdRjZA",
+     "log-summary-date-ranges__zr5VtFC"
+    ]
+   },
+   "exceptions": {
+    "AgentTimeoutError": [
+     "gpt2-codegolf__BtX53M7",
+     "llm-inference-batching-scheduler__th8Uzrj",
+     "break-filter-js-from-html__HaXU5JP",
+     "write-compressor__mv9yxTZ",
+     "merge-diff-arc-agi-task__ZPmfTw6",
+     "pytorch-model-cli__sBySebF",
+     "largest-eigenval__WAaC6Sr",
+     "password-recovery__rcow3EX"
+    ]
+   },
+   "wall_s": 2928
+  },
+  {
+   "source_file": "results/raw/terminal_bench-H200-20261119-014318.json",
+   "strategy": "transfer@auto+rep4096m",
+   "args": {
+    "mapper_name": "4b-27b-fid+4b-27b-fid-attn",
+    "full_until": 32768,
+    "strategies": [
+     "transfer@auto+rep4096m"
+    ],
+    "task_names": [
+     "gpt2-codegolf",
+     "break-filter-js-from-html",
+     "llm-inference-batching-scheduler",
+     "write-compressor",
+     "merge-diff-arc-agi-task",
+     "pytorch-model-cli",
+     "reshard-c4-data",
+     "largest-eigenval",
+     "password-recovery",
+     "log-summary-date-ranges"
+    ],
+    "n_tasks": null,
+    "concurrency": 5,
+    "turn_tail_max": 8192,
+    "turn_tail_msgs": 10,
+    "run_name": "tb2-transfer_auto_rep4096m"
+   },
+   "pass_rate": 0.0,
+   "n_errored_trials": 10,
+   "rewards": {
+    "0.0": [
+     "gpt2-codegolf__AE4CUvP",
+     "llm-inference-batching-scheduler__PkQbk8d",
+     "break-filter-js-from-html__H6xEZvq",
+     "reshard-c4-data__9srHDPQ",
+     "write-compressor__eM9MAMM",
+     "merge-diff-arc-agi-task__77rdxUv",
+     "log-summary-date-ranges__m86qbX4",
+     "pytorch-model-cli__WmhPmDo",
+     "largest-eigenval__JWg3FcR"
+    ]
+   },
+   "exceptions": {
+    "AgentTimeoutError": [
+     "gpt2-codegolf__AE4CUvP",
+     "llm-inference-batching-scheduler__PkQbk8d",
+     "break-filter-js-from-html__H6xEZvq",
+     "reshard-c4-data__9srHDPQ",
+     "write-compressor__eM9MAMM",
+     "merge-diff-arc-agi-task__77rdxUv",
+     "log-summary-date-ranges__m86qbX4",
+     "pytorch-model-cli__WmhPmDo",
+     "largest-eigenval__JWg3FcR"
+    ],
+    "RuntimeError": [
+     "password-recovery__DJXUbMr"
+    ]
+   },
+   "wall_s": 3708
+  }
+ ],
+ "previous_run": {
+  "what": "Terminal-Bench 2.0 via Harbor (terminus-2 agent, official task containers on Modal), 20 tasks requested; the job hit its 125-minute limit with 10 trials completed (all 10 ended by the agent time limit, AgentTimeoutError), 4 running and 6 pending; this is Harbor's result.json at that point.",
+  "config": {
+   "mapper_name": "4b-27b-fid+4b-27b-fid-attn",
+   "strategy": "transfer+rep2048m",
+   "turn_tail_max": 4096,
+   "turn_tail_msgs": 3,
+   "full_until": 32768,
+   "concurrency": 4,
+   "gpu": "H200"
+  },
+  "stats": {
+   "n_completed_trials": 10,
+   "n_errored_trials": 10,
+   "n_running_trials": 4,
+   "n_pending_trials": 6,
+   "n_cancelled_trials": 0,
+   "n_retries": 0,
+   "n_input_tokens": 6501542,
+   "n_cache_tokens": 0,
+   "n_output_tokens": 58600
+  },
+  "pass_rate": 0.1,
+  "rewards": {
+   "0.0": [
+    "gpt2-codegolf__WGsnSNt",
+    "break-filter-js-from-html__ZXLaHe8",
+    "llm-inference-batching-scheduler__u7dGJaP",
+    "write-compressor__3hU8jMZ",
+    "merge-diff-arc-agi-task__Gro3WaJ",
+    "pytorch-model-cli__hEKnsZA",
+    "reshard-c4-data__LEBTKNn",
+    "largest-eigenval__pmc4aHf",
+    "password-recovery__mYDEh4A"
+   ],
+   "1.0": [
+    "log-summary-date-ranges__h5Mfcys"
+   ]
+  }
  }
 }
