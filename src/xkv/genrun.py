@@ -73,7 +73,7 @@ def make_batch_gen(strategy, sm, tm, mapper, tok, tail=128, window=8192, batch=8
                                              native_spans=spans[i] if spans else None, oracle=oracle,
                                              repair=repair, repair_state=rstate,
                                              repair_sep=im_start if runit else None,
-                                             graph_tail=False if oracle else None)
+                                             graph_tail=False if (oracle or os.environ.get("XKV_NO_GRAPH_TAIL") == "1") else None)
                 else:
                     c, lg = native_prefill(model, ids, chunk=chunk)
                 dec.load(b, c, int(lg[0, -1].argmax()))

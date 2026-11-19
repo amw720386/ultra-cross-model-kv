@@ -587,6 +587,157 @@
     }
    },
    "note": "official simulator; current agent setting (same as the telecom run above)"
+  },
+  {
+   "source_file": "results/raw/tau2-H200-20261119-142119.json",
+   "args": {
+    "mapper_name": "4b-27b-fid+4b-27b-fid-attn",
+    "full_until": 32768,
+    "max_concurrency": 8,
+    "local_user_and_judges": false,
+    "turn_tail_max": 8192,
+    "turn_tail_msgs": 10,
+    "strategies": [
+     "target-drop"
+    ],
+    "domains": [
+     "airline",
+     "retail"
+    ],
+    "run_name": "off-drop_ar"
+   },
+   "scores": {
+    "target-drop": {
+     "airline": {
+      "pass1": 0.42,
+      "n_scored": 50,
+      "n_errored": 0
+     },
+     "retail": {
+      "pass1": 0.72,
+      "n_scored": 50,
+      "n_errored": 0
+     }
+    }
+   },
+   "note": "official simulator; ablation target-drop: native 27B on only what the agent setting computes natively (tools + last 10 messages); the policy and older history deleted"
+  },
+  {
+   "source_file": "results/raw/tau2-H200-20261119-142324.json",
+   "args": {
+    "mapper_name": "4b-27b-fid+4b-27b-fid-attn",
+    "full_until": 32768,
+    "max_concurrency": 8,
+    "local_user_and_judges": false,
+    "turn_tail_max": 8192,
+    "turn_tail_msgs": 10,
+    "strategies": [
+     "target-drop"
+    ],
+    "domains": [
+     "telecom"
+    ],
+    "run_name": "off-drop_tel"
+   },
+   "scores": {
+    "target-drop": {
+     "telecom": {
+      "pass1": 0.44,
+      "n_scored": 50,
+      "n_errored": 0
+     }
+    }
+   },
+   "note": "official simulator; ablation target-drop (see above), telecom"
+  },
+  {
+   "source_file": "results/raw/tau2-H200-20261119-143021.json",
+   "args": {
+    "strategies": [
+     "target"
+    ],
+    "domains": [
+     "airline"
+    ],
+    "max_concurrency": 8,
+    "full_until": 32768,
+    "log_requests": true,
+    "run_name": "replay"
+   },
+   "scores": {
+    "target": {
+     "airline": {
+      "pass1": 0.7,
+      "n_scored": 50,
+      "n_errored": 0
+     }
+    }
+   },
+   "note": "native 27B simulator; native airline run that logged the agent requests used to train the agent map 4b-27b-fid-agent"
+  },
+  {
+   "source_file": "results/raw/tau2-H200-20261119-181145.json",
+   "args": {
+    "mapper_name": "4b-27b-fid-agent+4b-27b-fid-agent-attn",
+    "full_until": 32768,
+    "max_concurrency": 8,
+    "local_user_and_judges": false,
+    "turn_tail_max": 4096,
+    "turn_tail_msgs": 3,
+    "native_tools": true,
+    "strategies": [
+     "transfer@auto"
+    ],
+    "domains": [
+     "telecom"
+    ],
+    "run_name": "off-agentmap2_tel"
+   },
+   "scores": {
+    "transfer@auto": {
+     "telecom": {
+      "pass1": 0.22,
+      "n_scored": 50,
+      "n_errored": 0
+     }
+    }
+   },
+   "note": "official simulator; faster setting with the agent-trained map 4b-27b-fid-agent (transfer@auto, tools + last 3 messages <= 4096 tokens native, no repair); the one pre-registered official run; telecom held out from training"
+  },
+  {
+   "source_file": "results/raw/tau2-H200-20261119-182036.json",
+   "args": {
+    "mapper_name": "4b-27b-fid-agent+4b-27b-fid-agent-attn",
+    "full_until": 32768,
+    "max_concurrency": 8,
+    "local_user_and_judges": false,
+    "turn_tail_max": 4096,
+    "turn_tail_msgs": 3,
+    "native_tools": true,
+    "strategies": [
+     "transfer@auto"
+    ],
+    "domains": [
+     "airline",
+     "retail"
+    ],
+    "run_name": "off-agentmap2_ar"
+   },
+   "scores": {
+    "transfer@auto": {
+     "airline": {
+      "pass1": 0.5,
+      "n_scored": 50,
+      "n_errored": 0
+     },
+     "retail": {
+      "pass1": 0.78,
+      "n_scored": 50,
+      "n_errored": 0
+     }
+    }
+   },
+   "note": "official simulator; same pre-registered faster setting as above; airline is in-sample (its native traces trained the map), retail held out"
   }
  ]
 }

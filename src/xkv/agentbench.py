@@ -245,8 +245,11 @@ class QwenBackend:
     """Qwen3.5 chat template + batched token generator `gen(prompts, max_new) -> list[list[int]]`."""
 
     def __init__(self, tok, gen, name, thinking=False, max_new=2048, max_prompt=131072, json_fences=False,
-                 log=None, native_tools=False, native_system=False, native_history=False, req_log=None):
+                 log=None, native_tools=False, native_system=False, native_history=False, req_log=None,
+                 drop_mapped=None):
         from .genrun import stop_ids
+
+        self.drop_mapped = drop_mapped  # (k, cap): ablation, see _drop_mapped (policy and older history deleted)
 
         self.req_log = req_log  # optional JSONL path: every request (messages, tools) and its reply is appended
 
@@ -264,7 +267,8 @@ class QwenBackend:
 
     def encode_spans(self, r: ChatRequest):
         """Token ids plus the token span of the <tools>...</tools> block (computed natively when native_tools)."""
-        text = render_prompt(self.tok, r.messages, r.tools, self.thinking)
+        msgs = _drop_mapped(self.tok, r.messages, r.tools, *self.drop_mapped) if self.drop_mapped else r.messages
+        text = render_prompt(self.tok, msgs, r.tools, self.thinking)
         if self.native_history:
             # session serving: the first request (system + first user turn) is transferred; later turns are appended
             # natively to the kept cache, so everything after the first user turn is computed by the target
@@ -647,13 +651,18 @@ def task_tau2(src="4b", tgt="27b", mapper_name="4b-27b-w8192-distill-ret", strat
                       "benchmark": "tau2 text-v1 en", "user_sim": f"{tgt} native, non-thinking, greedy" if local_user_and_judges
                       else "official (OpenAI)"}}
     for strat in strategies:
-        agent_gen = native if strat == "target" else make_batch_gen(strat, sm, tm, mapper, tok, **agent_kw)
+        # "target-drop": ablation, native target on only the part the agent setting computes natively
+        # (tools + last turn_tail_msgs messages up to turn_tail_max tokens); the policy and older history are deleted
+        nat = strat in ("target", "target-drop")
+        agent_gen = native if nat else make_batch_gen(strat, sm, tm, mapper, tok, **agent_kw)
         backends = {
             "xkv-agent": QwenBackend(tok, agent_gen, f"agent:{strat}", thinking=agent_thinking, max_new=max_new,
-                                     native_tools=native_tools and strat != "target",
-                                     native_system=native_system and strat != "target",
-                                     native_history=native_history and strat != "target",
-                                     max_prompt=max_prompt),
+                                     native_tools=native_tools and not nat,
+                                     native_system=native_system and not nat,
+                                     native_history=native_history and not nat,
+                                     max_prompt=max_prompt,
+                                     drop_mapped=(turn_tail_msgs, turn_tail_max or 8192) if strat == "target-drop"
+                                     else None),
             "xkv-user": QwenBackend(tok, native, "user", thinking=False, max_new=1024, max_prompt=max_prompt),
             "xkv-judge": QwenBackend(tok, native, "judge", thinking=False, max_new=2048, max_prompt=max_prompt,
                                      json_fences=True),
@@ -727,7 +736,8 @@ def read_harbor_result(jobs_dir, job_name) -> dict:
 def task_terminal_bench(src="4b", tgt="27b", mapper_name="4b-27b-w8192-distill-ret",
                         strategies=("transfer",), n_tasks=10, task_names=(), concurrency=4, tail=128, window=8192,
                         agent_thinking=False, max_new=8192, max_prompt=131072, temperature=None, run_name=None,
-                        agent_port=8201, attempts=1, turn_tail_max=None, turn_tail_msgs=1, full_until=None):
+                        agent_port=8201, attempts=1, turn_tail_max=None, turn_tail_msgs=1, full_until=None,
+                        agent_timeout_multiplier=None):
     """Terminal-Bench 2.0 (Harbor, Terminus-2 agent, sandboxes on Modal) pass rate per strategy.
 
     Needs Modal credentials inside the container (MODAL_TOKEN_ID / MODAL_TOKEN_SECRET via a Modal Secret) so
@@ -745,7 +755,9 @@ def task_terminal_bench(src="4b", tgt="27b", mapper_name="4b-27b-w8192-distill-r
     res = {"config": {"strategies": list(strategies), "n_tasks": n_tasks, "concurrency": concurrency,
                       "agent_thinking": agent_thinking, "max_prompt": max_prompt, "max_new": max_new,
                       "temperature": temperature, "jobs_dir": str(jobs), "mapper": mapper_name,
-                      "turn_tail_max": turn_tail_max, "turn_tail_msgs": turn_tail_msgs, "full_until": full_until}}
+                      "turn_tail_max": turn_tail_max, "turn_tail_msgs": turn_tail_msgs, "full_until": full_until,
+                      "agent_timeout_multiplier": agent_timeout_multiplier}}
+    extra = ["--agent-timeout-multiplier", str(agent_timeout_multiplier)] if agent_timeout_multiplier else []
     for strat in strategies:
         gen = make_batch_gen(strat, sm, tm, mapper, tok, tail=tail, window=window, batch=max(8, concurrency),
                              full_until=full_until, turn_tail_max=turn_tail_max, turn_tail_msgs=turn_tail_msgs)
@@ -754,7 +766,7 @@ def task_terminal_bench(src="4b", tgt="27b", mapper_name="4b-27b-w8192-distill-r
         server = ChatServer(backends, {agent_port: "xkv-agent"}, max_batch=max(8, concurrency)).start()
         cmd = harbor_command(server.url(agent_port), jobs, strat.replace("@", "_"), n_tasks=n_tasks,
                              task_names=task_names, concurrency=concurrency, max_prompt=max_prompt, max_new=max_new,
-                             temperature=temperature, attempts=attempts)
+                             temperature=temperature, attempts=attempts, extra=extra)
         env = dict(os.environ, OPENAI_API_KEY="xkv", PYTHONIOENCODING="utf-8")
         print("[tb2] " + " ".join(cmd), flush=True)
         t = time.time()
@@ -785,17 +797,68 @@ def _action(msg) -> tuple:
     return ("tool", f.get("name"), a)
 
 
+def _drop_mapped(tok, messages, tools, k=10, cap=8192):
+    """Ablation: only what the agent setting computes natively, with the mapped part deleted instead of mapped.
+    The system turn (policy) is dropped (the tool schemas still render, since tools are passed separately), and
+    only the last k non-system messages are kept, oldest dropped first until they fit in cap tokens."""
+    msgs = [m for m in messages if m.get("role") != "system"][-k:]
+    try:
+        base = len(tok.encode(render_prompt(tok, [], tools, False), add_special_tokens=False)) if tools else 0
+    except Exception:  # noqa: BLE001 - template may refuse an empty conversation
+        base = 0
+    while msgs and (msgs[0].get("role") == "tool" or (len(msgs) > 1 and len(tok.encode(
+            render_prompt(tok, msgs, tools, False), add_special_tokens=False)) - base > cap)):
+        msgs = msgs[1:]
+    return msgs
+
+
+def _native_share(be, reqs, turn_tail_max, turn_tail_msgs, repair):
+    """Token accounting of a transfer variant: share of prompt tokens the target computes natively (tools span +
+    turn tail), and an upper bound including the repair budget (repair re-encodes up to that many tokens)."""
+    from .mapper import adaptive_tail
+
+    im = be.tok.convert_tokens_to_ids("<|im_start|>")
+    tot = nat = nat_rep = 0
+    per, per_rep = [], []
+    for r in reqs:
+        ids, sp = be.encode_spans(r)
+        n = len(ids)
+        base = adaptive_tail(n)
+        starts = [i for i, t in enumerate(ids) if t == im]
+        tail = base
+        if turn_tail_max and len(starts) >= 2:
+            k = min(turn_tail_msgs + 1, len(starts) - 1)
+            tail = max(base, min(turn_tail_max, n - starts[-k]))
+        tail = min(tail, n)
+        tools = sum(max(0, min(b, n - tail) - a) for a, b in sp)
+        x = tail + tools
+        y = min(n, x + repair)
+        tot, nat, nat_rep = tot + n, nat + x, nat_rep + y
+        per.append(x / n)
+        per_rep.append(y / n)
+    m = max(1, len(per))
+    return {"n": len(per), "mean_prompt_tokens": round(tot / m), "native_token_share": round(nat / max(1, tot), 4),
+            "native_share_mean": round(sum(per) / m, 4),
+            "native_token_share_with_repair_upper": round(nat_rep / max(1, tot), 4),
+            "native_share_with_repair_upper_mean": round(sum(per_rep) / m, 4)}
+
+
 def task_tau2_replay(src="4b", tgt="27b", mapper_name="4b-27b-fid+4b-27b-fid-attn", run_name="replay",
                      domains=("telecom", "retail"), record=True, variants=None, max_prompts=200, seed=0,
-                     max_new=160, full_until=32768, batch=8, record_kw=None):
+                     max_new=160, full_until=32768, batch=8, record_kw=None, ttft_n=0):
     """Teacher-forced agent replay: every agent request of a native tau2 run (recorded with log_requests) is
     answered again by each variant; the score is how often the variant's next action matches the native one
     (same tool, and same tool + arguments). A cheap proxy for tau2 that needs no user simulator.
 
-    variants: [{"name", "strategy", "native_tools", "native_system", "turn_tail_max", "turn_tail_msgs", "env"}].
+    variants: [{"name", "strategy", "native_tools", "native_system", "turn_tail_max", "turn_tail_msgs", "env",
+    "drop_mapped"}]. drop_mapped: native target on only the part the agent setting computes natively (see
+    _drop_mapped; uses turn_tail_msgs / turn_tail_max). ttft_n > 0: also time n requests one at a time with one
+    output token (batch-1 time to first token incl. source prefill, mapping and repair).
     record=True first runs the native agent (local 27B user simulator) with request logging if no log exists.
     """
     import random
+
+    import torch
 
     from .experiments import ART, get, load_mapper
     from .genrun import make_batch_gen
@@ -813,7 +876,7 @@ def task_tau2_replay(src="4b", tgt="27b", mapper_name="4b-27b-fid+4b-27b-fid-att
                              if k in ("pass1", "n_scored", "termination")} for d in missing}
     sm, _ = get(src)
     tm, tok = get(tgt)
-    mapper = load_mapper(mapper_name, sm, tm)
+    mappers = {mapper_name: load_mapper(mapper_name, sm, tm)}
     variants = variants or [{"name": "native", "strategy": "target"}]
     for d in domains:
         rows = [json.loads(l) for l in logs[d].read_text(encoding="utf-8").splitlines() if l.strip()]
@@ -831,18 +894,52 @@ def task_tau2_replay(src="4b", tgt="27b", mapper_name="4b-27b-fid+4b-27b-fid-att
             os.environ.update({k: str(x) for k, x in (v.get("env") or {}).items()})
             try:
                 strat = v.get("strategy", "target")
+                mn = v.get("mapper", mapper_name)  # per-variant map (e.g. old vs retrained)
+                if strat != "target" and mn not in mappers:
+                    mappers[mn] = load_mapper(mn, sm, tm)
+                mapper = mappers.get(mn)
                 g = make_batch_gen(strat, sm, tm, mapper if strat != "target" else None, tok, batch=batch,
                                    full_until=full_until, turn_tail_max=v.get("turn_tail_max"),
                                    turn_tail_msgs=v.get("turn_tail_msgs", 1))
                 be = QwenBackend(tok, g, v["name"], max_new=max_new,
                                  native_tools=bool(v.get("native_tools")) and strat != "target",
                                  native_system=bool(v.get("native_system")) and strat != "target")
+                if v.get("drop_mapped"):
+                    reqs = [ChatRequest(messages=_drop_mapped(tok, r["messages"], r["tools"],
+                                                              v.get("turn_tail_msgs", 10), v.get("turn_tail_max") or 8192),
+                                        tools=r["tools"]) for r in pick]
+                else:
+                    reqs = [ChatRequest(messages=r["messages"], tools=r["tools"]) for r in pick]
                 t0 = time.time()
                 outs = []
-                for k in range(0, len(pick), batch):
-                    outs += be.chat_many([ChatRequest(messages=r["messages"], tools=r["tools"])
-                                          for r in pick[k:k + batch]])
+                for k in range(0, len(reqs), batch):
+                    outs += be.chat_many(reqs[k:k + batch])
                 acts = [_action(o if isinstance(o, dict) else {}) for o in outs]
+                extra = {}
+                if strat.startswith("transfer"):
+                    rb = int(strat.split("+rep")[1].rstrip("zm")) if "+rep" in strat else 0
+                    extra["native_share"] = _native_share(be, reqs, v.get("turn_tail_max"),
+                                                          v.get("turn_tail_msgs", 1), rb)
+                if ttft_n:
+                    g1 = make_batch_gen(strat, sm, tm, mapper if strat != "target" else None, tok, batch=1,
+                                        full_until=full_until, turn_tail_max=v.get("turn_tail_max"),
+                                        turn_tail_msgs=v.get("turn_tail_msgs", 1))
+                    be1 = QwenBackend(tok, g1, v["name"] + ":ttft", max_new=1,
+                                      native_tools=bool(v.get("native_tools")) and strat != "target",
+                                      native_system=bool(v.get("native_system")) and strat != "target")
+                    be1.chat_many([reqs[0]])  # warm-up
+                    lat, plen = [], []
+                    for r in reqs[1:ttft_n + 1]:
+                        torch.cuda.synchronize()
+                        t1 = time.time()
+                        be1.chat_many([r])
+                        torch.cuda.synchronize()
+                        lat.append(time.time() - t1)
+                        plen.append(len(be1.encode(r)))
+                    lat_s = sorted(lat)
+                    extra["ttft"] = {"n": len(lat), "median_s": round(lat_s[len(lat_s) // 2], 4),
+                                     "mean_s": round(sum(lat) / max(1, len(lat)), 4),
+                                     "mean_prompt_tokens": round(sum(plen) / max(1, len(plen)))}
             finally:
                 for k, x in old.items():
                     if x is None:
@@ -866,7 +963,8 @@ def task_tau2_replay(src="4b", tgt="27b", mapper_name="4b-27b-fid+4b-27b-fid-att
             out = {"tool_match": rate(lambda i: True, False), "full_match": rate(lambda i: True, True),
                    "first_tool_match": rate(first, False), "first_full_match": rate(first, True),
                    "tool_turn_match": rate(tool, False), "tool_turn_full_match": rate(tool, True),
-                   "seconds": round(time.time() - t0, 1), "spec": v, "first_tool_counts": {}, "samples": []}
+                   "seconds": round(time.time() - t0, 1), "spec": v, "first_tool_counts": {}, "samples": [],
+                   **extra}
             names = [{t.get("function", t).get("name") for t in (r["tools"] or [])} for r in pick]
             out["invalid_tool_rate"] = round(sum(a[0] == "tool" and a[1] not in names[i]
                                                  for i, a in enumerate(acts)) / max(1, len(acts)), 4)
