@@ -838,6 +838,39 @@
     }
    },
    "note": "thinking ON for every arm (reasoning before the answer), max_new 12288"
+  },
+  {
+   "source_file": "results/raw/gen_evals-H200-20261119-004553.json",
+   "args": {
+    "src": "2b",
+    "tgt": "27b",
+    "mapper_name": "2b-27b-fid+2b-27b-fid-attn",
+    "full_until": 32768,
+    "benches": [
+     "ruler"
+    ],
+    "strategies": [
+     "transfer@auto+rep1024"
+    ],
+    "limits": {
+     "ruler": 30
+    },
+    "bench_kw": {
+     "longbench_v2": {
+      "max_new": 1024
+     }
+    },
+    "max_ctx": 32768
+   },
+   "scores": {
+    "ruler": {
+     "transfer@auto+rep1024": {
+      "score": 0.9049999999999999,
+      "n_scored": 90
+     }
+    }
+   },
+   "note": "regression check after the repair-protection fix (88e631c): RULER rep1024 re-run, 0.905 as before"
   }
  ],
  "baselines_2b_chat_map": [
