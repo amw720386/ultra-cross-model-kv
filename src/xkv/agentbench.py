@@ -245,8 +245,11 @@ class QwenBackend:
     """Qwen3.5 chat template + batched token generator `gen(prompts, max_new) -> list[list[int]]`."""
 
     def __init__(self, tok, gen, name, thinking=False, max_new=2048, max_prompt=131072, json_fences=False,
-                 log=None, native_tools=False, native_system=False, native_history=False, req_log=None):
+                 log=None, native_tools=False, native_system=False, native_history=False, req_log=None,
+                 drop_mapped=None):
         from .genrun import stop_ids
+
+        self.drop_mapped = drop_mapped  # (k, cap): ablation, see _drop_mapped (policy and older history deleted)
 
         self.req_log = req_log  # optional JSONL path: every request (messages, tools) and its reply is appended
 
@@ -264,7 +267,8 @@ class QwenBackend:
 
     def encode_spans(self, r: ChatRequest):
         """Token ids plus the token span of the <tools>...</tools> block (computed natively when native_tools)."""
-        text = render_prompt(self.tok, r.messages, r.tools, self.thinking)
+        msgs = _drop_mapped(self.tok, r.messages, r.tools, *self.drop_mapped) if self.drop_mapped else r.messages
+        text = render_prompt(self.tok, msgs, r.tools, self.thinking)
         if self.native_history:
             # session serving: the first request (system + first user turn) is transferred; later turns are appended
             # natively to the kept cache, so everything after the first user turn is computed by the target
@@ -647,13 +651,18 @@ def task_tau2(src="4b", tgt="27b", mapper_name="4b-27b-w8192-distill-ret", strat
                       "benchmark": "tau2 text-v1 en", "user_sim": f"{tgt} native, non-thinking, greedy" if local_user_and_judges
                       else "official (OpenAI)"}}
     for strat in strategies:
-        agent_gen = native if strat == "target" else make_batch_gen(strat, sm, tm, mapper, tok, **agent_kw)
+        # "target-drop": ablation, native target on only the part the agent setting computes natively
+        # (tools + last turn_tail_msgs messages up to turn_tail_max tokens); the policy and older history are deleted
+        nat = strat in ("target", "target-drop")
+        agent_gen = native if nat else make_batch_gen(strat, sm, tm, mapper, tok, **agent_kw)
         backends = {
             "xkv-agent": QwenBackend(tok, agent_gen, f"agent:{strat}", thinking=agent_thinking, max_new=max_new,
-                                     native_tools=native_tools and strat != "target",
-                                     native_system=native_system and strat != "target",
-                                     native_history=native_history and strat != "target",
-                                     max_prompt=max_prompt),
+                                     native_tools=native_tools and not nat,
+                                     native_system=native_system and not nat,
+                                     native_history=native_history and not nat,
+                                     max_prompt=max_prompt,
+                                     drop_mapped=(turn_tail_msgs, turn_tail_max or 8192) if strat == "target-drop"
+                                     else None),
             "xkv-user": QwenBackend(tok, native, "user", thinking=False, max_new=1024, max_prompt=max_prompt),
             "xkv-judge": QwenBackend(tok, native, "judge", thinking=False, max_new=2048, max_prompt=max_prompt,
                                      json_fences=True),
