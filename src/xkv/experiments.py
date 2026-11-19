@@ -551,11 +551,17 @@ class ChatSynth:
 def task_distill(src="4b", tgt="27b", mapper_name=None, out_name=None, steps=1500, prefix=1024, cont=128,
                  tail=1, lr=2e-5, warmup=50, clip=1.0, eval_every=250, n_eval=8, source="fineweb", window=None,
                  prefix_choices=None, retrieval_frac=0.0, niah_len=0, niah_n=10, eval_tail=None, chat_frac=0.0,
-                 tool_frac=0.0, varied_frac=0.0, copy_frac=0.0):
+                 tool_frac=0.0, varied_frac=0.0, copy_frac=0.0, agent_logs=(), agent_frac=0.0, agent_tail_max=4096,
+                 agent_tail_msgs=3, eval_agent=0):
     """Fine-tune the ridge maps end to end: minimize KL(native target || transferred target) on continuations.
 
     Only the maps are trained; both models stay frozen. Gradients flow from the target's continuation logits
     through its attention over the synthesized KV and through the DeltaNet scans into the maps.
+
+    agent_logs / agent_frac: agent requests logged from native tau2 runs (paths relative to ART, JSONL with
+    messages, tools, out); a sample is the rendered request as prefix and the native reply as continuation, with
+    the last agent_tail_msgs messages (up to agent_tail_max tokens) computed natively, as in the agent recall mode.
+    eval_agent > 0: also report the KL on that many held-out agent samples (the last ones of the logs).
     """
     import random
 
@@ -587,6 +593,50 @@ def task_distill(src="4b", tgt="27b", mapper_name=None, out_name=None, steps=150
             rows.append(compare(ref, teacher_forced(tm, tc, tl, c), c))
         return mean_dicts(rows)
 
+    agent = []
+    if agent_logs:
+        from .agentbench import render_prompt, to_template_messages
+
+        im = ttok.convert_tokens_to_ids("<|im_start|>")
+        for lp in agent_logs:
+            for line in (ART / lp).read_text(encoding="utf-8").splitlines():
+                if not line.strip():
+                    continue
+                r = json.loads(line)
+                pre = render_prompt(ttok, r["messages"], r["tools"], False)
+                out = dict(r["out"], role="assistant")
+                full = ttok.apply_chat_template(to_template_messages(r["messages"] + [out]), tools=r["tools"] or None,
+                                                tokenize=False, add_generation_prompt=False, enable_thinking=False)
+                if not full.startswith(pre):
+                    continue
+                pi = ttok.encode(pre, add_special_tokens=False)
+                ci = ttok.encode(full[len(pre):], add_special_tokens=False)[:cont]
+                if len(pi) > max(lens) or len(ci) < 2:
+                    continue
+                starts = [i for i, t in enumerate(pi) if t == im]
+                k = min(agent_tail_msgs + 1, len(starts) - 1)
+                tl = max(tail, min(agent_tail_max, len(pi) - starts[-k])) if k >= 1 else tail
+                agent.append((pi, ci, tl))
+        rng0 = random.Random(5)
+        rng0.shuffle(agent)
+        print(f"[distill] agent samples: {len(agent)}", flush=True)
+    agent_held = agent[-eval_agent:] if eval_agent else []
+    agent = agent[:len(agent) - len(agent_held)]
+
+    def agent_eval():
+        if not agent_held:
+            return {}
+        kls = []
+        with torch.no_grad():
+            for p, c, tl in agent_held:
+                nc, nl = native_prefill(tm, T(p))
+                ref = teacher_forced(tm, nc, nl, c)
+                del nc
+                tc, tl_ = transfer_prefill(sm, tm, mapper, T(p), tail=tl, window=window)
+                kls.append(compare(ref, teacher_forced(tm, tc, tl_, c), c)["kl"])
+                del tc
+        return {"agent_kl": sum(kls) / len(kls)}
+
     synth = RetrievalSynth(ttok, seed=1) if retrieval_frac else None
     chat = ChatSynth(ttok, seed=2) if chat_frac else None
     if tool_frac:
@@ -603,14 +653,17 @@ def task_distill(src="4b", tgt="27b", mapper_name=None, out_name=None, steps=150
                            samples=samples, max_new_tokens=24)
         return {"niah_acc": r["acc"]}
 
-    hist = [{"step": 0, **evaluate(), **niah_eval()}]
+    hist = [{"step": 0, **evaluate(), **agent_eval(), **niah_eval()}]
     print(json.dumps(hist[-1]), flush=True)
     t0 = time.time()
     run = 0.0
     for step, s in enumerate(train):
         P = rng.choice(lens)
         u = rng.random()
-        if chat is not None and u < chat_frac:
+        tail_s = tail
+        if agent and rng.random() < agent_frac:
+            p, c, tail_s = agent[step % len(agent)]
+        elif chat is not None and u < chat_frac:
             p, c = chat.make(P, cont)
         elif tool_frac and u < chat_frac + tool_frac:
             p, c = tools.make(P, cont)
@@ -631,7 +684,7 @@ def task_distill(src="4b", tgt="27b", mapper_name=None, out_name=None, steps=150
             ref = teacher_forced(tm, nc, nl, c)
             del nc
             lr_ = F.log_softmax(ref, -1)
-        tc, tl = transfer_prefill(sm, tm, mapper, T(p), tail=tail, window=window, grad=True)
+        tc, tl = transfer_prefill(sm, tm, mapper, T(p), tail=tail_s, window=window, grad=True)
         with torch.enable_grad():
             lg = torch.cat((tl[0, -1:], tm.forward(T(c[:-1]), tc, logits="all")[0]), dim=0)
             lt = F.log_softmax(lg, -1)
@@ -650,7 +703,7 @@ def task_distill(src="4b", tgt="27b", mapper_name=None, out_name=None, steps=150
             mapper.save(ART / "maps" / f"{out_name or mapper_name + '-distill'}-ckpt.pt")  # survive timeouts
             if getattr(mapper, "attn", None) is not None:
                 mapper.attn.save(ART / "maps" / f"{out_name or mapper_name + '-distill'}-attn-ckpt.pt")
-            hist.append({"step": step + 1, **evaluate(), **(niah_eval() if last else {})})
+            hist.append({"step": step + 1, **evaluate(), **agent_eval(), **(niah_eval() if last else {})})
             print(json.dumps(hist[-1]), flush=True)
     out_name = out_name or f"{mapper_name}-distill{steps}"
     mapper.save(ART / "maps" / f"{out_name}.pt")
