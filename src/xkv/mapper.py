@@ -387,7 +387,8 @@ def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timin
         tc.len = Tm
         src_tail_done = False
         if repair and not sc.ring and Tm > 4 * repair[2]:
-            _repair(src, tgt, mapper, sc, tc, ids, Tm, *repair, keep_src=keep_src)
+            _repair(src, tgt, mapper, sc, tc, ids, Tm, *repair, keep_src=keep_src,
+                    protect=spans if os.environ.get("XKV_REPAIR_PROTECT", "1") == "1" else None)
             src_tail_done = True
         if oracle:
             # diagnostic only: replace one component of the mapped cache with the native one
@@ -423,7 +424,7 @@ def _transfer_prefill(src, tgt, mapper, ids, tail, chunk, window, max_len, timin
 
 @torch.no_grad()
 def _repair(src, tgt, mapper, sc, tc, ids, Tm, budget, state="final", block=64, sep=None, keep_src=False, sink=4,
-            batched=True):
+            batched=True, protect=None):
     """Query-aware selective repair. The source reads the tail (the question) over its own, native cache; its
     attention from the tail to the mapped region ranks `block`-token blocks (per head: max over tail queries of
     the softmax weight; averaged over heads and the source's attention layers). The target then re-encodes the
@@ -463,19 +464,27 @@ def _repair(src, tgt, mapper, sc, tc, ids, Tm, budget, state="final", block=64, 
     if not nl[0]:
         return []
     rel[:, :sink] = 0
+    protect = list(protect or [])
+    if sep is not None and os.environ.get("XKV_REPAIR_SKIP_FIRST") == "1":  # diagnostic: never repair the system turn
+        st = (ids[0, sink + 1:Tm] == sep).nonzero().flatten()
+        protect.append((0, int(st[0]) + sink + 1 if len(st) else Tm))
+    for a, b in protect:  # natively computed spans are exact already: never re-encode (overwrite) them
+        rel[:, a:b] = float("-inf") if sep is None else 0
     nb = Tm // block
     score = rel[0, : nb * block].view(nb, block).sum(-1)
     if sep is None:
         k = max(1, min(nb, budget // block))
         sel = [(bi * block, (bi + 1) * block) for bi in score.topk(k).indices.tolist()]
     else:
-        sel = _unit_select(ids[0, :Tm], rel[0], sep, budget, block, sink)
+        sel = _unit_select(ids[0, :Tm], rel[0], sep, budget, block, sink, protect)
     spans = []
     for a, b in sorted(sel):
         if spans and spans[-1][1] >= a:
             spans[-1] = (spans[-1][0], max(spans[-1][1], b))
         else:
             spans.append((a, b))
+    if not spans:
+        return []
     S0, C0 = dict(tc.S), dict(tc.conv)  # forward() replaces these tensors; the originals stay untouched
     if batched:  # one pass over all selected blocks (scattered positions, causal by absolute position)
         for j in S0:
@@ -500,7 +509,7 @@ def _repair(src, tgt, mapper, sc, tc, ids, Tm, budget, state="final", block=64, 
     return spans
 
 
-def _unit_select(ids, rel, sep, budget, block, sink):
+def _unit_select(ids, rel, sep, budget, block, sink, protect=None):
     """Greedy message-unit selection for _repair (see its docstring). ids, rel: (Tm,). Returns [(a, b), ...]."""
     Tm = ids.shape[0]
     ids, rel = ids.cpu(), rel.cpu()  # one device sync; the greedy loop below runs on the host
@@ -529,6 +538,8 @@ def _unit_select(ids, rel, sep, budget, block, sink):
     top = (Tm // block) * block  # snap units to the block grid (the varlen re-encode needs whole blocks)
     cand = [(sc, [(a // block * block, min(-(-b // block) * block, top)) for a, b in u]) for sc, u in cand]
     cand = [(sc, [(a, b) for a, b in u if b > a]) for sc, u in cand]
+    if protect:  # drop units that would re-encode (overwrite) a natively computed span
+        cand = [(sc, u) for sc, u in cand if not any(a < pb and pa < b for a, b in u for pa, pb in protect)]
     cover = torch.zeros(Tm, dtype=torch.bool)
     out, used = [], 0
     for _, u in cand:
