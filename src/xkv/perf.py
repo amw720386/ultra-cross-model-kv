@@ -61,6 +61,7 @@ def timeit(fn, reps=3):
 
 def task_kprofile(src="4b", tgt="27b", mapper_name="4b-27b-w8192-distill-ret", lengths=(8192, 16384), tail=128,
                   window=8192, chunk=8192):
+    """Kernel-level TTFT breakdown (torch profiler tables) of native target, source and transfer prefill per length."""
     from .experiments import get, load_mapper
     from .mapper import native_prefill, transfer_prefill
 

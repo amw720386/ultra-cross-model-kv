@@ -68,6 +68,7 @@ def mean_dicts(ds):
 
 
 def task_selftest(src="0.8b", tgt="2b", calib_seqs=8, calib_len=1024):
+    """Small-model smoke test: tokenizer match, forward-pass parity vs HF (full, chunked, odd chunks), mini calibration + transfer."""
     res = {"flash_attn": _flash() is not None}
     try:
         import fla
@@ -125,6 +126,7 @@ def task_selftest(src="0.8b", tgt="2b", calib_seqs=8, calib_len=1024):
 
 def task_calibrate(src="4b", tgt="27b", n_seqs=256, seq_len=4096, radius=2, lam=1e-3, window=None,
                    source="fineweb", name=None):
+    """Fit ridge maps source->target on calibration text and save them to ART/maps/<name>.pt. window: source sliding window."""
     sm, stok = get(src)
     tm, ttok = get(tgt)
     seqs = evals.load_heldout_text(ttok, n_seqs, seq_len, seed=0, split="calib", source=source)
@@ -139,7 +141,7 @@ def task_calibrate(src="4b", tgt="27b", n_seqs=256, seq_len=4096, radius=2, lam=
     name = name or f"{src}-{tgt}-r{radius}-n{n_seqs}x{seq_len}" + (f"-w{window}" if window else "")
     (ART / "maps").mkdir(parents=True, exist_ok=True)
     mapper.save(ART / "maps" / f"{name}.pt")
-    # also keep raw stats small enough? (they are large; store only the report)
+    # the raw stats are large, so only the fit report is kept
     return {"name": name, "tokens": st.n, "params": mapper.n_params(), "report": rep,
             "seconds": time.time() - t}
 
@@ -158,6 +160,7 @@ def load_mapper(name, sm, tm):
 
 def task_quality(src="4b", tgt="27b", mapper_name=None, n_seqs=16, prefix=2048, cont=256, tails=(1, 8, 32, 64),
                  window=None, source="fineweb", mc_limit=0, mc_tails=(1, 32)):
+    """Teacher-forced next-token agreement of transfer (per tail length) vs native target; mc_limit>0 also runs multiple-choice evals."""
     sm, stok = get(src)
     tm, ttok = get(tgt)
     mapper = load_mapper(mapper_name, sm, tm)
@@ -232,6 +235,7 @@ def run_mc(sm, tm, mapper, tok, limit, tails, window):
 
 def task_bench(src="4b", tgt="27b", mapper_name=None, lengths=(8192, 16384, 32768, 65536), reps=3, tail=32,
                window=None, chunk=8192, native=True, warmup=True, batch=1, full_until=None):
+    """Prefill latency of native target vs transfer on random ids. full_until: up to this length the source uses full attention."""
     sm, stok = get(src)
     tm, ttok = get(tgt)
     mapper = load_mapper(mapper_name, sm, tm) if mapper_name else None
@@ -300,6 +304,7 @@ def make_generator(strategy, sm, tm, mapper, tok, tail=32, window=None):
 def task_longctx(src="4b", tgt="27b", mapper_name=None, prefix=32768, cont=256, n_seqs=6, windows=(None, 8192, 2048),
                  tail=32, niah_len=32768, niah_n=20, num_keys=(1, 4), source="fineweb", lm=True,
                  niah_tails=None, baselines=True):
+    """Long-context LM agreement per source window, plus needle-in-a-haystack accuracy for target, source and transfer."""
     sm, stok = get(src)
     tm, ttok = get(tgt)
     mapper = load_mapper(mapper_name, sm, tm)
@@ -341,6 +346,8 @@ def task_longctx(src="4b", tgt="27b", mapper_name=None, prefix=32768, cont=256, 
 
 def task_profile(src="4b", tgt="27b", mapper_name=None, lengths=(8192, 32768), tail=32, reps=3, chunk=8192,
                  window=None):
+    """Check the state-only DeltaNet scan against the full kernel, then time native prefills and transfer cut at each
+    stage (mapper.PROFILE modes: src, gemm_only, gemm, full) per length."""
     from . import mapper as M
     from .qwen35 import delta_scan, delta_state
 
