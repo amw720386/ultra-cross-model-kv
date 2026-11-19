@@ -1,0 +1,73 @@
+{
+ "what": "The fidelity map fine-tuned (KL to the native 27B) with 40% of samples from native 27B tau2 airline agent requests (prefix = request, continuation = native reply, last 2 messages <= 1024 tokens native) and the original chat/tool/retrieval/web mix. agent_kl = KL on 24 held-out airline requests; kl/top1_agree on web text. Telecom and retail were never trained on. Its held-out fidelity gate is the 20261119 entry of heldout_fidelity_gate.json; its tau2 runs are in tau2_fid.json and tau2_replay.json.",
+ "source_file": "results/raw/distill-H200-20261119-150729.json",
+ "args": {
+  "mapper_name": "4b-27b-fid+4b-27b-fid-attn",
+  "out_name": "4b-27b-fid-agent",
+  "steps": 600,
+  "prefix_choices": [
+   2048,
+   4096,
+   8192,
+   12288
+  ],
+  "prefix": 8192,
+  "cont": 128,
+  "tail": 64,
+  "eval_tail": 128,
+  "chat_frac": 0.15,
+  "tool_frac": 0.15,
+  "retrieval_frac": 0.3,
+  "varied_frac": 0.45,
+  "copy_frac": 0.35,
+  "agent_logs": [
+   "tau2/replay/target/airline_requests.jsonl"
+  ],
+  "agent_frac": 0.4,
+  "agent_tail_max": 1024,
+  "agent_tail_msgs": 2,
+  "eval_agent": 24,
+  "lr": 1e-05,
+  "warmup": 20,
+  "eval_every": 200,
+  "n_eval": 4,
+  "niah_len": 16384,
+  "niah_n": 10
+ },
+ "history": [
+  {
+   "step": 0,
+   "nll_ref": 2.1551400125026703,
+   "nll": 2.1753412187099457,
+   "top1_agree": 0.947265625,
+   "kl": 0.028480827109888196,
+   "agent_kl": 0.2354721303175514,
+   "niah_acc": 1.0
+  },
+  {
+   "step": 200,
+   "nll_ref": 2.1551400125026703,
+   "nll": 2.175941526889801,
+   "top1_agree": 0.943359375,
+   "kl": 0.028635983471758664,
+   "agent_kl": 0.14315182220889255
+  },
+  {
+   "step": 400,
+   "nll_ref": 2.1551400125026703,
+   "nll": 2.177312731742859,
+   "top1_agree": 0.931640625,
+   "kl": 0.02742382208816707,
+   "agent_kl": 0.12065381554809089
+  },
+  {
+   "step": 600,
+   "nll_ref": 2.1551400125026703,
+   "nll": 2.1778730750083923,
+   "top1_agree": 0.931640625,
+   "kl": 0.02807423612102866,
+   "agent_kl": 0.11640231490552348,
+   "niah_acc": 1.0
+  }
+ ]
+}

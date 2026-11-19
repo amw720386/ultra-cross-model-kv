@@ -13,6 +13,24 @@ Comparisons are against [OneTriangle](https://onetriangle.ai/blog/transfer-bench
 Qwen3.5-4B → Qwen3.8-27B results (page and data release dated 2026-11-13). Every number below comes from a file in
 `results/`. Where we lose, the tables say so.
 
+**In one paragraph:** on OneTriangle's non-agent benchmarks we are level or ahead, both on raw score and on how much
+of the native 27B's score the transfer keeps, and faster from 16K up. Agents are the exception. On τ2 we only match
+native in a setting that computes most of the prompt natively and is slower than native; in a lighter, mostly mapped
+setting we win retail and lose airline and telecom. On Terminal-Bench our transfer is far below our own native. See *Known
+limitations* and *Notes on OneTriangle's agent numbers* at the end.
+
+## How to read the numbers
+
+- **Transfer** means the 4B reads the prompt and the 27B answers from the mapped cache; **native** means the 27B
+  reads the prompt itself. Every quality number is a transfer score unless it says native.
+- **Share of native** = transfer score ÷ the same side's native score under its own harness. It removes harness
+  differences (our native 27B scores lower than theirs on some benchmarks and higher on others) but flatters a side
+  whose native is weak; the raw scores stay in the tables.
+- **Modes** trade speed for exactness, and every number names its mode: *fast mode* (default), *recall mode*
+  (`+repN`) and, for agents, a *lighter agent setting* and a slower *agent setting* (below).
+- **Noise:** most of our cells are 50–300 items (±0.06–0.13 at 95%); OneTriangle's τ2 cells are 17 tasks (±0.23).
+  "Ahead within noise" means the lead is smaller than that.
+
 ## Two modes
 
 | | **fast mode** (default) | **recall mode** (`+repN`) |
@@ -23,11 +41,15 @@ Qwen3.5-4B → Qwen3.8-27B results (page and data release dated 2026-11-13). Eve
 | use it for | everything below unless labelled | exact recall (agents use a separate setting, below) |
 
 Every quality number below names its mode. OneTriangle publishes one configuration per pair; we compare their
-numbers against both of our modes and say which mode a win needs. Agent runs (τ2, Terminal-Bench) are a third
-configuration: the tool schemas and the last 10 messages (up to 8192 tokens) are computed natively, plus 4096 tokens
-of whole-message recall (`+rep4096m`). By a character-count estimate over the logged τ2 telecom requests (not a
-token measurement), that computes about two thirds of each agent prompt natively (average prompt about 10K tokens), so the agent setting saves much less prefill than the modes
-above. Its TTFT was not measured.
+numbers against both of our modes and say which mode a win needs. Agents (τ2, Terminal-Bench) use two further
+settings, both with the `<tools>` block computed natively:
+
+| | **lighter agent setting** | **agent setting** |
+|---|---|---|
+| natively computed | tools + last 3 messages (≤ 4096 tokens), no repair | tools + last 10 messages (≤ 8192 tokens) + up to 4096 tokens of whole-message recall (`+rep4096m`) |
+| share of prompt tokens native (measured, τ2 requests) | telecom 23%, retail 58% | telecom 27–74%, retail 66–98% (range: repair re-encodes up to its budget) |
+| map | `4b-27b-fid-agent` (fidelity map fine-tuned on τ2 airline agent traces, *Agents* section) | `4b-27b-fid` (the default map) |
+| batch-1 TTFT vs native, H200 | telecom (7.8K tokens): 1.31 s vs 1.41–1.46 s with the graphed tail off (*Speed*), 1.80 s with it on; retail: 1.82 s vs 1.18 s with it on, not measured with it off | telecom: 2.36 s vs 1.41 s, retail: 1.99 s vs 1.17 s, graphed tail on (not measured off): **slower than native** |
 
 ## Scoreboard
 
@@ -36,7 +58,7 @@ cell for most rows (Terminal-Bench: 10 tasks; OneTriangle's τ2 mapped arms: 17 
 each side's transfer score divided by its own native 27B score under its own harness (see the chart and caveats
 below the table).
 
-| metric | ours, fast | ours, recall | OneTriangle | share of native, ours / theirs | verdict |
+| metric | ours, fast (agents: lighter setting) | ours, recall (agents: agent setting) | OneTriangle | share of native, ours / theirs | verdict |
 |---|---:|---:|---:|---:|---|
 | TTFT speedup 8K / 16K / 32K | 2.4–2.8 / 2.8–3.0 / 2.95–3.1× | 0.97–2.55× (4B pair, +rep512 to +rep4096) | 2.6 / 2.7 / 2.8× | — | fast mode level at 8K, ahead at 16–32K |
 | TTFT speedup 64K / 128K / 1M | 3.4–4.0 / 5.0 / 21.5× | — | 3.0 / 3.3 / 3.9×ᵃ | — | ahead (speed only, see *Beyond 32K*) |
@@ -51,24 +73,25 @@ below the table).
 | MBPP | 0.875 | | 0.88 | 100% / 101% | tie |
 | BigCodeBench | 0.56 | | 0.55 | 100% / 92% | tie |
 | QMSum (LLM judge)ᵈ | 0.365 | | 0.41 | 84% / 84% | level as a share of native; raw scores not comparable (different judges) |
-| τ2 airlineᵇ | — | **0.68** | 0.59 | 97% / 69% | ahead as a share of native; level on score (z ≈ 0.7, their n = 17) |
-| τ2 retailᵇ | — | **0.84** | 0.41 | 100% / 51% | ahead |
-| τ2 telecomᵇ | — | **0.68** | 0.47 | 100% / 55% | ahead as a share of native; ahead on score within noise (z ≈ 1.5) |
+| τ2 airlineᵇ | lighter setting: 0.50 (in-sample) | agent setting: 0.68 | 0.59 | 71% · 97% / 69% | lighter: level as a share (71% / 69%), behind within noise on score; agent setting (slower than native): ahead within noise |
+| τ2 retailᵇ | lighter setting: **0.78** | agent setting: **0.84** | 0.41 | 93% · 100% / 51% | ahead in both settings |
+| τ2 telecomᵇ | lighter setting: 0.22 | agent setting: 0.68 | 0.47 | 32% · 100% / 55% | **lighter: behind**; agent setting (slower than native): ahead within noise |
 | 2B → 27B RULERᶜ | 0.82 | **0.905** (+rep1024) | 0.80 | 93% / 80% | tie without repair; ahead in recall (borderline, z ≈ 2; repair size tuned on RULER) |
 | 2B → 27B QuALITY | **0.79** | | 0.71 | 87% / 76% | ahead within noise |
 | 2B → 27B MATH-500, thinking onᵉ | 0.93 | | 0.94 | 100% / 98% | tie |
 | 2B → 27B MRCR | 0.54 (held-out 0.55) | **0.681** (+rep3072m, held-out n=120; 0.706 on the dev sample) | up to 0.66ᶠ | 70% / — | ahead within noise, at 1.36× / 2.10× / 2.78× TTFT (8K / 16K / 32K) |
 | 2B → 27B LongBench v2ᶜ | 0.35 | 0.42 (+rep1024; +rep2048 0.375) | 0.42 | 114% / 69% | tie in recall mode only |
 | 2B → 27B ZebraLogic, thinking onᵉ | **0.75** | | 0.66 | 79% / 73% | ahead within noise (non-thinking: 0.63) |
-| Terminal-Bench 2.0ᵍ | | 0.00 (native 0.20) | 0.10 | 0% / — | inconclusive: time-limit bound (17 of 20 trials across both arms timed out) |
+| Terminal-Bench 2.0ᵍ | | agent setting: 0.10 (native 0.70) | 0.10 | 14% / — | **behind our native**; level with OneTriangle's raw score, which has no native value |
 | CowText, DevEval | not run | | published | — | not compared |
 
 ᵃ OneTriangle's values above 64K are projections.
-ᵇ Official τ2 user simulator and judges (OpenAI, as OneTriangle used), agent setting: `+rep4096m` with the last 10
-messages (up to 8192 tokens) and the `<tools>` block computed natively, about two thirds of each prompt native. The
-same setting for all three domains, fixed on telecom before airline and retail were re-run. It was chosen by
-replaying failures from these same 50 telecom tasks, so telecom 0.68 is a development-set result; airline and retail
-were not used to choose it. Their mapped scores use 17 tasks per domain, ours 50. Earlier settings and the native 27B as user simulator are in the τ2 section.
+ᵇ Official τ2 user simulator and judges (OpenAI, as OneTriangle used); 50 tasks per domain for us, 17 for
+OneTriangle's mapped arms. Lighter setting: the one pre-registered official run of the agent-trained map (airline
+traces trained it, so airline is in-sample; telecom and retail were never trained on). Agent setting: chosen by
+replaying failures from the same 50 telecom tasks, so its telecom 0.68 is a development-set result. Two numbers in
+the share column: faster · agent setting / OneTriangle. Deleting the policy and older history instead of
+transferring them scores 0.42 / 0.72 / 0.44 (airline / retail / telecom); see the *Agents* section.
 ᶜ Fixed 128-token tail rather than the adaptive one: identical to fast mode for prompts ≥ 8K, a smaller native tail
 than fast mode for 4–8K prompts.
 ᵈ OneTriangle scores QMSum with "the campaign's canonical judge" (an LLM). Ours is the native 27B grading each answer
@@ -80,24 +103,29 @@ their native scores 0.96 / 0.91 here, ours 0.93 / 0.95. Prompts are short (media
 most of each prompt runs natively. Non-thinking, ours scored 0.86 on MATH-500 (phase-2 map) and 0.63 on ZebraLogic.
 ᶠ OneTriangle's 0.66 is the peak of their MRCR-vs-length curve (around 16K); they do not publish a sample-wide
 average or a native value at that point.
-ᵍ Same agent setting as τ2, the same 10 tasks for native 27B and the agent setting, run side by side
-(`results/terminal_bench_tb2.json`). Native solved 2 of 10 with 8 trials ending at Harbor's per-task agent time
-limit; the agent setting solved none, with 9 timeouts and 1 runtime error. Its turns are slower in our serving
-stack (repair adds prefill work; 3708 s vs 2928 s wall time for the same 10 tasks), so fewer of them fit in the limit; with this many timeouts the row measures turn
-throughput more than cache quality. An earlier run of a different recall setting (`+rep2048m`, 3 native messages)
-solved 1 of 10. OneTriangle's 0.10 is 10 tasks with an early stop (their 4B alone: 0.09) and no native value.
+ᵍ The same 10 tasks for native 27B and the agent setting, side by side, at twice Harbor's default per-task agent
+time limit (`results/terminal_bench_tb2.json`): native solved 7 of 10 in 35 minutes, the agent setting 1 of 10, with
+all 10 trials at the time limit after 2 hours. Terminal-Bench prompts grow to about 75K tokens and every turn
+re-reads them; in our stack each agent-setting turn pays the 4B prefill, the mapping and repair, so it completes far
+fewer turns. At the default limit: native 0.20, agent setting 0.00 (9 timeouts, 1 runtime error). OneTriangle's 0.10 is on
+10 tasks (their 4B alone 0.09), with no native value.
 
-**Share of native, per benchmark** (transfer ÷ each side's own native; R = recall mode, A = agent setting, T = thinking on, O = official τ2
-user simulator; numbers as in the table, plus 2B ARC-Chat from the phase-2 map):
+**Share of native, per benchmark.** Each bar is that side's transfer score as a percentage of its own native 27B
+score (100% = nothing lost), grouped by mode. OneTriangle publishes one agent number per domain, drawn against both
+of our agent settings.
 
-![share of native](docs/share_of_native.png)
+![share of native](docs/share_simple.png)
 
-Caveats for this view: a weak native flatters the share (our 2B LongBench v2 transfer beats our own native, 114%,
+**The same comparison on raw scores.** Each line runs from a side's native score (hollow) to its transfer score
+(filled); a short line means little was lost, and the position of the hollow ring shows how strong each side's
+native is.
+
+![transfer vs native](docs/transfer_vs_native.png)
+
+Caveats for these views: a weak native flatters the share (our 2B LongBench v2 transfer beats our own native, 114%,
 which is noise); OneTriangle's shares above 100% (LongHealth, MATH-500) are harness effects; MRCR is missing because
 OneTriangle publishes no native value; OneTriangle's τ2 shares divide a 17-task mapped score by a 50-task native
-score; our τ2 agent setting computes about two thirds of each prompt natively, while OneTriangle does not state
-how much of theirs is native; the raw scores in the table stay the primary comparison, since a share
-alone would hide that our τ2 natives are weaker than theirs.
+score.
 
 ## Speed
 
@@ -156,6 +184,13 @@ fully native (no speedup, native quality). OneTriangle does not publish TTFT bel
 **Shapes not used for tuning** (`results/ttft_h100_untuned_lengths_batches.json`, `results/ttft_h100_final_engine_two_runs.json`):
 12K 2.6×, 24K 3.0×, 40K 3.5×; batch 2 at 16K 2.6×, at 32K 3.2×; batch 3 at 16K 3.2×. An earlier build gave
 batch 2/3/4 at 8K 3.0×/3.1×/3.2× and 50K 3.7×. Batch 8 at 8K did not fit in 80 GB for the native arm.
+
+**Graphed tail and variable prompt lengths.** The tail is run as a CUDA graph by default. The TTFT figures above
+reuse one prompt length per row, so the graph is captured once. With varying lengths, as in serving, it is
+re-captured per request: on τ2 telecom prompts (7.8K tokens, batch 1) fast mode took 1.49 s with the graph and
+0.93 s without it, against 1.41–1.46 s native (two runs) (`XKV_NO_GRAPH_TAIL=1`; `results/tau2_replay.json`). That is about 1.5× here,
+below the 2.4× of the fixed-length benchmark, which measures the prefill alone; the replay timing also includes
+tokenization and decoder setup on both sides.
 
 ### Decode (TPOT)
 
@@ -238,19 +273,48 @@ share of native both sides keep 84%. ROUGE-L, which barely moves, hides that los
 ### Agents (τ2-bench, text, English)
 
 **With the official user simulator and judges** (OpenAI `gpt-5.5` as the simulated customer, as in the τ2 release;
-OneTriangle also used the official setup):
+OneTriangle also used the official setup). 50 tasks per domain (±0.13); OneTriangle's mapped arms 17 (±0.23).
 
-| domain | native 27B | ours, agent settingʰ | earlier: `+rep2048m`, 3 native messages | OneTriangle mapped (native) |
-|---|---:|---:|---:|---:|
-| airline | 0.70 | **0.68** | 0.48 | 0.59 (0.86) |
-| retail | 0.84 | **0.84** | 0.78 | 0.41 (0.80) |
-| telecom | 0.68 | **0.68** | 0.10 (0.20 after fix 1 below) | 0.47 (0.86) |
+| domain | native 27B | lighter agent setting | agent setting (slower than native) | policy and old history deleted | OneTriangle mapped (native) |
+|---|---:|---:|---:|---:|---:|
+| airline | 0.70 | 0.50 (in-sample) | 0.68 | 0.42 | 0.59 (0.86) |
+| retail | 0.84 | **0.78** | **0.84** | 0.72 | 0.41 (0.80) |
+| telecom | 0.68 | 0.22 | 0.68 | 0.44 | 0.47 (0.86) |
 
-ʰ Repair never overwrites natively computed spans; `+rep4096m`; the last 10 messages (up to 8192 tokens) and the
-`<tools>` block native, roughly two thirds of each prompt (character estimate). One setting for all three domains;
-chosen on telecom (see footnote ᵇ of the scoreboard).
+`results/tau2_fid.json`. The *deleted* column is a control: the native 27B sees only what the agent setting computes
+natively (tool schemas and the last 10 messages); the policy and older history are removed instead of transferred.
 
-**With the native 27B as user simulator and judge** (no API needed; earlier runs):
+- **The transfer carries real information.** In the agent setting, transferring the policy instead of deleting it
+  is worth +0.26 on airline, +0.12 on retail and +0.24 on telecom. But that setting computes much of each prompt
+  natively and is slower than native, so it shows quality preserved through transfer, not a speedup.
+- **In the lighter setting, retail holds and telecom fails.** Retail keeps 93% of native (0.78 vs OneTriangle 0.41).
+  On telecom the transferred policy does *worse* than no policy (0.22 vs 0.44): it pushes the agent to call tools
+  that only the customer may run, and τ2 ends a conversation after repeated tool errors.
+- **Why telecom is hard.** The telecom policy (~23K characters) is a long troubleshooting procedure plus rules about
+  which tools belong to the agent and which to the customer. Replaying logged requests through diagnostic variants
+  (next tool matching native, 160 requests): the 4B alone matches 0.81, the transferred cache without repair 0.66, and the
+  transferred cache with the target's exact attention KV swapped in 0.84 (exact DeltaNet states instead: 0.69). The
+  4B reads the policy fine; the attention mapping loses the exact rules.
+
+**What we tried, in order** (all in `results/tau2_fid.json` and `results/tau2_replay.json`):
+
+1. *Repair overwrote exact cache.* Query-aware repair could re-encode blocks inside the natively computed `<tools>`
+   block. Repair now never selects natively computed spans (`XKV_REPAIR_PROTECT`, on by default). Official telecom
+   0.10 → 0.20; RULER (2B, `+rep1024`) unchanged at 0.905.
+2. *More native context.* Keeping the last 10 messages native plus 4096 tokens of whole-message recall cut invalid
+   customer-tool calls on the 42 replayed error requests from 98% to 7% (native 10%), and official telecom to 0.68:
+   the agent setting. Measured afterwards with the graphed tail on, it is about 1.7× slower than native (TTFT above).
+3. *An agent-trained map.* The fidelity map fine-tuned with native 27B airline traces in the mix
+   (`results/agent_map.json`): KL to native on held-out airline requests 0.235 → 0.116, held-out fidelity gate
+   unchanged (`results/heldout_fidelity_gate.json`). On the replay it lifted telecom (0.66 → 0.76) and retail
+   (0.87 → 0.94) in the lighter setting, but the pre-registered official run (no repair) scored telecom 0.22,
+   airline 0.50 and retail 0.78, against 0.20 / 0.48 / 0.78 for the earlier old-map `+rep2048m` runs. This map is used only for the lighter agent setting.
+
+The replay (teacher-forced next action, `task_tau2_replay`) turned out to be a weak proxy: it scores whether the next
+tool matches native, while τ2 fails whole conversations on policy violations. Deleting the policy scored close to the
+agent setting on the replay but 0.24–0.26 lower on official airline and telecom.
+
+**With the native 27B as user simulator and judge** (no API needed; earlier settings):
 
 | domain | native 27B | ours, no repair | recall `+rep2048` (blocks) | recall `+rep2048m` | mostly native⁶ |
 |---|---:|---:|---:|---:|---:|
@@ -258,45 +322,16 @@ chosen on telecom (see footnote ᵇ of the scoreboard).
 | retail | 0.78 | 0.60 | 0.70 | 0.735 | 0.74 |
 | telecom | 0.60 | not run | 0.18 | 0.32 (`+rep4096m`: 0.20) | not run |
 
-`results/tau2_fid.json`. Except for the agent setting, every transfer arm reads the newest turn (up to 4096 tokens)
-and the `<tools>` block natively; the `+rep2048m` arms read the last three messages natively. Everything else
-(system policy, earlier turns) is mapped. The runs with the 27B simulator predate the repair fix below. A later
-native run with the 27B simulator, used to log the replay requests, scored telecom 0.50 and retail 0.74
-(`results/raw/tau2-H200-20261118-200930.json`). n = 50 tasks per domain for our arms, so ±0.13 is a 95% interval; OneTriangle's mapped arms use
-17 tasks per domain (±0.23). The native airline/retail run with the 27B simulator comes from a job log.
-⁶ Only the system prompt and first user turn are mapped; every later turn is appended natively to the kept cache,
-so most of each conversation is computed by the 27B. Shown for completeness; not a transfer result.
+These arms read the newest turn (up to 4096 tokens) and the `<tools>` block natively; the `+rep2048m` arms the last
+three messages. They predate the repair fix. Two later native runs with this simulator scored telecom 0.50 / retail
+0.74 and airline 0.70, so native varies by about ±0.1 between runs.
+⁶ Only the system prompt and first user turn are mapped; every later turn is appended natively to the kept cache.
+Shown for completeness; not a transfer result.
 ⁷ Two runs with 1024 block-repair tokens gave 0.40 and 0.32.
 
-- **All three domains are at or near our native score** in the agent setting (97–100% of native) and above
-  OneTriangle's mapped scores. Retail is a clear win (0.84 vs 0.41, z ≈ 3.3). Airline (0.68 vs 0.59, z ≈ 0.7) is
-  level on raw score and telecom (0.68 vs 0.47, z ≈ 1.5) leads within noise, because our native 27B scores lower
-  than theirs with the official simulator (0.70 and 0.68 vs 0.86). Telecom is in-sample for the setting choice.
-- **How telecom went from 0.10 to 0.68.** We logged every agent request of a native telecom run and replayed them
-  teacher-forced through each variant, scoring whether the next action matches native (`results/tau2_replay.json`;
-  no user simulator needed, 160 requests per variant; the 42-request error subset below was extracted offline from
-  the logs of the protected short-tail run). Two causes showed up:
-  1. *Repair overwrote exact cache.* Query-aware repair could pick blocks inside the natively computed `<tools>`
-     block and re-encode them in the wrong context. Repair now never selects natively computed spans
-     (`XKV_REPAIR_PROTECT`, on by default). Official telecom: 0.10 → 0.20.
-  2. *The mapped policy pushed the agent toward the customer's tools.* Telecom is dual-control: the ~23K-character
-     policy names tools that only the customer may run. On the 42 requests where the fixed short-tail agent first
-     called such a tool, replaying them with 3 native messages reproduced an invalid call 98% of the time (native:
-     10%); τ2 ends a conversation after repeated tool errors. Keeping the last 10 messages native and recalling
-     whole messages with a 4096-token budget brought it to 7%, and official telecom to 0.68.
-- **Earlier diagnosis** of the 0.10 run (`results/tau2_telecom_failure_analysis.json`): the transferred agent often
-  called `get_details_by_id` instead of `get_customer_by_phone`, or tools only the simulated user has. The native
-  27B calls `get_customer_by_phone` first in 48 of 50 conversations (50 of 50 with the official simulator).
-- **Retail replay check:** with protection, short-tail `+rep2048m` matches native's next tool on 0.90 of retail
-  requests (unprotected 0.925, within noise; native against its own log 0.99). The agent setting itself was replayed
-  only on the 42 telecom error requests; its retail check is the official run above (0.84).
-- **The repair fix leaves non-agent results alone:** RULER (2B pair, `+rep1024`) re-run after it scored 0.905 as
-  before.
-
-Terminal-Bench 2.0 (Harbor, Terminus-2 agent, official task containers), the same 10 tasks side by side: native
-27B 0.20 (2 of 10), agent setting 0.00 (an earlier recall setting: 0.10); OneTriangle 0.10. 17 of the 20 trials
-ended at Harbor's per-task agent time limit, one more crashed and native solved the other two, so this compares how many agent turns each arm fits
-in the limit more than answer quality; we call it inconclusive.
+**Terminal-Bench 2.0** (Harbor, Terminus-2 agent, official task containers), the same 10 tasks side by side at
+twice the default agent time limit: native 27B 0.70, agent setting 0.10 (all 10 trials at the time limit);
+OneTriangle 0.10 with no native value. At the default limit: native 0.20, agent setting 0.00.
 
 ### OneTriangle's 2B → 27B tab
 
@@ -338,18 +373,19 @@ The fidelity maps, adaptive tail and repair were developed while looking at the 
 evaluation was run*). To check that this did not just fit those benchmarks, we compared the phase-2 map and the
 fidelity map on data neither was selected on (`results/heldout_fidelity_gate.json`, 4B → 27B):
 
-| | native 27B | phase-2 map | fidelity map | 4B alone |
-|---|---:|---:|---:|---:|
-| FineWeb-Edu held-out, next-token agreement (4K prefix, 1-token tail) | 1 | 0.896 | 0.900 | 0.736 |
-| same, KL to native (nats/token) | 0 | 0.059 | 0.057 | 0.367 |
-| same, 128-token tail: agreement / KL | 1 / 0 | 0.925 / 0.031 | 0.925 / 0.030 | |
-| HellaSwag (length-normalized acc) | 0.837 | 0.787 | 0.78 | 0.73 |
-| PIQA (acc) | 0.803 | 0.803 | 0.797 | 0.797 |
-| ARC-Challenge (acc) | 0.543 | 0.507 | 0.527 | 0.517 |
-| MMLU (acc) | 0.853 | 0.687 | 0.673 | 0.74 |
-| Winogrande (acc) | 0.76 | 0.747 | 0.75 | 0.743 |
+| | native 27B | phase-2 map | fidelity map | agent map‡ | 4B alone |
+|---|---:|---:|---:|---:|---:|
+| FineWeb-Edu held-out, next-token agreement (4K prefix, 1-token tail) | 1 | 0.896 | 0.900 | 0.898 | 0.736 |
+| same, KL to native (nats/token) | 0 | 0.059 | 0.057 | 0.056 | 0.367 |
+| same, 128-token tail: agreement / KL | 1 / 0 | 0.925 / 0.031 | 0.925 / 0.030 | 0.926 / 0.029 | |
+| HellaSwag (length-normalized acc) | 0.837 | 0.787 | 0.78 | 0.787 | 0.73 |
+| PIQA (acc) | 0.803 | 0.803 | 0.797 | 0.80 | 0.797 |
+| ARC-Challenge (acc) | 0.543 | 0.507 | 0.527 | 0.523 | 0.517 |
+| MMLU (acc) | 0.853 | 0.687 | 0.673 | 0.673 | 0.74 |
+| Winogrande (acc) | 0.76 | 0.747 | 0.75 | 0.75 | 0.743 |
 
 Multiple choice: 300 items each, log-likelihood scoring, 1-token native tail (the question is almost fully mapped).
+‡ The fidelity map fine-tuned with τ2 airline agent traces (used only for the lighter agent setting; *Agents*).
 
 - The fidelity map is **within noise (±0.02) of the phase-2 map** on every row: slightly better on FineWeb, ARC and
   Winogrande, slightly worse on HellaSwag, PIQA and MMLU. The gains on the targeted benchmarks did not cost general
@@ -421,11 +457,15 @@ sequence length; we freeze those keys, which made generation evals about 4× fas
   free-form code prompt were adopted after trying them on LongHealth, ContractNLI and HumanEval items that are also
   in the final samples. The fidelity maps were selected on RULER, MRCR and ZebraLogic subsets; the adaptive tail on
   ZebraLogic and MBPP; recall mode and its size on 2B RULER/MRCR/LongBench v2 and earlier τ2 runs; the agent setting (10 native
-  messages, `+rep4096m`, protected repair) on τ2 telecom replay and official telecom. Treat all of
+  messages, `+rep4096m`, protected repair) on τ2 telecom replay and official telecom. The lighter agent setting and
+  its map were fixed in advance (written down before the run) and scored in one official run; airline is in-sample
+  for that map. Treat all of
   those numbers as development-set results. The held-out gate above is the guard against general regression, and
   the MRCR recall result is also reported on a held-out sample.
 - **Mixed configurations.** The scoreboard takes each benchmark from the mode named in its column. No single
-  configuration wins everywhere: recall mode buys RULER and MRCR, and the agent setting (mostly native) buys τ2, all at the cost of TTFT.
+  configuration wins everywhere: recall mode buys RULER and MRCR, and the agent setting (mostly native) buys τ2, all at
+  the cost of TTFT. The lighter agent setting uses a separate map (`4b-27b-fid-agent`); every other row uses
+  `4b-27b-fid` (4B pair) or `2b-27b-fid` (2B pair).
 - **Harness.** Every benchmark was reimplemented (`src/xkv/genevals.py`); OneTriangle's prompts and scorers are not
   public. Code benchmarks use a free-form "answer in a code block" prompt (a forced code prefix cost the native 27B
   6 points on HumanEval); MBPP shows its test asserts in the prompt, as is standard; MATH-500 allows 3072 new tokens
@@ -435,9 +475,55 @@ sequence length; we freeze those keys, which made generation evals about 4× fas
 - **Parity.** The engine's parity check against Hugging Face (99.6% top-1, `results/selftest_parity.json`) was run
   on the 0.8B → 2B pair, not on the 27B.
 - **Timing.** The transfer reuses a preallocated graphed tail; the native path allocates its cache inside the timed
-  region (well under 20 ms). Both arms run on the same engine and GPU.
+  region (well under 20 ms). Both arms run on the same engine and GPU. The headline TTFT rows use one prompt length
+  per row; with varying lengths the graphed tail should be turned off (see *Speed*).
 - bf16 throughout, both models; no quantization on either side. Sample sizes are mostly 50–300 (Terminal-Bench 10, the 64K tables 27–30); differences of 2–3 points
   (13 on τ2) are within noise.
+
+## Known limitations
+
+- **Agents with long rule-heavy policies.** In the lighter, mostly mapped setting, the transferred τ2 telecom policy
+  misleads the agent (0.22, below the 0.44 of deleting the policy). Matching native needs the agent setting, which is
+  slower than native. Terminal-Bench is far below our native (0.10 vs 0.70).
+- **Exact recall beyond 32K.** Beyond 32K the source uses an 8K sliding window, so exact recall is lost there
+  (*Beyond 32K*).
+- **Graphed tail with varying prompt lengths** costs about 0.5 s per request until it is turned off or bucketed.
+- **Some wins need recall mode** (RULER, MRCR, LongBench v2, all 2B pair), at about 1.4–3.1× TTFT (8K–32K, sizes
+  measured: +rep2048m, +rep3072m) instead of 3.9–4.9× in fast mode.
+
+## Notes on OneTriangle's agent numbers
+
+Their benchmark page does not describe the agent setup behind its τ2 and Terminal-Bench numbers, so the comparison
+above rests on a few assumptions worth stating:
+
+- **How much of each prompt they compute natively is not stated.** Ours ranges from 23% to 98% depending on the
+  setting and domain, and that choice moves τ2 scores by more than the gap between us and them.
+- **A reference point, not a conclusion:** our policy-deleted control scores 0.42 / 0.72 / 0.44 (airline / retail /
+  telecom); their mapped scores are 0.59 / 0.41 / 0.47. Harnesses and natives differ, so this does not say how much
+  of the policy their transfer keeps; it shows that τ2 scores in this range are reachable without the policy.
+- **17 tasks per domain** gives ±0.23 at 95%, so each of their τ2 numbers is compatible with a wide range.
+- **Their native 27B is stronger than ours on τ2** (0.86 vs 0.68–0.70), which points to a different harness or
+  thinking mode; we would expect (but have not tested) that a stronger agent recovers more easily from a degraded
+  context.
+- **Terminal-Bench** has no native value on their side, so the share of native cannot be compared; our transfer
+  matches their raw 0.10 while our native reaches 0.70 with the same harness.
+- **Speed for agents** is not reported on their page; their TTFT numbers are for single prefills. Ours shows the
+  agent setting slower than native, and the lighter setting faster only on telecom with the graphed tail off (1.31 s vs
+  1.41–1.46 s); its retail timing with the tail off was not measured.
+
+## What we would try next
+
+- **Keep a garbled policy from misleading.** Transfer the conversation but leave out, or down-weight attention to,
+  the mapped policy span, which could bring telecom near the policy-deleted 0.44 while staying mostly mapped. It would have to be disclosed as "policy not transferred".
+- **Cache the policy natively once per domain.** The policy is identical for every request, so in serving it can be
+  prefix-cached for both models. Native serving gets the same cache, though, so this only helps if the transferred
+  conversation part is still cheaper than computing it natively; measure before claiming a speedup.
+- **Train the attention map on varied agent data** (public multi-turn tool-use sets with long system prompts, τ2
+  held out). One round on airline traces halved the KL on held-out airline requests but did not move official
+  telecom.
+- **Thinking mode for τ2**, to close the gap between our native (0.68–0.70) and theirs (0.86).
+- **Terminal-Bench turn cost:** reuse the previous turn's transferred cache and map only the new tokens, instead of
+  re-transferring a 75K-token prompt every turn.
 
 ## Layout
 
@@ -467,10 +553,13 @@ modal run lab.py --task decode_bench --gpu H200 --args '{"lengths":[2048,32768],
 modal run lab.py --task serve --gpu H200 --args '{}'
 modal run lab.py --task gen_evals --gpu H200 --args '{"mapper_name":"4b-27b-fid+4b-27b-fid-attn","full_until":32768,"benches":["contract_nli","longhealth"],"strategies":["target","transfer@auto"]}'
 modal run lab.py --task gen_evals --gpu H200 --args '{"src":"2b","mapper_name":"2b-27b-fid+2b-27b-fid-attn","full_until":32768,"max_ctx":32768,"benches":["ruler","mrcr"],"strategies":["transfer@auto","transfer@auto+rep1024"]}'
-modal run agent_lab.py --task tau2 --gpu H200 --args '{"mapper_name":"4b-27b-fid+4b-27b-fid-attn","full_until":32768,"strategies":["transfer+rep2048"],"domains":["airline"],"turn_tail_max":4096,"native_tools":true}'
+modal run agent_lab.py --task tau2 --gpu H200 --args '{"strategies":["target"],"domains":["airline"],"full_until":32768,"log_requests":true,"run_name":"replay"}'
 modal run agent_lab.py --task tau2 --gpu H200 --args '{"mapper_name":"4b-27b-fid+4b-27b-fid-attn","full_until":32768,"strategies":["transfer@auto+rep4096m"],"domains":["airline","retail","telecom"],"turn_tail_max":8192,"turn_tail_msgs":10,"native_tools":true,"local_user_and_judges":false}'
-modal run agent_lab.py --task terminal_bench --gpu H200 --args '{"mapper_name":"4b-27b-fid+4b-27b-fid-attn","full_until":32768,"strategies":["target","transfer@auto+rep4096m"],"task_names":["gpt2-codegolf","break-filter-js-from-html","llm-inference-batching-scheduler","write-compressor","merge-diff-arc-agi-task","pytorch-model-cli","reshard-c4-data","largest-eigenval","password-recovery","log-summary-date-ranges"],"concurrency":5,"turn_tail_max":8192,"turn_tail_msgs":10}'
-modal run agent_lab.py --task tau2_replay --gpu H200 --args '{"domains":["telecom","retail"],"max_prompts":160,"max_new":128,"variants":[{"name":"native","strategy":"target"},{"name":"agent","strategy":"transfer@auto+rep4096m","native_tools":true,"turn_tail_max":8192,"turn_tail_msgs":10}]}'
+modal run agent_lab.py --task terminal_bench --gpu H200 --args '{"mapper_name":"4b-27b-fid+4b-27b-fid-attn","full_until":32768,"strategies":["target","transfer@auto+rep4096m"],"task_names":["gpt2-codegolf","break-filter-js-from-html","llm-inference-batching-scheduler","write-compressor","merge-diff-arc-agi-task","pytorch-model-cli","reshard-c4-data","largest-eigenval","password-recovery","log-summary-date-ranges"],"concurrency":10,"turn_tail_max":8192,"turn_tail_msgs":10,"agent_timeout_multiplier":2}'
+modal run agent_lab.py --task tau2 --gpu H200 --args '{"full_until":32768,"strategies":["target-drop"],"domains":["airline","retail","telecom"],"turn_tail_max":8192,"turn_tail_msgs":10,"local_user_and_judges":false}'
+modal run lab.py --task distill --gpu H200 --args '{"mapper_name":"4b-27b-fid+4b-27b-fid-attn","out_name":"4b-27b-fid-agent","steps":600,"prefix_choices":[2048,4096,8192,12288],"prefix":8192,"cont":128,"tail":64,"eval_tail":128,"chat_frac":0.15,"tool_frac":0.15,"retrieval_frac":0.3,"varied_frac":0.45,"copy_frac":0.35,"agent_logs":["tau2/replay/target/airline_requests.jsonl"],"agent_frac":0.4,"agent_tail_max":1024,"agent_tail_msgs":2,"eval_agent":24,"lr":1e-5,"warmup":20,"eval_every":200,"n_eval":4,"niah_len":16384,"niah_n":10}'
+modal run agent_lab.py --task tau2 --gpu H200 --args '{"mapper_name":"4b-27b-fid-agent+4b-27b-fid-agent-attn","full_until":32768,"strategies":["transfer@auto"],"domains":["airline","retail","telecom"],"turn_tail_max":4096,"turn_tail_msgs":3,"native_tools":true,"local_user_and_judges":false}'
+modal run agent_lab.py --task tau2_replay --gpu H200 --args '{"domains":["telecom","retail"],"max_prompts":160,"max_new":128,"ttft_n":16,"variants":[{"name":"native","strategy":"target"},{"name":"agent","strategy":"transfer@auto+rep4096m","native_tools":true,"turn_tail_max":8192,"turn_tail_msgs":10},{"name":"lighter_nograph","strategy":"transfer@auto","native_tools":true,"turn_tail_max":4096,"turn_tail_msgs":3,"mapper":"4b-27b-fid-agent+4b-27b-fid-agent-attn","env":{"XKV_NO_GRAPH_TAIL":"1"}},{"name":"deleted","strategy":"target","drop_mapped":true,"turn_tail_max":8192,"turn_tail_msgs":10}]}'
 modal run lab.py --task gen_evals --gpu H200 --args '{"src":"2b","mapper_name":"2b-27b-fid+2b-27b-fid-attn","full_until":32768,"max_ctx":32768,"benches":["mrcr"],"strategies":["transfer@auto+rep3072m"],"limits":{"mrcr":120},"bench_kw":{"mrcr":{"min_ctx":4096,"batch":4,"offset":60}}}'
 modal run lab.py --task quality --gpu H100 --args '{"mapper_name":"4b-27b-fid+4b-27b-fid-attn","n_seqs":32,"prefix":4096,"tails":[1,128],"mc_limit":300,"mc_tails":[1]}'
 ```

@@ -1,5 +1,5 @@
 {
- "what": "Terminal-Bench 2.0 via Harbor (terminus-2 agent, official task containers on Modal), the same 10 tasks for native 27B and recall mode, run side by side. Most trials on both arms end at Harbor's per-task agent time limit (AgentTimeoutError), so the pass rate mostly measures how many agent turns fit in the limit.",
+ "what": "Terminal-Bench 2.0 via Harbor (terminus-2 agent, official task containers on Modal), the same 10 tasks for native 27B and the agent setting, run side by side; twice: at Harbor's default per-task agent time limit (concurrency 5) and at twice that limit (args.agent_timeout_multiplier 2, concurrency 10).",
  "runs": [
   {
    "source_file": "results/raw/terminal_bench-H200-20261119-013017.json",
@@ -119,6 +119,122 @@
     ]
    },
    "wall_s": 3708
+  },
+  {
+   "source_file": "results/raw/terminal_bench-H200-20261119-120644.json",
+   "strategy": "target",
+   "args": {
+    "mapper_name": "4b-27b-fid+4b-27b-fid-attn",
+    "full_until": 32768,
+    "strategies": [
+     "target"
+    ],
+    "task_names": [
+     "gpt2-codegolf",
+     "break-filter-js-from-html",
+     "llm-inference-batching-scheduler",
+     "write-compressor",
+     "merge-diff-arc-agi-task",
+     "pytorch-model-cli",
+     "reshard-c4-data",
+     "largest-eigenval",
+     "password-recovery",
+     "log-summary-date-ranges"
+    ],
+    "concurrency": 10,
+    "turn_tail_max": 8192,
+    "turn_tail_msgs": 10,
+    "agent_timeout_multiplier": 2,
+    "run_name": "tb2x2-target"
+   },
+   "pass_rate": 0.7,
+   "n_errored_trials": 4,
+   "rewards": {
+    "0.0": [
+     "gpt2-codegolf__BLQh2fq",
+     "llm-inference-batching-scheduler__RYdPs5e",
+     "write-compressor__ywyeEGs"
+    ],
+    "1.0": [
+     "break-filter-js-from-html__FHRkAhZ",
+     "reshard-c4-data__XpPQn7v",
+     "merge-diff-arc-agi-task__xQyA8Gy",
+     "log-summary-date-ranges__uFK8Kmt",
+     "pytorch-model-cli__A9wsPVo",
+     "largest-eigenval__fEwkfk8",
+     "password-recovery__e2jT6X2"
+    ]
+   },
+   "exceptions": {
+    "AgentTimeoutError": [
+     "gpt2-codegolf__BLQh2fq",
+     "write-compressor__ywyeEGs",
+     "largest-eigenval__fEwkfk8",
+     "password-recovery__e2jT6X2"
+    ]
+   },
+   "wall_s": 2086
+  },
+  {
+   "source_file": "results/raw/terminal_bench-H200-20261119-133352.json",
+   "strategy": "transfer@auto+rep4096m",
+   "args": {
+    "mapper_name": "4b-27b-fid+4b-27b-fid-attn",
+    "full_until": 32768,
+    "strategies": [
+     "transfer@auto+rep4096m"
+    ],
+    "task_names": [
+     "gpt2-codegolf",
+     "break-filter-js-from-html",
+     "llm-inference-batching-scheduler",
+     "write-compressor",
+     "merge-diff-arc-agi-task",
+     "pytorch-model-cli",
+     "reshard-c4-data",
+     "largest-eigenval",
+     "password-recovery",
+     "log-summary-date-ranges"
+    ],
+    "concurrency": 10,
+    "turn_tail_max": 8192,
+    "turn_tail_msgs": 10,
+    "agent_timeout_multiplier": 2,
+    "run_name": "tb2x2-transfer"
+   },
+   "pass_rate": 0.1,
+   "n_errored_trials": 10,
+   "rewards": {
+    "0.0": [
+     "gpt2-codegolf__Xa4rsjg",
+     "llm-inference-batching-scheduler__2zHYXqC",
+     "break-filter-js-from-html__Rf35Po7",
+     "reshard-c4-data__MynvctF",
+     "write-compressor__8DCWV5o",
+     "merge-diff-arc-agi-task__mdJ6cof",
+     "log-summary-date-ranges__hqDEeNq",
+     "largest-eigenval__sgNXNYG",
+     "password-recovery__TkHMkbj"
+    ],
+    "1.0": [
+     "pytorch-model-cli__7zzizG7"
+    ]
+   },
+   "exceptions": {
+    "AgentTimeoutError": [
+     "gpt2-codegolf__Xa4rsjg",
+     "llm-inference-batching-scheduler__2zHYXqC",
+     "break-filter-js-from-html__Rf35Po7",
+     "reshard-c4-data__MynvctF",
+     "write-compressor__8DCWV5o",
+     "merge-diff-arc-agi-task__mdJ6cof",
+     "log-summary-date-ranges__hqDEeNq",
+     "pytorch-model-cli__7zzizG7",
+     "largest-eigenval__sgNXNYG",
+     "password-recovery__TkHMkbj"
+    ]
+   },
+   "wall_s": 7306
   }
  ],
  "previous_run": {

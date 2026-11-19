@@ -1007,6 +1007,2132 @@
      }
     }
    }
+  },
+  {
+   "source_file": "results/raw/tau2_replay-H200-20261119-122651.json",
+   "args": {
+    "mapper_name": "4b-27b-fid+4b-27b-fid-attn",
+    "run_name": "replay",
+    "domains": [
+     "telecom",
+     "retail",
+     "telecom_err"
+    ],
+    "record": false,
+    "max_prompts": 160,
+    "max_new": 128,
+    "ttft_n": 16,
+    "variants": [
+     {
+      "name": "native",
+      "strategy": "target"
+     },
+     {
+      "name": "agent",
+      "strategy": "transfer@auto+rep4096m",
+      "native_tools": true,
+      "turn_tail_max": 8192,
+      "turn_tail_msgs": 10
+     },
+     {
+      "name": "agent_norep",
+      "strategy": "transfer@auto",
+      "native_tools": true,
+      "turn_tail_max": 8192,
+      "turn_tail_msgs": 10
+     },
+     {
+      "name": "drop_mapped",
+      "strategy": "target",
+      "drop_mapped": true,
+      "turn_tail_max": 8192,
+      "turn_tail_msgs": 10
+     }
+    ]
+   },
+   "domains": {
+    "telecom": {
+     "n_requests": 828,
+     "n_picked": 160,
+     "n_first_tool": 50,
+     "native": {
+      "tool_match": 0.9812,
+      "full_match": 0.95,
+      "first_tool_match": 1.0,
+      "first_full_match": 1.0,
+      "tool_turn_match": 0.989,
+      "tool_turn_full_match": 0.9341,
+      "spec": {
+       "name": "native",
+       "strategy": "target"
+      },
+      "first_tool_counts": {
+       "get_customer_by_phone": 49,
+       "get_details_by_id": 1
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 1.4121,
+       "mean_s": 1.4367,
+       "mean_prompt_tokens": 7786
+      },
+      "invalid_tool_rate": 0.05,
+      "action_counts": {
+       "get_customer_by_phone": 49,
+       "get_details_by_id": 20,
+       "check_network_status": 2,
+       "text": 68,
+       "can_send_mms": 1,
+       "disable_roaming": 1,
+       "transfer_to_human_agents": 5,
+       "get_data_usage": 1,
+       "check_data_restriction_status": 1,
+       "toggle_airplane_mode": 1,
+       "send_payment_request": 1,
+       "check_app_permissions": 1,
+       "refuel_data": 1,
+       "enable_roaming": 5,
+       "grant_app_permission": 1,
+       "get_bills_for_customer": 1,
+       "run_speed_test": 1
+      }
+     },
+     "agent": {
+      "tool_match": 0.8,
+      "full_match": 0.775,
+      "first_tool_match": 0.88,
+      "first_full_match": 0.88,
+      "tool_turn_match": 0.7473,
+      "tool_turn_full_match": 0.7033,
+      "spec": {
+       "name": "agent",
+       "strategy": "transfer@auto+rep4096m",
+       "native_tools": true,
+       "turn_tail_max": 8192,
+       "turn_tail_msgs": 10
+      },
+      "first_tool_counts": {
+       "get_customer_by_phone": 44,
+       "text": 6
+      },
+      "native_share": {
+       "n": 160,
+       "mean_prompt_tokens": 8891,
+       "native_token_share": 0.2749,
+       "native_share_mean": 0.2745,
+       "native_token_share_with_repair_upper": 0.7356,
+       "native_share_with_repair_upper_mean": 0.7434
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 2.3564,
+       "mean_s": 2.3636,
+       "mean_prompt_tokens": 7786
+      },
+      "invalid_tool_rate": 0.05,
+      "action_counts": {
+       "get_customer_by_phone": 44,
+       "text": 79,
+       "check_network_status": 1,
+       "get_details_by_id": 17,
+       "get_data_usage": 3,
+       "transfer_to_human_agents": 4,
+       "check_data_restriction_status": 2,
+       "check_status_bar": 1,
+       "send_payment_request": 1,
+       "check_app_permissions": 1,
+       "refuel_data": 2,
+       "enable_roaming": 2,
+       "grant_app_permission": 1,
+       "can_send_mms": 2
+      }
+     },
+     "agent_norep": {
+      "tool_match": 0.7063,
+      "full_match": 0.675,
+      "first_tool_match": 0.96,
+      "first_full_match": 0.96,
+      "tool_turn_match": 0.7692,
+      "tool_turn_full_match": 0.7143,
+      "spec": {
+       "name": "agent_norep",
+       "strategy": "transfer@auto",
+       "native_tools": true,
+       "turn_tail_max": 8192,
+       "turn_tail_msgs": 10
+      },
+      "first_tool_counts": {
+       "get_customer_by_phone": 49,
+       "text": 1
+      },
+      "native_share": {
+       "n": 160,
+       "mean_prompt_tokens": 8891,
+       "native_token_share": 0.2749,
+       "native_share_mean": 0.2745,
+       "native_token_share_with_repair_upper": 0.2749,
+       "native_share_with_repair_upper_mean": 0.2745
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 1.7169,
+       "mean_s": 1.7442,
+       "mean_prompt_tokens": 7786
+      },
+      "invalid_tool_rate": 0.1062,
+      "action_counts": {
+       "get_customer_by_phone": 49,
+       "text": 51,
+       "check_network_status": 2,
+       "get_details_by_id": 24,
+       "get_data_usage": 6,
+       "get_bills_for_customer": 1,
+       "get_customer_by_name": 1,
+       "check_data_usage": 1,
+       "check_status_bar": 3,
+       "run_speed_test": 3,
+       "send_payment_request": 1,
+       "check_app_permissions": 1,
+       "refuel_data": 4,
+       "enable_roaming": 3,
+       "grant_app_permission": 1,
+       "toggle_airplane_mode": 3,
+       "transfer_to_human_agents": 2,
+       "resume_line": 1,
+       "check_vpn_status": 1,
+       "check_data_restriction_status": 1,
+       "get_apn_settings": 1
+      }
+     },
+     "drop_mapped": {
+      "tool_match": 0.7562,
+      "full_match": 0.725,
+      "first_tool_match": 0.96,
+      "first_full_match": 0.96,
+      "tool_turn_match": 0.7033,
+      "tool_turn_full_match": 0.6484,
+      "spec": {
+       "name": "drop_mapped",
+       "strategy": "target",
+       "drop_mapped": true,
+       "turn_tail_max": 8192,
+       "turn_tail_msgs": 10
+      },
+      "first_tool_counts": {
+       "text": 2,
+       "get_customer_by_phone": 48
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 0.7581,
+       "mean_s": 0.7655,
+       "mean_prompt_tokens": 2245
+      },
+      "invalid_tool_rate": 0.0187,
+      "action_counts": {
+       "text": 75,
+       "get_customer_by_phone": 48,
+       "get_details_by_id": 15,
+       "get_bills_for_customer": 1,
+       "get_data_usage": 4,
+       "check_signal_strength": 1,
+       "transfer_to_human_agents": 3,
+       "resume_line": 2,
+       "run_speed_test": 1,
+       "send_payment_request": 1,
+       "refuel_data": 5,
+       "enable_roaming": 2,
+       "check_sms_center_number": 1,
+       "get_customer_by_id": 1
+      }
+     }
+    },
+    "retail": {
+     "n_requests": 691,
+     "n_picked": 160,
+     "n_first_tool": 51,
+     "native": {
+      "tool_match": 0.9938,
+      "full_match": 0.975,
+      "first_tool_match": 1.0,
+      "first_full_match": 1.0,
+      "tool_turn_match": 0.9895,
+      "tool_turn_full_match": 0.9579,
+      "spec": {
+       "name": "native",
+       "strategy": "target"
+      },
+      "first_tool_counts": {
+       "find_user_id_by_email": 11,
+       "find_user_id_by_name_zip": 37,
+       "transfer_to_human_agents": 1,
+       "list_all_product_types": 2
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 1.1732,
+       "mean_s": 1.1658,
+       "mean_prompt_tokens": 5306
+      },
+      "invalid_tool_rate": 0.0,
+      "action_counts": {
+       "find_user_id_by_email": 11,
+       "find_user_id_by_name_zip": 37,
+       "transfer_to_human_agents": 2,
+       "list_all_product_types": 2,
+       "text": 66,
+       "get_order_details": 16,
+       "get_user_details": 9,
+       "exchange_delivered_order_items": 2,
+       "get_product_details": 3,
+       "modify_pending_order_items": 3,
+       "cancel_pending_order": 2,
+       "return_delivered_order_items": 3,
+       "modify_pending_order_address": 2,
+       "calculate": 1,
+       "get_item_details": 1
+      }
+     },
+     "agent": {
+      "tool_match": 0.9062,
+      "full_match": 0.875,
+      "first_tool_match": 0.9608,
+      "first_full_match": 0.902,
+      "tool_turn_match": 0.9053,
+      "tool_turn_full_match": 0.8526,
+      "spec": {
+       "name": "agent",
+       "strategy": "transfer@auto+rep4096m",
+       "native_tools": true,
+       "turn_tail_max": 8192,
+       "turn_tail_msgs": 10
+      },
+      "first_tool_counts": {
+       "find_user_id_by_email": 11,
+       "find_user_id_by_name_zip": 37,
+       "transfer_to_human_agents": 1,
+       "text": 2
+      },
+      "native_share": {
+       "n": 160,
+       "mean_prompt_tokens": 6789,
+       "native_token_share": 0.6637,
+       "native_share_mean": 0.6783,
+       "native_token_share_with_repair_upper": 0.9773,
+       "native_share_with_repair_upper_mean": 0.9864
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 1.9852,
+       "mean_s": 1.9795,
+       "mean_prompt_tokens": 5306
+      },
+      "invalid_tool_rate": 0.0,
+      "action_counts": {
+       "find_user_id_by_email": 12,
+       "find_user_id_by_name_zip": 37,
+       "transfer_to_human_agents": 1,
+       "text": 67,
+       "get_order_details": 17,
+       "get_user_details": 7,
+       "modify_pending_order_address": 3,
+       "exchange_delivered_order_items": 3,
+       "get_product_details": 5,
+       "modify_pending_order_items": 2,
+       "cancel_pending_order": 2,
+       "return_delivered_order_items": 3,
+       "calculate": 1
+      }
+     },
+     "agent_norep": {
+      "tool_match": 0.9,
+      "full_match": 0.8875,
+      "first_tool_match": 0.9608,
+      "first_full_match": 0.9412,
+      "tool_turn_match": 0.9368,
+      "tool_turn_full_match": 0.9158,
+      "spec": {
+       "name": "agent_norep",
+       "strategy": "transfer@auto",
+       "native_tools": true,
+       "turn_tail_max": 8192,
+       "turn_tail_msgs": 10
+      },
+      "first_tool_counts": {
+       "find_user_id_by_email": 10,
+       "find_user_id_by_name_zip": 36,
+       "transfer_to_human_agents": 1,
+       "text": 2,
+       "list_all_product_types": 2
+      },
+      "native_share": {
+       "n": 160,
+       "mean_prompt_tokens": 6789,
+       "native_token_share": 0.6637,
+       "native_share_mean": 0.6783,
+       "native_token_share_with_repair_upper": 0.6637,
+       "native_share_with_repair_upper_mean": 0.6783
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 1.866,
+       "mean_s": 1.8111,
+       "mean_prompt_tokens": 5306
+      },
+      "invalid_tool_rate": 0.0,
+      "action_counts": {
+       "find_user_id_by_email": 11,
+       "find_user_id_by_name_zip": 36,
+       "transfer_to_human_agents": 1,
+       "text": 61,
+       "list_all_product_types": 2,
+       "get_order_details": 18,
+       "get_user_details": 11,
+       "get_product_details": 4,
+       "exchange_delivered_order_items": 3,
+       "modify_pending_order_items": 3,
+       "cancel_pending_order": 2,
+       "return_delivered_order_items": 4,
+       "modify_pending_order_address": 2,
+       "calculate": 1,
+       "get_item_details": 1
+      }
+     },
+     "drop_mapped": {
+      "tool_match": 0.8875,
+      "full_match": 0.8438,
+      "first_tool_match": 0.9608,
+      "first_full_match": 0.9412,
+      "tool_turn_match": 0.8947,
+      "tool_turn_full_match": 0.8211,
+      "spec": {
+       "name": "drop_mapped",
+       "strategy": "target",
+       "drop_mapped": true,
+       "turn_tail_max": 8192,
+       "turn_tail_msgs": 10
+      },
+      "first_tool_counts": {
+       "find_user_id_by_email": 9,
+       "find_user_id_by_name_zip": 37,
+       "text": 2,
+       "transfer_to_human_agents": 1,
+       "list_all_product_types": 2
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 0.9994,
+       "mean_s": 1.0263,
+       "mean_prompt_tokens": 3738
+      },
+      "invalid_tool_rate": 0.0063,
+      "action_counts": {
+       "find_user_id_by_email": 10,
+       "find_user_id_by_name_zip": 37,
+       "text": 64,
+       "transfer_to_human_agents": 3,
+       "list_all_product_types": 2,
+       "get_order_details": 17,
+       "get_user_details": 11,
+       "load_policy": 1,
+       "get_product_details": 3,
+       "modify_pending_order_items": 3,
+       "cancel_pending_order": 2,
+       "exchange_delivered_order_items": 2,
+       "return_delivered_order_items": 3,
+       "modify_pending_order_address": 2
+      }
+     }
+    },
+    "telecom_err": {
+     "n_requests": 42,
+     "n_picked": 42,
+     "n_first_tool": 0,
+     "native": {
+      "tool_match": 0.0952,
+      "full_match": 0.0238,
+      "first_tool_match": null,
+      "first_full_match": null,
+      "tool_turn_match": 0.0952,
+      "tool_turn_full_match": 0.0238,
+      "spec": {
+       "name": "native",
+       "strategy": "target"
+      },
+      "first_tool_counts": {},
+      "ttft": {
+       "n": 16,
+       "median_s": 1.5548,
+       "mean_s": 1.5829,
+       "mean_prompt_tokens": 9009
+      },
+      "invalid_tool_rate": 0.0952,
+      "action_counts": {
+       "text": 36,
+       "get_details_by_id": 1,
+       "can_send_mms": 2,
+       "enable_roaming": 1,
+       "toggle_airplane_mode": 1,
+       "check_network_status": 1
+      }
+     },
+     "agent": {
+      "tool_match": 0.0476,
+      "full_match": 0.0238,
+      "first_tool_match": null,
+      "first_full_match": null,
+      "tool_turn_match": 0.0476,
+      "tool_turn_full_match": 0.0238,
+      "spec": {
+       "name": "agent",
+       "strategy": "transfer@auto+rep4096m",
+       "native_tools": true,
+       "turn_tail_max": 8192,
+       "turn_tail_msgs": 10
+      },
+      "first_tool_counts": {},
+      "native_share": {
+       "n": 42,
+       "mean_prompt_tokens": 8982,
+       "native_token_share": 0.2951,
+       "native_share_mean": 0.2967,
+       "native_token_share_with_repair_upper": 0.7511,
+       "native_share_with_repair_upper_mean": 0.7552
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 2.8379,
+       "mean_s": 2.8985,
+       "mean_prompt_tokens": 9009
+      },
+      "invalid_tool_rate": 0.0714,
+      "action_counts": {
+       "text": 30,
+       "get_data_usage": 5,
+       "get_bills_for_customer": 1,
+       "can_send_mms": 1,
+       "enable_roaming": 2,
+       "check_network_status": 1,
+       "check_status_bar": 1,
+       "get_details_by_id": 1
+      }
+     },
+     "agent_norep": {
+      "tool_match": 0.1905,
+      "full_match": 0.1667,
+      "first_tool_match": null,
+      "first_full_match": null,
+      "tool_turn_match": 0.1905,
+      "tool_turn_full_match": 0.1667,
+      "spec": {
+       "name": "agent_norep",
+       "strategy": "transfer@auto",
+       "native_tools": true,
+       "turn_tail_max": 8192,
+       "turn_tail_msgs": 10
+      },
+      "first_tool_counts": {},
+      "native_share": {
+       "n": 42,
+       "mean_prompt_tokens": 8982,
+       "native_token_share": 0.2951,
+       "native_share_mean": 0.2967,
+       "native_token_share_with_repair_upper": 0.2951,
+       "native_share_with_repair_upper_mean": 0.2967
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 2.1234,
+       "mean_s": 2.1188,
+       "mean_prompt_tokens": 9009
+      },
+      "invalid_tool_rate": 0.1905,
+      "action_counts": {
+       "enable_roaming": 7,
+       "can_send_mms": 3,
+       "text": 6,
+       "get_details_by_id": 19,
+       "run_speed_test": 4,
+       "get_data_usage": 1,
+       "get_bills_for_customer": 1,
+       "toggle_airplane_mode": 1
+      }
+     },
+     "drop_mapped": {
+      "tool_match": 0.0,
+      "full_match": 0.0,
+      "first_tool_match": null,
+      "first_full_match": null,
+      "tool_turn_match": 0.0,
+      "tool_turn_full_match": 0.0,
+      "spec": {
+       "name": "drop_mapped",
+       "strategy": "target",
+       "drop_mapped": true,
+       "turn_tail_max": 8192,
+       "turn_tail_msgs": 10
+      },
+      "first_tool_counts": {},
+      "ttft": {
+       "n": 16,
+       "median_s": 0.8468,
+       "mean_s": 0.8407,
+       "mean_prompt_tokens": 2821
+      },
+      "invalid_tool_rate": 0.0,
+      "action_counts": {
+       "text": 30,
+       "transfer_to_human_agents": 1,
+       "get_details_by_id": 2,
+       "get_data_usage": 7,
+       "refuel_data": 2
+      }
+     }
+    }
+   }
+  },
+  {
+   "source_file": "results/raw/tau2_replay-H200-20261119-160258.json",
+   "args": {
+    "mapper_name": "4b-27b-fid-agent+4b-27b-fid-agent-attn",
+    "run_name": "replay",
+    "domains": [
+     "telecom",
+     "retail",
+     "telecom_err"
+    ],
+    "record": false,
+    "max_prompts": 160,
+    "max_new": 128,
+    "ttft_n": 16,
+    "variants": [
+     {
+      "name": "native",
+      "strategy": "target"
+     },
+     {
+      "name": "new_t3",
+      "strategy": "transfer@auto",
+      "native_tools": true,
+      "turn_tail_max": 4096,
+      "turn_tail_msgs": 3
+     },
+     {
+      "name": "new_t3_rep1024m",
+      "strategy": "transfer@auto+rep1024m",
+      "native_tools": true,
+      "turn_tail_max": 4096,
+      "turn_tail_msgs": 3
+     },
+     {
+      "name": "new_t3_rep2048m",
+      "strategy": "transfer@auto+rep2048m",
+      "native_tools": true,
+      "turn_tail_max": 4096,
+      "turn_tail_msgs": 3
+     }
+    ]
+   },
+   "domains": {
+    "telecom": {
+     "n_requests": 828,
+     "n_picked": 160,
+     "n_first_tool": 50,
+     "native": {
+      "tool_match": 0.9812,
+      "full_match": 0.95,
+      "first_tool_match": 1.0,
+      "first_full_match": 1.0,
+      "tool_turn_match": 0.989,
+      "tool_turn_full_match": 0.9341,
+      "spec": {
+       "name": "native",
+       "strategy": "target"
+      },
+      "first_tool_counts": {
+       "get_customer_by_phone": 49,
+       "get_details_by_id": 1
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 1.4243,
+       "mean_s": 1.4164,
+       "mean_prompt_tokens": 7786
+      },
+      "invalid_tool_rate": 0.05,
+      "action_counts": {
+       "get_customer_by_phone": 49,
+       "get_details_by_id": 20,
+       "check_network_status": 2,
+       "text": 68,
+       "can_send_mms": 1,
+       "disable_roaming": 1,
+       "transfer_to_human_agents": 5,
+       "get_data_usage": 1,
+       "check_data_restriction_status": 1,
+       "toggle_airplane_mode": 1,
+       "send_payment_request": 1,
+       "check_app_permissions": 1,
+       "refuel_data": 1,
+       "enable_roaming": 5,
+       "grant_app_permission": 1,
+       "get_bills_for_customer": 1,
+       "run_speed_test": 1
+      }
+     },
+     "new_t3": {
+      "tool_match": 0.7625,
+      "full_match": 0.7312,
+      "first_tool_match": 0.96,
+      "first_full_match": 0.96,
+      "tool_turn_match": 0.7802,
+      "tool_turn_full_match": 0.7253,
+      "spec": {
+       "name": "new_t3",
+       "strategy": "transfer@auto",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3
+      },
+      "first_tool_counts": {
+       "get_customer_by_phone": 49,
+       "text": 1
+      },
+      "native_share": {
+       "n": 160,
+       "mean_prompt_tokens": 8891,
+       "native_token_share": 0.2302,
+       "native_share_mean": 0.2335,
+       "native_token_share_with_repair_upper": 0.2302,
+       "native_share_with_repair_upper_mean": 0.2335
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 1.7597,
+       "mean_s": 1.7072,
+       "mean_prompt_tokens": 7786
+      },
+      "invalid_tool_rate": 0.1062,
+      "action_counts": {
+       "get_customer_by_phone": 49,
+       "text": 61,
+       "check_network_status": 3,
+       "check_status_bar": 6,
+       "get_details_by_id": 17,
+       "send_payment_request": 2,
+       "get_bills_for_customer": 2,
+       "transfer_to_human_agents": 5,
+       "enable_roaming": 3,
+       "get_data_usage": 1,
+       "run_speed_test": 3,
+       "check_app_permissions": 1,
+       "refuel_data": 3,
+       "grant_app_permission": 1,
+       "check_vpn_status": 1,
+       "check_installed_apps": 1,
+       "toggle_airplane_mode": 1
+      }
+     },
+     "new_t3_rep1024m": {
+      "tool_match": 0.775,
+      "full_match": 0.7312,
+      "first_tool_match": 0.9,
+      "first_full_match": 0.9,
+      "tool_turn_match": 0.8132,
+      "tool_turn_full_match": 0.7363,
+      "spec": {
+       "name": "new_t3_rep1024m",
+       "strategy": "transfer@auto+rep1024m",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3
+      },
+      "first_tool_counts": {
+       "get_customer_by_phone": 46,
+       "text": 4
+      },
+      "native_share": {
+       "n": 160,
+       "mean_prompt_tokens": 8891,
+       "native_token_share": 0.2302,
+       "native_share_mean": 0.2335,
+       "native_token_share_with_repair_upper": 0.3454,
+       "native_share_with_repair_upper_mean": 0.3507
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 2.015,
+       "mean_s": 1.9913,
+       "mean_prompt_tokens": 7786
+      },
+      "invalid_tool_rate": 0.1,
+      "action_counts": {
+       "get_customer_by_phone": 47,
+       "text": 57,
+       "check_network_status": 2,
+       "get_details_by_id": 27,
+       "get_bills_for_customer": 2,
+       "transfer_to_human_agents": 5,
+       "check_data_restriction_status": 2,
+       "check_status_bar": 2,
+       "run_speed_test": 3,
+       "send_payment_request": 1,
+       "check_app_permissions": 1,
+       "refuel_data": 2,
+       "enable_roaming": 3,
+       "grant_app_permission": 1,
+       "toggle_data": 1,
+       "toggle_airplane_mode": 2,
+       "check_apn_settings": 1,
+       "check_installed_apps": 1
+      }
+     },
+     "new_t3_rep2048m": {
+      "tool_match": 0.775,
+      "full_match": 0.75,
+      "first_tool_match": 0.88,
+      "first_full_match": 0.88,
+      "tool_turn_match": 0.7582,
+      "tool_turn_full_match": 0.7143,
+      "spec": {
+       "name": "new_t3_rep2048m",
+       "strategy": "transfer@auto+rep2048m",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3
+      },
+      "first_tool_counts": {
+       "get_customer_by_phone": 45,
+       "text": 5
+      },
+      "native_share": {
+       "n": 160,
+       "mean_prompt_tokens": 8891,
+       "native_token_share": 0.2302,
+       "native_share_mean": 0.2335,
+       "native_token_share_with_repair_upper": 0.4606,
+       "native_share_with_repair_upper_mean": 0.4679
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 2.0497,
+       "mean_s": 2.0184,
+       "mean_prompt_tokens": 7786
+      },
+      "invalid_tool_rate": 0.075,
+      "action_counts": {
+       "get_customer_by_phone": 46,
+       "text": 68,
+       "check_network_status": 1,
+       "get_data_usage": 3,
+       "get_details_by_id": 19,
+       "check_status_bar": 2,
+       "transfer_to_human_agents": 6,
+       "check_data_restriction_status": 2,
+       "run_speed_test": 3,
+       "send_payment_request": 1,
+       "check_app_permissions": 1,
+       "refuel_data": 1,
+       "enable_roaming": 3,
+       "grant_app_permission": 1,
+       "get_bills_for_customer": 1,
+       "check_apn_settings": 1,
+       "toggle_airplane_mode": 1
+      }
+     }
+    },
+    "retail": {
+     "n_requests": 691,
+     "n_picked": 160,
+     "n_first_tool": 51,
+     "native": {
+      "tool_match": 0.9938,
+      "full_match": 0.975,
+      "first_tool_match": 1.0,
+      "first_full_match": 1.0,
+      "tool_turn_match": 0.9895,
+      "tool_turn_full_match": 0.9579,
+      "spec": {
+       "name": "native",
+       "strategy": "target"
+      },
+      "first_tool_counts": {
+       "find_user_id_by_email": 11,
+       "find_user_id_by_name_zip": 37,
+       "transfer_to_human_agents": 1,
+       "list_all_product_types": 2
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 1.1803,
+       "mean_s": 1.1872,
+       "mean_prompt_tokens": 5306
+      },
+      "invalid_tool_rate": 0.0,
+      "action_counts": {
+       "find_user_id_by_email": 11,
+       "find_user_id_by_name_zip": 37,
+       "transfer_to_human_agents": 2,
+       "list_all_product_types": 2,
+       "text": 66,
+       "get_order_details": 16,
+       "get_user_details": 9,
+       "exchange_delivered_order_items": 2,
+       "get_product_details": 3,
+       "modify_pending_order_items": 3,
+       "cancel_pending_order": 2,
+       "return_delivered_order_items": 3,
+       "modify_pending_order_address": 2,
+       "calculate": 1,
+       "get_item_details": 1
+      }
+     },
+     "new_t3": {
+      "tool_match": 0.9437,
+      "full_match": 0.925,
+      "first_tool_match": 1.0,
+      "first_full_match": 0.9804,
+      "tool_turn_match": 0.9789,
+      "tool_turn_full_match": 0.9474,
+      "spec": {
+       "name": "new_t3",
+       "strategy": "transfer@auto",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3
+      },
+      "first_tool_counts": {
+       "find_user_id_by_email": 11,
+       "find_user_id_by_name_zip": 37,
+       "transfer_to_human_agents": 1,
+       "list_all_product_types": 2
+      },
+      "native_share": {
+       "n": 160,
+       "mean_prompt_tokens": 6789,
+       "native_token_share": 0.5817,
+       "native_share_mean": 0.6143,
+       "native_token_share_with_repair_upper": 0.5817,
+       "native_share_with_repair_upper_mean": 0.6143
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 1.8249,
+       "mean_s": 1.7958,
+       "mean_prompt_tokens": 5306
+      },
+      "invalid_tool_rate": 0.0,
+      "action_counts": {
+       "find_user_id_by_email": 12,
+       "find_user_id_by_name_zip": 37,
+       "transfer_to_human_agents": 2,
+       "list_all_product_types": 2,
+       "text": 58,
+       "get_order_details": 18,
+       "get_user_details": 13,
+       "exchange_delivered_order_items": 3,
+       "get_product_details": 3,
+       "modify_pending_order_items": 3,
+       "cancel_pending_order": 2,
+       "return_delivered_order_items": 3,
+       "modify_pending_order_address": 2,
+       "calculate": 1,
+       "get_item_details": 1
+      }
+     },
+     "new_t3_rep1024m": {
+      "tool_match": 0.9375,
+      "full_match": 0.925,
+      "first_tool_match": 1.0,
+      "first_full_match": 0.9804,
+      "tool_turn_match": 0.9474,
+      "tool_turn_full_match": 0.9263,
+      "spec": {
+       "name": "new_t3_rep1024m",
+       "strategy": "transfer@auto+rep1024m",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3
+      },
+      "first_tool_counts": {
+       "find_user_id_by_email": 11,
+       "find_user_id_by_name_zip": 37,
+       "transfer_to_human_agents": 1,
+       "list_all_product_types": 2
+      },
+      "native_share": {
+       "n": 160,
+       "mean_prompt_tokens": 6789,
+       "native_token_share": 0.5817,
+       "native_share_mean": 0.6143,
+       "native_token_share_with_repair_upper": 0.7325,
+       "native_share_with_repair_upper_mean": 0.7758
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 2.1044,
+       "mean_s": 2.0792,
+       "mean_prompt_tokens": 5306
+      },
+      "invalid_tool_rate": 0.0,
+      "action_counts": {
+       "find_user_id_by_email": 12,
+       "find_user_id_by_name_zip": 38,
+       "transfer_to_human_agents": 2,
+       "list_all_product_types": 2,
+       "text": 64,
+       "get_order_details": 16,
+       "get_user_details": 9,
+       "exchange_delivered_order_items": 3,
+       "get_product_details": 3,
+       "modify_pending_order_items": 3,
+       "cancel_pending_order": 2,
+       "return_delivered_order_items": 3,
+       "modify_pending_order_address": 2,
+       "calculate": 1
+      }
+     },
+     "new_t3_rep2048m": {
+      "tool_match": 0.95,
+      "full_match": 0.9313,
+      "first_tool_match": 1.0,
+      "first_full_match": 0.9804,
+      "tool_turn_match": 0.9368,
+      "tool_turn_full_match": 0.9053,
+      "spec": {
+       "name": "new_t3_rep2048m",
+       "strategy": "transfer@auto+rep2048m",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3
+      },
+      "first_tool_counts": {
+       "find_user_id_by_email": 11,
+       "find_user_id_by_name_zip": 37,
+       "transfer_to_human_agents": 1,
+       "list_all_product_types": 2
+      },
+      "native_share": {
+       "n": 160,
+       "mean_prompt_tokens": 6789,
+       "native_token_share": 0.5817,
+       "native_share_mean": 0.6143,
+       "native_token_share_with_repair_upper": 0.8474,
+       "native_share_with_repair_upper_mean": 0.8911
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 2.1414,
+       "mean_s": 2.0953,
+       "mean_prompt_tokens": 5306
+      },
+      "invalid_tool_rate": 0.0,
+      "action_counts": {
+       "find_user_id_by_email": 12,
+       "find_user_id_by_name_zip": 37,
+       "transfer_to_human_agents": 1,
+       "list_all_product_types": 2,
+       "text": 68,
+       "get_order_details": 17,
+       "get_user_details": 5,
+       "exchange_delivered_order_items": 3,
+       "get_product_details": 4,
+       "modify_pending_order_items": 3,
+       "cancel_pending_order": 2,
+       "return_delivered_order_items": 3,
+       "modify_pending_order_address": 2,
+       "calculate": 1
+      }
+     }
+    },
+    "telecom_err": {
+     "n_requests": 42,
+     "n_picked": 42,
+     "n_first_tool": 0,
+     "native": {
+      "tool_match": 0.0952,
+      "full_match": 0.0238,
+      "first_tool_match": null,
+      "first_full_match": null,
+      "tool_turn_match": 0.0952,
+      "tool_turn_full_match": 0.0238,
+      "spec": {
+       "name": "native",
+       "strategy": "target"
+      },
+      "first_tool_counts": {},
+      "ttft": {
+       "n": 16,
+       "median_s": 1.5208,
+       "mean_s": 1.5484,
+       "mean_prompt_tokens": 9009
+      },
+      "invalid_tool_rate": 0.0952,
+      "action_counts": {
+       "text": 36,
+       "get_details_by_id": 1,
+       "can_send_mms": 2,
+       "enable_roaming": 1,
+       "toggle_airplane_mode": 1,
+       "check_network_status": 1
+      }
+     },
+     "new_t3": {
+      "tool_match": 0.2381,
+      "full_match": 0.119,
+      "first_tool_match": null,
+      "first_full_match": null,
+      "tool_turn_match": 0.2381,
+      "tool_turn_full_match": 0.119,
+      "spec": {
+       "name": "new_t3",
+       "strategy": "transfer@auto",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3
+      },
+      "first_tool_counts": {},
+      "native_share": {
+       "n": 42,
+       "mean_prompt_tokens": 8982,
+       "native_token_share": 0.2251,
+       "native_share_mean": 0.2264,
+       "native_token_share_with_repair_upper": 0.2251,
+       "native_share_with_repair_upper_mean": 0.2264
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 1.7951,
+       "mean_s": 1.7423,
+       "mean_prompt_tokens": 9009
+      },
+      "invalid_tool_rate": 0.5238,
+      "action_counts": {
+       "check_apn_settings": 1,
+       "text": 9,
+       "get_details_by_id": 11,
+       "check_network_status": 15,
+       "run_speed_test": 3,
+       "check_status_bar": 2,
+       "toggle_airplane_mode": 1
+      }
+     },
+     "new_t3_rep1024m": {
+      "tool_match": 0.1667,
+      "full_match": 0.1429,
+      "first_tool_match": null,
+      "first_full_match": null,
+      "tool_turn_match": 0.1667,
+      "tool_turn_full_match": 0.1429,
+      "spec": {
+       "name": "new_t3_rep1024m",
+       "strategy": "transfer@auto+rep1024m",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3
+      },
+      "first_tool_counts": {},
+      "native_share": {
+       "n": 42,
+       "mean_prompt_tokens": 8982,
+       "native_token_share": 0.2251,
+       "native_share_mean": 0.2264,
+       "native_token_share_with_repair_upper": 0.3392,
+       "native_share_with_repair_upper_mean": 0.341
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 1.9413,
+       "mean_s": 1.916,
+       "mean_prompt_tokens": 9009
+      },
+      "invalid_tool_rate": 0.2619,
+      "action_counts": {
+       "text": 19,
+       "enable_roaming": 4,
+       "can_send_mms": 2,
+       "get_details_by_id": 4,
+       "check_network_status": 4,
+       "run_speed_test": 4,
+       "get_data_usage": 4,
+       "check_status_bar": 1
+      }
+     },
+     "new_t3_rep2048m": {
+      "tool_match": 0.381,
+      "full_match": 0.3333,
+      "first_tool_match": null,
+      "first_full_match": null,
+      "tool_turn_match": 0.381,
+      "tool_turn_full_match": 0.3333,
+      "spec": {
+       "name": "new_t3_rep2048m",
+       "strategy": "transfer@auto+rep2048m",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3
+      },
+      "first_tool_counts": {},
+      "native_share": {
+       "n": 42,
+       "mean_prompt_tokens": 8982,
+       "native_token_share": 0.2251,
+       "native_share_mean": 0.2264,
+       "native_token_share_with_repair_upper": 0.4532,
+       "native_share_with_repair_upper_mean": 0.4556
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 2.0663,
+       "mean_s": 2.0507,
+       "mean_prompt_tokens": 9009
+      },
+      "invalid_tool_rate": 0.5476,
+      "action_counts": {
+       "enable_roaming": 2,
+       "check_network_status": 9,
+       "can_send_mms": 10,
+       "text": 16,
+       "run_speed_test": 2,
+       "check_apn_settings": 1,
+       "get_details_by_id": 1,
+       "check_status_bar": 1
+      }
+     }
+    }
+   }
+  },
+  {
+   "source_file": "results/raw/tau2_replay-H200-20261119-160548.json",
+   "args": {
+    "mapper_name": "4b-27b-fid+4b-27b-fid-attn",
+    "run_name": "replay",
+    "domains": [
+     "telecom",
+     "retail",
+     "telecom_err"
+    ],
+    "record": false,
+    "max_prompts": 160,
+    "max_new": 128,
+    "ttft_n": 16,
+    "variants": [
+     {
+      "name": "native",
+      "strategy": "target"
+     },
+     {
+      "name": "old_t3",
+      "strategy": "transfer@auto",
+      "native_tools": true,
+      "turn_tail_max": 4096,
+      "turn_tail_msgs": 3
+     },
+     {
+      "name": "old_t3_rep1024m",
+      "strategy": "transfer@auto+rep1024m",
+      "native_tools": true,
+      "turn_tail_max": 4096,
+      "turn_tail_msgs": 3
+     },
+     {
+      "name": "old_t3_rep2048m",
+      "strategy": "transfer@auto+rep2048m",
+      "native_tools": true,
+      "turn_tail_max": 4096,
+      "turn_tail_msgs": 3
+     }
+    ]
+   },
+   "domains": {
+    "telecom": {
+     "n_requests": 828,
+     "n_picked": 160,
+     "n_first_tool": 50,
+     "native": {
+      "tool_match": 0.9812,
+      "full_match": 0.95,
+      "first_tool_match": 1.0,
+      "first_full_match": 1.0,
+      "tool_turn_match": 0.989,
+      "tool_turn_full_match": 0.9341,
+      "spec": {
+       "name": "native",
+       "strategy": "target"
+      },
+      "first_tool_counts": {
+       "get_customer_by_phone": 49,
+       "get_details_by_id": 1
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 1.6225,
+       "mean_s": 1.6233,
+       "mean_prompt_tokens": 7786
+      },
+      "invalid_tool_rate": 0.05,
+      "action_counts": {
+       "get_customer_by_phone": 49,
+       "get_details_by_id": 20,
+       "check_network_status": 2,
+       "text": 68,
+       "can_send_mms": 1,
+       "disable_roaming": 1,
+       "transfer_to_human_agents": 5,
+       "get_data_usage": 1,
+       "check_data_restriction_status": 1,
+       "toggle_airplane_mode": 1,
+       "send_payment_request": 1,
+       "check_app_permissions": 1,
+       "refuel_data": 1,
+       "enable_roaming": 5,
+       "grant_app_permission": 1,
+       "get_bills_for_customer": 1,
+       "run_speed_test": 1
+      }
+     },
+     "old_t3": {
+      "tool_match": 0.6562,
+      "full_match": 0.6062,
+      "first_tool_match": 0.96,
+      "first_full_match": 0.96,
+      "tool_turn_match": 0.8022,
+      "tool_turn_full_match": 0.7143,
+      "spec": {
+       "name": "old_t3",
+       "strategy": "transfer@auto",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3
+      },
+      "first_tool_counts": {
+       "get_customer_by_phone": 49,
+       "text": 1
+      },
+      "native_share": {
+       "n": 160,
+       "mean_prompt_tokens": 8891,
+       "native_token_share": 0.2302,
+       "native_share_mean": 0.2335,
+       "native_token_share_with_repair_upper": 0.2302,
+       "native_share_with_repair_upper_mean": 0.2335
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 2.0683,
+       "mean_s": 2.0635,
+       "mean_prompt_tokens": 7786
+      },
+      "invalid_tool_rate": 0.1437,
+      "action_counts": {
+       "get_customer_by_phone": 49,
+       "text": 38,
+       "check_network_status": 1,
+       "get_details_by_id": 27,
+       "toggle_airplane_mode": 3,
+       "send_payment_request": 2,
+       "check_status_bar": 5,
+       "get_bills_for_customer": 1,
+       "check_apn_settings": 4,
+       "transfer_to_human_agents": 5,
+       "get_customer_by_name": 1,
+       "get_data_usage": 5,
+       "run_speed_test": 3,
+       "can_send_mms": 1,
+       "resume_line": 1,
+       "check_app_permissions": 1,
+       "refuel_data": 5,
+       "grant_app_permission": 1,
+       "get_status_bar": 1,
+       "disconnect_vpn": 1,
+       "enable_roaming": 2,
+       "check_data_restriction_status": 1,
+       "get_customer_by_id": 1,
+       "check_installed_apps": 1
+      }
+     },
+     "old_t3_rep1024m": {
+      "tool_match": 0.7312,
+      "full_match": 0.6937,
+      "first_tool_match": 0.9,
+      "first_full_match": 0.9,
+      "tool_turn_match": 0.7692,
+      "tool_turn_full_match": 0.7033,
+      "spec": {
+       "name": "old_t3_rep1024m",
+       "strategy": "transfer@auto+rep1024m",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3
+      },
+      "first_tool_counts": {
+       "get_customer_by_phone": 46,
+       "text": 4
+      },
+      "native_share": {
+       "n": 160,
+       "mean_prompt_tokens": 8891,
+       "native_token_share": 0.2302,
+       "native_share_mean": 0.2335,
+       "native_token_share_with_repair_upper": 0.3454,
+       "native_share_with_repair_upper_mean": 0.3507
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 2.0779,
+       "mean_s": 2.032,
+       "mean_prompt_tokens": 7786
+      },
+      "invalid_tool_rate": 0.0938,
+      "action_counts": {
+       "get_customer_by_phone": 46,
+       "text": 57,
+       "check_network_status": 3,
+       "get_details_by_id": 27,
+       "check_apn_settings": 1,
+       "get_bills_for_customer": 2,
+       "transfer_to_human_agents": 5,
+       "can_send_mms": 2,
+       "check_wifi_status": 1,
+       "check_status_bar": 2,
+       "run_speed_test": 2,
+       "send_payment_request": 1,
+       "check_app_permissions": 1,
+       "refuel_data": 2,
+       "enable_roaming": 2,
+       "grant_app_permission": 1,
+       "resume_line": 1,
+       "get_data_usage": 2,
+       "check_installed_apps": 1,
+       "toggle_airplane_mode": 1
+      }
+     },
+     "old_t3_rep2048m": {
+      "tool_match": 0.75,
+      "full_match": 0.7063,
+      "first_tool_match": 0.88,
+      "first_full_match": 0.88,
+      "tool_turn_match": 0.7692,
+      "tool_turn_full_match": 0.6923,
+      "spec": {
+       "name": "old_t3_rep2048m",
+       "strategy": "transfer@auto+rep2048m",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3
+      },
+      "first_tool_counts": {
+       "get_customer_by_phone": 45,
+       "text": 5
+      },
+      "native_share": {
+       "n": 160,
+       "mean_prompt_tokens": 8891,
+       "native_token_share": 0.2302,
+       "native_share_mean": 0.2335,
+       "native_token_share_with_repair_upper": 0.4606,
+       "native_share_with_repair_upper_mean": 0.4679
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 2.2755,
+       "mean_s": 2.2743,
+       "mean_prompt_tokens": 7786
+      },
+      "invalid_tool_rate": 0.0875,
+      "action_counts": {
+       "get_customer_by_phone": 46,
+       "text": 61,
+       "check_network_status": 1,
+       "get_details_by_id": 23,
+       "get_data_usage": 2,
+       "get_bills_for_customer": 2,
+       "transfer_to_human_agents": 5,
+       "check_status_bar": 3,
+       "check_wifi_status": 1,
+       "reset_apn_settings": 2,
+       "run_speed_test": 1,
+       "send_payment_request": 1,
+       "check_app_permissions": 1,
+       "refuel_data": 2,
+       "enable_roaming": 3,
+       "grant_app_permission": 1,
+       "resume_line": 1,
+       "check_installed_apps": 1,
+       "check_apn_settings": 1,
+       "toggle_airplane_mode": 1,
+       "can_send_mms": 1
+      }
+     }
+    },
+    "retail": {
+     "n_requests": 691,
+     "n_picked": 160,
+     "n_first_tool": 51,
+     "native": {
+      "tool_match": 0.9938,
+      "full_match": 0.975,
+      "first_tool_match": 1.0,
+      "first_full_match": 1.0,
+      "tool_turn_match": 0.9895,
+      "tool_turn_full_match": 0.9579,
+      "spec": {
+       "name": "native",
+       "strategy": "target"
+      },
+      "first_tool_counts": {
+       "find_user_id_by_email": 11,
+       "find_user_id_by_name_zip": 37,
+       "transfer_to_human_agents": 1,
+       "list_all_product_types": 2
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 1.4243,
+       "mean_s": 1.3711,
+       "mean_prompt_tokens": 5306
+      },
+      "invalid_tool_rate": 0.0,
+      "action_counts": {
+       "find_user_id_by_email": 11,
+       "find_user_id_by_name_zip": 37,
+       "transfer_to_human_agents": 2,
+       "list_all_product_types": 2,
+       "text": 66,
+       "get_order_details": 16,
+       "get_user_details": 9,
+       "exchange_delivered_order_items": 2,
+       "get_product_details": 3,
+       "modify_pending_order_items": 3,
+       "cancel_pending_order": 2,
+       "return_delivered_order_items": 3,
+       "modify_pending_order_address": 2,
+       "calculate": 1,
+       "get_item_details": 1
+      }
+     },
+     "old_t3": {
+      "tool_match": 0.8688,
+      "full_match": 0.8625,
+      "first_tool_match": 0.9608,
+      "first_full_match": 0.9412,
+      "tool_turn_match": 0.9158,
+      "tool_turn_full_match": 0.9053,
+      "spec": {
+       "name": "old_t3",
+       "strategy": "transfer@auto",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3
+      },
+      "first_tool_counts": {
+       "find_user_id_by_email": 10,
+       "find_user_id_by_name_zip": 36,
+       "transfer_to_human_agents": 1,
+       "text": 2,
+       "list_all_product_types": 2
+      },
+      "native_share": {
+       "n": 160,
+       "mean_prompt_tokens": 6789,
+       "native_token_share": 0.5817,
+       "native_share_mean": 0.6143,
+       "native_token_share_with_repair_upper": 0.5817,
+       "native_share_with_repair_upper_mean": 0.6143
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 2.0913,
+       "mean_s": 2.2752,
+       "mean_prompt_tokens": 5306
+      },
+      "invalid_tool_rate": 0.0,
+      "action_counts": {
+       "find_user_id_by_email": 11,
+       "find_user_id_by_name_zip": 36,
+       "transfer_to_human_agents": 1,
+       "text": 57,
+       "list_all_product_types": 2,
+       "get_order_details": 20,
+       "exchange_delivered_order_items": 4,
+       "return_delivered_order_items": 5,
+       "get_user_details": 12,
+       "get_product_details": 3,
+       "modify_pending_order_items": 3,
+       "cancel_pending_order": 3,
+       "modify_pending_order_address": 2,
+       "calculate": 1
+      }
+     },
+     "old_t3_rep1024m": {
+      "tool_match": 0.9,
+      "full_match": 0.875,
+      "first_tool_match": 0.9608,
+      "first_full_match": 0.9216,
+      "tool_turn_match": 0.9158,
+      "tool_turn_full_match": 0.8737,
+      "spec": {
+       "name": "old_t3_rep1024m",
+       "strategy": "transfer@auto+rep1024m",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3
+      },
+      "first_tool_counts": {
+       "find_user_id_by_email": 11,
+       "find_user_id_by_name_zip": 37,
+       "transfer_to_human_agents": 1,
+       "text": 2
+      },
+      "native_share": {
+       "n": 160,
+       "mean_prompt_tokens": 6789,
+       "native_token_share": 0.5817,
+       "native_share_mean": 0.6143,
+       "native_token_share_with_repair_upper": 0.7325,
+       "native_share_with_repair_upper_mean": 0.7758
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 2.3227,
+       "mean_s": 2.2663,
+       "mean_prompt_tokens": 5306
+      },
+      "invalid_tool_rate": 0.0,
+      "action_counts": {
+       "find_user_id_by_email": 13,
+       "find_user_id_by_name_zip": 37,
+       "transfer_to_human_agents": 1,
+       "text": 63,
+       "get_order_details": 16,
+       "get_user_details": 12,
+       "modify_pending_order_address": 3,
+       "exchange_delivered_order_items": 3,
+       "get_product_details": 3,
+       "modify_pending_order_items": 3,
+       "cancel_pending_order": 2,
+       "return_delivered_order_items": 4
+      }
+     },
+     "old_t3_rep2048m": {
+      "tool_match": 0.9,
+      "full_match": 0.875,
+      "first_tool_match": 0.9608,
+      "first_full_match": 0.9216,
+      "tool_turn_match": 0.9263,
+      "tool_turn_full_match": 0.8842,
+      "spec": {
+       "name": "old_t3_rep2048m",
+       "strategy": "transfer@auto+rep2048m",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3
+      },
+      "first_tool_counts": {
+       "find_user_id_by_email": 11,
+       "find_user_id_by_name_zip": 37,
+       "transfer_to_human_agents": 1,
+       "text": 2
+      },
+      "native_share": {
+       "n": 160,
+       "mean_prompt_tokens": 6789,
+       "native_token_share": 0.5817,
+       "native_share_mean": 0.6143,
+       "native_token_share_with_repair_upper": 0.8474,
+       "native_share_with_repair_upper_mean": 0.8911
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 2.2856,
+       "mean_s": 2.2365,
+       "mean_prompt_tokens": 5306
+      },
+      "invalid_tool_rate": 0.0,
+      "action_counts": {
+       "find_user_id_by_email": 12,
+       "find_user_id_by_name_zip": 37,
+       "transfer_to_human_agents": 1,
+       "text": 63,
+       "get_order_details": 18,
+       "get_user_details": 8,
+       "exchange_delivered_order_items": 3,
+       "get_product_details": 4,
+       "modify_pending_order_items": 4,
+       "cancel_pending_order": 2,
+       "return_delivered_order_items": 4,
+       "modify_pending_order_address": 2,
+       "calculate": 1,
+       "get_item_details": 1
+      }
+     }
+    },
+    "telecom_err": {
+     "n_requests": 42,
+     "n_picked": 42,
+     "n_first_tool": 0,
+     "native": {
+      "tool_match": 0.0952,
+      "full_match": 0.0238,
+      "first_tool_match": null,
+      "first_full_match": null,
+      "tool_turn_match": 0.0952,
+      "tool_turn_full_match": 0.0238,
+      "spec": {
+       "name": "native",
+       "strategy": "target"
+      },
+      "first_tool_counts": {},
+      "ttft": {
+       "n": 16,
+       "median_s": 1.9147,
+       "mean_s": 1.8701,
+       "mean_prompt_tokens": 9009
+      },
+      "invalid_tool_rate": 0.0952,
+      "action_counts": {
+       "text": 36,
+       "get_details_by_id": 1,
+       "can_send_mms": 2,
+       "enable_roaming": 1,
+       "toggle_airplane_mode": 1,
+       "check_network_status": 1
+      }
+     },
+     "old_t3": {
+      "tool_match": 0.2857,
+      "full_match": 0.2619,
+      "first_tool_match": null,
+      "first_full_match": null,
+      "tool_turn_match": 0.2857,
+      "tool_turn_full_match": 0.2619,
+      "spec": {
+       "name": "old_t3",
+       "strategy": "transfer@auto",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3
+      },
+      "first_tool_counts": {},
+      "native_share": {
+       "n": 42,
+       "mean_prompt_tokens": 8982,
+       "native_token_share": 0.2251,
+       "native_share_mean": 0.2264,
+       "native_token_share_with_repair_upper": 0.2251,
+       "native_share_with_repair_upper_mean": 0.2264
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 1.9683,
+       "mean_s": 1.9374,
+       "mean_prompt_tokens": 9009
+      },
+      "invalid_tool_rate": 0.4524,
+      "action_counts": {
+       "enable_roaming": 7,
+       "get_details_by_id": 10,
+       "run_speed_test": 9,
+       "check_network_status": 4,
+       "text": 1,
+       "check_status_bar": 1,
+       "get_data_usage": 5,
+       "check_apn_settings": 2,
+       "toggle_airplane_mode": 1,
+       "can_send_mms": 2
+      }
+     },
+     "old_t3_rep1024m": {
+      "tool_match": 0.4286,
+      "full_match": 0.4048,
+      "first_tool_match": null,
+      "first_full_match": null,
+      "tool_turn_match": 0.4286,
+      "tool_turn_full_match": 0.4048,
+      "spec": {
+       "name": "old_t3_rep1024m",
+       "strategy": "transfer@auto+rep1024m",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3
+      },
+      "first_tool_counts": {},
+      "native_share": {
+       "n": 42,
+       "mean_prompt_tokens": 8982,
+       "native_token_share": 0.2251,
+       "native_share_mean": 0.2264,
+       "native_token_share_with_repair_upper": 0.3392,
+       "native_share_with_repair_upper_mean": 0.341
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 2.2028,
+       "mean_s": 2.1735,
+       "mean_prompt_tokens": 9009
+      },
+      "invalid_tool_rate": 0.619,
+      "action_counts": {
+       "can_send_mms": 6,
+       "run_speed_test": 12,
+       "get_details_by_id": 7,
+       "check_network_status": 5,
+       "enable_roaming": 2,
+       "get_data_usage": 7,
+       "check_apn_settings": 1,
+       "check_status_bar": 2
+      }
+     },
+     "old_t3_rep2048m": {
+      "tool_match": 0.9286,
+      "full_match": 0.9048,
+      "first_tool_match": null,
+      "first_full_match": null,
+      "tool_turn_match": 0.9286,
+      "tool_turn_full_match": 0.9048,
+      "spec": {
+       "name": "old_t3_rep2048m",
+       "strategy": "transfer@auto+rep2048m",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3
+      },
+      "first_tool_counts": {},
+      "native_share": {
+       "n": 42,
+       "mean_prompt_tokens": 8982,
+       "native_token_share": 0.2251,
+       "native_share_mean": 0.2264,
+       "native_token_share_with_repair_upper": 0.4532,
+       "native_share_with_repair_upper_mean": 0.4556
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 2.3557,
+       "mean_s": 2.3182,
+       "mean_prompt_tokens": 9009
+      },
+      "invalid_tool_rate": 0.9762,
+      "action_counts": {
+       "can_send_mms": 18,
+       "check_status_bar": 2,
+       "run_speed_test": 8,
+       "check_network_status": 11,
+       "get_details_by_id": 1,
+       "toggle_data": 1,
+       "toggle_airplane_mode": 1
+      }
+     }
+    }
+   }
+  },
+  {
+   "source_file": "results/raw/tau2_replay-H200-20261119-161931.json",
+   "args": {
+    "mapper_name": "4b-27b-fid-agent+4b-27b-fid-agent-attn",
+    "run_name": "replay",
+    "domains": [
+     "telecom"
+    ],
+    "record": false,
+    "max_prompts": 20,
+    "max_new": 16,
+    "ttft_n": 16,
+    "variants": [
+     {
+      "name": "native",
+      "strategy": "target"
+     },
+     {
+      "name": "fast",
+      "strategy": "transfer@auto"
+     },
+     {
+      "name": "fast_nograph",
+      "strategy": "transfer@auto",
+      "env": {
+       "XKV_NO_GRAPH_TAIL": "1"
+      }
+     },
+     {
+      "name": "fast_tools",
+      "strategy": "transfer@auto",
+      "native_tools": true
+     },
+     {
+      "name": "t3",
+      "strategy": "transfer@auto",
+      "native_tools": true,
+      "turn_tail_max": 4096,
+      "turn_tail_msgs": 3
+     },
+     {
+      "name": "t3_nograph",
+      "strategy": "transfer@auto",
+      "native_tools": true,
+      "turn_tail_max": 4096,
+      "turn_tail_msgs": 3,
+      "env": {
+       "XKV_NO_GRAPH_TAIL": "1"
+      }
+     },
+     {
+      "name": "native2",
+      "strategy": "target"
+     }
+    ]
+   },
+   "domains": {
+    "telecom": {
+     "n_requests": 828,
+     "n_picked": 50,
+     "n_first_tool": 50,
+     "native": {
+      "tool_match": 0.76,
+      "full_match": 0.0,
+      "first_tool_match": 0.76,
+      "first_full_match": 0.0,
+      "tool_turn_match": 0.76,
+      "tool_turn_full_match": 0.0,
+      "spec": {
+       "name": "native",
+       "strategy": "target"
+      },
+      "first_tool_counts": {
+       "text": 12,
+       "get_customer_by_phone": 38
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 1.4555,
+       "mean_s": 1.5353,
+       "mean_prompt_tokens": 7786
+      },
+      "invalid_tool_rate": 0.0,
+      "action_counts": {
+       "text": 12,
+       "get_customer_by_phone": 38
+      }
+     },
+     "fast": {
+      "tool_match": 0.88,
+      "full_match": 0.0,
+      "first_tool_match": 0.88,
+      "first_full_match": 0.0,
+      "tool_turn_match": 0.88,
+      "tool_turn_full_match": 0.0,
+      "spec": {
+       "name": "fast",
+       "strategy": "transfer@auto"
+      },
+      "first_tool_counts": {
+       "get_customer_by_phone": 45,
+       "text": 5
+      },
+      "native_share": {
+       "n": 50,
+       "mean_prompt_tokens": 7736,
+       "native_token_share": 0.0222,
+       "native_share_mean": 0.0222,
+       "native_token_share_with_repair_upper": 0.0222,
+       "native_share_with_repair_upper_mean": 0.0222
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 1.4942,
+       "mean_s": 1.5294,
+       "mean_prompt_tokens": 7786
+      },
+      "invalid_tool_rate": 0.0,
+      "action_counts": {
+       "get_customer_by_phone": 45,
+       "text": 5
+      }
+     },
+     "fast_nograph": {
+      "tool_match": 0.88,
+      "full_match": 0.0,
+      "first_tool_match": 0.88,
+      "first_full_match": 0.0,
+      "tool_turn_match": 0.88,
+      "tool_turn_full_match": 0.0,
+      "spec": {
+       "name": "fast_nograph",
+       "strategy": "transfer@auto",
+       "env": {
+        "XKV_NO_GRAPH_TAIL": "1"
+       }
+      },
+      "first_tool_counts": {
+       "get_customer_by_phone": 45,
+       "text": 5
+      },
+      "native_share": {
+       "n": 50,
+       "mean_prompt_tokens": 7736,
+       "native_token_share": 0.0222,
+       "native_share_mean": 0.0222,
+       "native_token_share_with_repair_upper": 0.0222,
+       "native_share_with_repair_upper_mean": 0.0222
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 0.9293,
+       "mean_s": 1.0303,
+       "mean_prompt_tokens": 7786
+      },
+      "invalid_tool_rate": 0.0,
+      "action_counts": {
+       "get_customer_by_phone": 45,
+       "text": 5
+      }
+     },
+     "fast_tools": {
+      "tool_match": 0.8,
+      "full_match": 0.0,
+      "first_tool_match": 0.8,
+      "first_full_match": 0.0,
+      "tool_turn_match": 0.8,
+      "tool_turn_full_match": 0.0,
+      "spec": {
+       "name": "fast_tools",
+       "strategy": "transfer@auto",
+       "native_tools": true
+      },
+      "first_tool_counts": {
+       "get_customer_by_phone": 40,
+       "text": 9,
+       "run_speed_test": 1
+      },
+      "native_share": {
+       "n": 50,
+       "mean_prompt_tokens": 7736,
+       "native_token_share": 0.2533,
+       "native_share_mean": 0.2534,
+       "native_token_share_with_repair_upper": 0.2533,
+       "native_share_with_repair_upper_mean": 0.2534
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 1.7786,
+       "mean_s": 1.7529,
+       "mean_prompt_tokens": 7786
+      },
+      "invalid_tool_rate": 0.02,
+      "action_counts": {
+       "get_customer_by_phone": 40,
+       "text": 9,
+       "run_speed_test": 1
+      }
+     },
+     "t3": {
+      "tool_match": 0.7,
+      "full_match": 0.0,
+      "first_tool_match": 0.7,
+      "first_full_match": 0.0,
+      "tool_turn_match": 0.7,
+      "tool_turn_full_match": 0.0,
+      "spec": {
+       "name": "t3",
+       "strategy": "transfer@auto",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3
+      },
+      "first_tool_counts": {
+       "get_customer_by_phone": 36,
+       "text": 14
+      },
+      "native_share": {
+       "n": 50,
+       "mean_prompt_tokens": 7736,
+       "native_token_share": 0.2554,
+       "native_share_mean": 0.2555,
+       "native_token_share_with_repair_upper": 0.2554,
+       "native_share_with_repair_upper_mean": 0.2555
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 1.8006,
+       "mean_s": 1.8068,
+       "mean_prompt_tokens": 7786
+      },
+      "invalid_tool_rate": 0.0,
+      "action_counts": {
+       "get_customer_by_phone": 36,
+       "text": 14
+      }
+     },
+     "t3_nograph": {
+      "tool_match": 0.68,
+      "full_match": 0.0,
+      "first_tool_match": 0.68,
+      "first_full_match": 0.0,
+      "tool_turn_match": 0.68,
+      "tool_turn_full_match": 0.0,
+      "spec": {
+       "name": "t3_nograph",
+       "strategy": "transfer@auto",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3,
+       "env": {
+        "XKV_NO_GRAPH_TAIL": "1"
+       }
+      },
+      "first_tool_counts": {
+       "get_customer_by_phone": 35,
+       "text": 15
+      },
+      "native_share": {
+       "n": 50,
+       "mean_prompt_tokens": 7736,
+       "native_token_share": 0.2554,
+       "native_share_mean": 0.2555,
+       "native_token_share_with_repair_upper": 0.2554,
+       "native_share_with_repair_upper_mean": 0.2555
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 1.3069,
+       "mean_s": 1.3078,
+       "mean_prompt_tokens": 7786
+      },
+      "invalid_tool_rate": 0.0,
+      "action_counts": {
+       "get_customer_by_phone": 35,
+       "text": 15
+      }
+     },
+     "native2": {
+      "tool_match": 0.76,
+      "full_match": 0.0,
+      "first_tool_match": 0.76,
+      "first_full_match": 0.0,
+      "tool_turn_match": 0.76,
+      "tool_turn_full_match": 0.0,
+      "spec": {
+       "name": "native2",
+       "strategy": "target"
+      },
+      "first_tool_counts": {
+       "text": 12,
+       "get_customer_by_phone": 38
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 1.4146,
+       "mean_s": 1.4337,
+       "mean_prompt_tokens": 7786
+      },
+      "invalid_tool_rate": 0.0,
+      "action_counts": {
+       "text": 12,
+       "get_customer_by_phone": 38
+      }
+     }
+    }
+   }
   }
  ]
 }
