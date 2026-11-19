@@ -245,8 +245,10 @@ class QwenBackend:
     """Qwen3.5 chat template + batched token generator `gen(prompts, max_new) -> list[list[int]]`."""
 
     def __init__(self, tok, gen, name, thinking=False, max_new=2048, max_prompt=131072, json_fences=False,
-                 log=None, native_tools=False, native_system=False, native_history=False):
+                 log=None, native_tools=False, native_system=False, native_history=False, req_log=None):
         from .genrun import stop_ids
+
+        self.req_log = req_log  # optional JSONL path: every request (messages, tools) and its reply is appended
 
         self.tok, self.gen, self.name, self.thinking = tok, gen, name, thinking
         self.native_tools = native_tools
@@ -330,6 +332,12 @@ class QwenBackend:
                                  "total_tokens": len(prompts[j]) + len(ids)}
                 msg["_finish"] = "tool_calls" if msg.get("tool_calls") else finish
                 out[i] = msg
+                if self.req_log:
+                    with open(self.req_log, "a", encoding="utf-8") as f:
+                        f.write(json.dumps({"messages": reqs[i].messages, "tools": reqs[i].tools,
+                                            "max_tokens": reqs[i].max_tokens, "out": {
+                                                k: v for k, v in msg.items() if not k.startswith("_")}},
+                                           default=str) + "\n")
                 self.stats["prompt_tokens"] += len(prompts[j])
                 self.stats["completion_tokens"] += len(ids)
             self.stats["calls"] += 1
@@ -614,7 +622,8 @@ def task_tau2(src="4b", tgt="27b", mapper_name="4b-27b-w8192-distill-ret", strat
               domains=("airline", "retail", "telecom"), n_per_domain=None, task_ids=None, tail=128, window=8192,
               max_concurrency=8, agent_thinking=False, max_new=2048, max_prompt=131072, run_name=None,
               agent_port=8101, user_port=8102, local_user_and_judges=True, full_until=None,
-              turn_tail_max=None, native_tools=False, native_system=False, native_history=False, turn_tail_msgs=1):
+              turn_tail_max=None, native_tools=False, native_system=False, native_history=False, turn_tail_msgs=1,
+              log_requests=False):
     """tau2-bench text-v1 (English) pass^1 per domain + overall (equal domain weights) for each agent strategy.
 
     By default the user simulator and the LLM judges run on the native target (non-thinking, greedy);
@@ -654,6 +663,9 @@ def task_tau2(src="4b", tgt="27b", mapper_name="4b-27b-w8192-distill-ret", strat
         res[strat] = {}
         try:
             for d in domains:
+                if log_requests:  # agent requests -> <root>/<strat>/<domain>_requests.jsonl (for task_tau2_replay)
+                    (root / strat).mkdir(parents=True, exist_ok=True)
+                    backends["xkv-agent"].req_log = str(root / strat / f"{d}_requests.jsonl")
                 r = run_tau2_domain(d, server, agent_port, user_port, root / strat / d, num_tasks=n_per_domain,
                                     task_ids=task_ids, max_concurrency=max_concurrency,
                                     local_user_and_judges=local_user_and_judges)
@@ -759,7 +771,123 @@ def task_terminal_bench(src="4b", tgt="27b", mapper_name="4b-27b-w8192-distill-r
     return res
 
 
-TASKS = {"tau2": task_tau2, "terminal_bench": task_terminal_bench}
+def _action(msg) -> tuple:
+    """(kind, tool name, canonical args) of an assistant reply; kind is 'tool' or 'text'."""
+    tc = (msg or {}).get("tool_calls") or []
+    if not tc:
+        return ("text", None, None)
+    f = tc[0].get("function", tc[0])
+    a = f.get("arguments")
+    try:
+        a = json.dumps(json.loads(a) if isinstance(a, str) else a, sort_keys=True)
+    except (TypeError, ValueError):
+        a = str(a)
+    return ("tool", f.get("name"), a)
+
+
+def task_tau2_replay(src="4b", tgt="27b", mapper_name="4b-27b-fid+4b-27b-fid-attn", run_name="replay",
+                     domains=("telecom", "retail"), record=True, variants=None, max_prompts=200, seed=0,
+                     max_new=160, full_until=32768, batch=8, record_kw=None):
+    """Teacher-forced agent replay: every agent request of a native tau2 run (recorded with log_requests) is
+    answered again by each variant; the score is how often the variant's next action matches the native one
+    (same tool, and same tool + arguments). A cheap proxy for tau2 that needs no user simulator.
+
+    variants: [{"name", "strategy", "native_tools", "native_system", "turn_tail_max", "turn_tail_msgs", "env"}].
+    record=True first runs the native agent (local 27B user simulator) with request logging if no log exists.
+    """
+    import random
+
+    from .experiments import ART, get, load_mapper
+    from .genrun import make_batch_gen
+
+    root = ART / "tau2" / run_name
+    logs = {d: root / "target" / f"{d}_requests.jsonl" for d in domains}
+    res = {"config": {"mapper": mapper_name, "run_name": run_name, "max_prompts": max_prompts, "seed": seed,
+                      "max_new": max_new, "full_until": full_until}}
+    missing = [d for d, p in logs.items() if not p.exists()]
+    if missing and record:
+        kw = dict(dict(max_concurrency=8, full_until=full_until), **(record_kw or {}))
+        r = task_tau2(src, tgt, mapper_name, strategies=("target",), domains=tuple(missing), run_name=run_name,
+                      log_requests=True, **kw)
+        res["record"] = {d: {k: v for k, v in (r["target"].get(d) or {}).items()
+                             if k in ("pass1", "n_scored", "termination")} for d in missing}
+    sm, _ = get(src)
+    tm, tok = get(tgt)
+    mapper = load_mapper(mapper_name, sm, tm)
+    variants = variants or [{"name": "native", "strategy": "target"}]
+    for d in domains:
+        rows = [json.loads(l) for l in logs[d].read_text(encoding="utf-8").splitlines() if l.strip()]
+        for r in rows:
+            prior = [m for m in r["messages"] if m.get("role") == "assistant" and m.get("tool_calls")]
+            r["first_tool"] = not prior and _action(r["out"])[0] == "tool"
+        firsts = [r for r in rows if r["first_tool"]]
+        rest = [r for r in rows if not r["first_tool"]]
+        random.Random(seed).shuffle(rest)
+        pick = firsts + rest[:max(0, max_prompts - len(firsts))]
+        res[d] = {"n_requests": len(rows), "n_picked": len(pick), "n_first_tool": len(firsts)}
+        ref = [_action(r["out"]) for r in pick]
+        for v in variants:
+            old = {k: os.environ.get(k) for k in (v.get("env") or {})}
+            os.environ.update({k: str(x) for k, x in (v.get("env") or {}).items()})
+            try:
+                strat = v.get("strategy", "target")
+                g = make_batch_gen(strat, sm, tm, mapper if strat != "target" else None, tok, batch=batch,
+                                   full_until=full_until, turn_tail_max=v.get("turn_tail_max"),
+                                   turn_tail_msgs=v.get("turn_tail_msgs", 1))
+                be = QwenBackend(tok, g, v["name"], max_new=max_new,
+                                 native_tools=bool(v.get("native_tools")) and strat != "target",
+                                 native_system=bool(v.get("native_system")) and strat != "target")
+                t0 = time.time()
+                outs = []
+                for k in range(0, len(pick), batch):
+                    outs += be.chat_many([ChatRequest(messages=r["messages"], tools=r["tools"])
+                                          for r in pick[k:k + batch]])
+                acts = [_action(o if isinstance(o, dict) else {}) for o in outs]
+            finally:
+                for k, x in old.items():
+                    if x is None:
+                        os.environ.pop(k, None)
+                    else:
+                        os.environ[k] = x
+
+            def rate(sel, full):
+                idx = [i for i in range(len(pick)) if sel(i)]
+                if not idx:
+                    return None
+                f = (lambda a, b: a == b) if full else (lambda a, b: a[:2] == b[:2])
+                return round(sum(f(acts[i], ref[i]) for i in idx) / len(idx), 4)
+
+            def first(i):
+                return pick[i]["first_tool"]
+
+            def tool(i):
+                return ref[i][0] == "tool"
+
+            out = {"tool_match": rate(lambda i: True, False), "full_match": rate(lambda i: True, True),
+                   "first_tool_match": rate(first, False), "first_full_match": rate(first, True),
+                   "tool_turn_match": rate(tool, False), "tool_turn_full_match": rate(tool, True),
+                   "seconds": round(time.time() - t0, 1), "spec": v, "first_tool_counts": {}, "samples": []}
+            names = [{t.get("function", t).get("name") for t in (r["tools"] or [])} for r in pick]
+            out["invalid_tool_rate"] = round(sum(a[0] == "tool" and a[1] not in names[i]
+                                                 for i, a in enumerate(acts)) / max(1, len(acts)), 4)
+            out["action_counts"] = {}
+            for a in acts:
+                out["action_counts"][a[1] or "text"] = out["action_counts"].get(a[1] or "text", 0) + 1
+            for i in range(len(pick)):
+                if first(i):
+                    n = acts[i][1] or "text"
+                    out["first_tool_counts"][n] = out["first_tool_counts"].get(n, 0) + 1
+                if acts[i] != ref[i] and len(out["samples"]) < 12:
+                    out["samples"].append({"ref": ref[i], "got": acts[i]})
+            res[d][v["name"]] = out
+            print(f"[replay] {d} {v['name']} " + json.dumps({k: out[k] for k in (
+                "tool_match", "full_match", "first_tool_match", "tool_turn_match", "invalid_tool_rate", "seconds")}), flush=True)
+            (ART / "results").mkdir(parents=True, exist_ok=True)
+            (ART / "results" / f"replay_partial_{run_name}.json").write_text(json.dumps(res, default=str))
+    return res
+
+
+TASKS = {"tau2": task_tau2, "terminal_bench": task_terminal_bench, "tau2_replay": task_tau2_replay}
 
 
 if __name__ == "__main__":  # tiny manual check: python -m xkv.agentbench '<text>'
