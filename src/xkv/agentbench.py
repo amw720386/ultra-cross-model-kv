@@ -727,7 +727,8 @@ def read_harbor_result(jobs_dir, job_name) -> dict:
 def task_terminal_bench(src="4b", tgt="27b", mapper_name="4b-27b-w8192-distill-ret",
                         strategies=("transfer",), n_tasks=10, task_names=(), concurrency=4, tail=128, window=8192,
                         agent_thinking=False, max_new=8192, max_prompt=131072, temperature=None, run_name=None,
-                        agent_port=8201, attempts=1, turn_tail_max=None, turn_tail_msgs=1, full_until=None):
+                        agent_port=8201, attempts=1, turn_tail_max=None, turn_tail_msgs=1, full_until=None,
+                        agent_timeout_multiplier=None):
     """Terminal-Bench 2.0 (Harbor, Terminus-2 agent, sandboxes on Modal) pass rate per strategy.
 
     Needs Modal credentials inside the container (MODAL_TOKEN_ID / MODAL_TOKEN_SECRET via a Modal Secret) so
@@ -745,7 +746,9 @@ def task_terminal_bench(src="4b", tgt="27b", mapper_name="4b-27b-w8192-distill-r
     res = {"config": {"strategies": list(strategies), "n_tasks": n_tasks, "concurrency": concurrency,
                       "agent_thinking": agent_thinking, "max_prompt": max_prompt, "max_new": max_new,
                       "temperature": temperature, "jobs_dir": str(jobs), "mapper": mapper_name,
-                      "turn_tail_max": turn_tail_max, "turn_tail_msgs": turn_tail_msgs, "full_until": full_until}}
+                      "turn_tail_max": turn_tail_max, "turn_tail_msgs": turn_tail_msgs, "full_until": full_until,
+                      "agent_timeout_multiplier": agent_timeout_multiplier}}
+    extra = ["--agent-timeout-multiplier", str(agent_timeout_multiplier)] if agent_timeout_multiplier else []
     for strat in strategies:
         gen = make_batch_gen(strat, sm, tm, mapper, tok, tail=tail, window=window, batch=max(8, concurrency),
                              full_until=full_until, turn_tail_max=turn_tail_max, turn_tail_msgs=turn_tail_msgs)
@@ -754,7 +757,7 @@ def task_terminal_bench(src="4b", tgt="27b", mapper_name="4b-27b-w8192-distill-r
         server = ChatServer(backends, {agent_port: "xkv-agent"}, max_batch=max(8, concurrency)).start()
         cmd = harbor_command(server.url(agent_port), jobs, strat.replace("@", "_"), n_tasks=n_tasks,
                              task_names=task_names, concurrency=concurrency, max_prompt=max_prompt, max_new=max_new,
-                             temperature=temperature, attempts=attempts)
+                             temperature=temperature, attempts=attempts, extra=extra)
         env = dict(os.environ, OPENAI_API_KEY="xkv", PYTHONIOENCODING="utf-8")
         print("[tb2] " + " ".join(cmd), flush=True)
         t = time.time()
