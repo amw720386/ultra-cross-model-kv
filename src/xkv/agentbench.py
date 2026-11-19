@@ -876,7 +876,7 @@ def task_tau2_replay(src="4b", tgt="27b", mapper_name="4b-27b-fid+4b-27b-fid-att
                              if k in ("pass1", "n_scored", "termination")} for d in missing}
     sm, _ = get(src)
     tm, tok = get(tgt)
-    mapper = load_mapper(mapper_name, sm, tm)
+    mappers = {mapper_name: load_mapper(mapper_name, sm, tm)}
     variants = variants or [{"name": "native", "strategy": "target"}]
     for d in domains:
         rows = [json.loads(l) for l in logs[d].read_text(encoding="utf-8").splitlines() if l.strip()]
@@ -894,6 +894,10 @@ def task_tau2_replay(src="4b", tgt="27b", mapper_name="4b-27b-fid+4b-27b-fid-att
             os.environ.update({k: str(x) for k, x in (v.get("env") or {}).items()})
             try:
                 strat = v.get("strategy", "target")
+                mn = v.get("mapper", mapper_name)  # per-variant map (e.g. old vs retrained)
+                if strat != "target" and mn not in mappers:
+                    mappers[mn] = load_mapper(mn, sm, tm)
+                mapper = mappers.get(mn)
                 g = make_batch_gen(strat, sm, tm, mapper if strat != "target" else None, tok, batch=batch,
                                    full_until=full_until, turn_tail_max=v.get("turn_tail_max"),
                                    turn_tail_msgs=v.get("turn_tail_msgs", 1))
