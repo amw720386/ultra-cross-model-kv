@@ -1,6 +1,6 @@
 # results/
 
-Curated result files behind every number in the top-level README. Files with a `what` or `note` field describe
+Curated result files behind every number in the README and `docs/`. Files with a `what` or `note` field describe
 themselves; the rest are the raw output of one Modal task (`task`, `args`, `wall_s`, `result`), so `args` is the
 exact configuration. Per-run raw outputs are written to `results/raw/` (not tracked).
 
