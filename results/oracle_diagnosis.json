@@ -80,7 +80,7 @@
      }
     }
    },
-   "note": "4B->27B, map 4b-27b-chat, up to 64K prompts"
+   "note": "4B->27B, map 4b-27b-chat, prompts up to 32K (max_ctx 32768; RULER 16K, MRCR from 8K)"
   },
   {
    "source_file": "results/raw/gen_evals-H100-20261117-210211.json",

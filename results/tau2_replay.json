@@ -3133,6 +3133,350 @@
      }
     }
    }
+  },
+  {
+   "source_file": "results/raw/tau2_replay-H200-20261119-184811.json",
+   "args": {
+    "mapper_name": "4b-27b-fid+4b-27b-fid-attn",
+    "run_name": "replay",
+    "domains": [
+     "telecom",
+     "retail"
+    ],
+    "record": false,
+    "max_prompts": 20,
+    "max_new": 16,
+    "ttft_n": 16,
+    "variants": [
+     {
+      "name": "native",
+      "strategy": "target"
+     },
+     {
+      "name": "lighter_nograph",
+      "strategy": "transfer@auto",
+      "native_tools": true,
+      "turn_tail_max": 4096,
+      "turn_tail_msgs": 3,
+      "mapper": "4b-27b-fid-agent+4b-27b-fid-agent-attn",
+      "env": {
+       "XKV_NO_GRAPH_TAIL": "1"
+      }
+     },
+     {
+      "name": "agent_nograph",
+      "strategy": "transfer@auto+rep4096m",
+      "native_tools": true,
+      "turn_tail_max": 8192,
+      "turn_tail_msgs": 10,
+      "env": {
+       "XKV_NO_GRAPH_TAIL": "1"
+      }
+     },
+     {
+      "name": "native2",
+      "strategy": "target"
+     }
+    ]
+   },
+   "domains": {
+    "telecom": {
+     "n_requests": 828,
+     "n_picked": 50,
+     "n_first_tool": 50,
+     "native": {
+      "tool_match": 0.76,
+      "full_match": 0.0,
+      "first_tool_match": 0.76,
+      "first_full_match": 0.0,
+      "tool_turn_match": 0.76,
+      "tool_turn_full_match": 0.0,
+      "spec": {
+       "name": "native",
+       "strategy": "target"
+      },
+      "first_tool_counts": {
+       "text": 12,
+       "get_customer_by_phone": 38
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 1.2832,
+       "mean_s": 1.3083,
+       "mean_prompt_tokens": 7786
+      },
+      "invalid_tool_rate": 0.0,
+      "action_counts": {
+       "text": 12,
+       "get_customer_by_phone": 38
+      }
+     },
+     "lighter_nograph": {
+      "tool_match": 0.68,
+      "full_match": 0.0,
+      "first_tool_match": 0.68,
+      "first_full_match": 0.0,
+      "tool_turn_match": 0.68,
+      "tool_turn_full_match": 0.0,
+      "spec": {
+       "name": "lighter_nograph",
+       "strategy": "transfer@auto",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3,
+       "mapper": "4b-27b-fid-agent+4b-27b-fid-agent-attn",
+       "env": {
+        "XKV_NO_GRAPH_TAIL": "1"
+       }
+      },
+      "first_tool_counts": {
+       "get_customer_by_phone": 35,
+       "text": 15
+      },
+      "native_share": {
+       "n": 50,
+       "mean_prompt_tokens": 7736,
+       "native_token_share": 0.2554,
+       "native_share_mean": 0.2555,
+       "native_token_share_with_repair_upper": 0.2554,
+       "native_share_with_repair_upper_mean": 0.2555
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 1.0861,
+       "mean_s": 1.0846,
+       "mean_prompt_tokens": 7786
+      },
+      "invalid_tool_rate": 0.0,
+      "action_counts": {
+       "get_customer_by_phone": 35,
+       "text": 15
+      }
+     },
+     "agent_nograph": {
+      "tool_match": 0.8,
+      "full_match": 0.0,
+      "first_tool_match": 0.8,
+      "first_full_match": 0.0,
+      "tool_turn_match": 0.8,
+      "tool_turn_full_match": 0.0,
+      "spec": {
+       "name": "agent_nograph",
+       "strategy": "transfer@auto+rep4096m",
+       "native_tools": true,
+       "turn_tail_max": 8192,
+       "turn_tail_msgs": 10,
+       "env": {
+        "XKV_NO_GRAPH_TAIL": "1"
+       }
+      },
+      "first_tool_counts": {
+       "get_customer_by_phone": 40,
+       "text": 10
+      },
+      "native_share": {
+       "n": 50,
+       "mean_prompt_tokens": 7736,
+       "native_token_share": 0.2603,
+       "native_share_mean": 0.2601,
+       "native_token_share_with_repair_upper": 0.7897,
+       "native_share_with_repair_upper_mean": 0.7897
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 1.6686,
+       "mean_s": 1.6814,
+       "mean_prompt_tokens": 7786
+      },
+      "invalid_tool_rate": 0.0,
+      "action_counts": {
+       "get_customer_by_phone": 40,
+       "text": 10
+      }
+     },
+     "native2": {
+      "tool_match": 0.76,
+      "full_match": 0.0,
+      "first_tool_match": 0.76,
+      "first_full_match": 0.0,
+      "tool_turn_match": 0.76,
+      "tool_turn_full_match": 0.0,
+      "spec": {
+       "name": "native2",
+       "strategy": "target"
+      },
+      "first_tool_counts": {
+       "text": 12,
+       "get_customer_by_phone": 38
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 1.3128,
+       "mean_s": 1.3228,
+       "mean_prompt_tokens": 7786
+      },
+      "invalid_tool_rate": 0.0,
+      "action_counts": {
+       "text": 12,
+       "get_customer_by_phone": 38
+      }
+     }
+    },
+    "retail": {
+     "n_requests": 691,
+     "n_picked": 51,
+     "n_first_tool": 51,
+     "native": {
+      "tool_match": 0.5294,
+      "full_match": 0.0,
+      "first_tool_match": 0.5294,
+      "first_full_match": 0.0,
+      "tool_turn_match": 0.5294,
+      "tool_turn_full_match": 0.0,
+      "spec": {
+       "name": "native",
+       "strategy": "target"
+      },
+      "first_tool_counts": {
+       "find_user_id_by_email": 9,
+       "find_user_id_by_name_zip": 17,
+       "text": 24,
+       "transfer_to_human_agents": 1
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 0.9993,
+       "mean_s": 1.0072,
+       "mean_prompt_tokens": 5306
+      },
+      "invalid_tool_rate": 0.0,
+      "action_counts": {
+       "find_user_id_by_email": 9,
+       "find_user_id_by_name_zip": 17,
+       "text": 24,
+       "transfer_to_human_agents": 1
+      }
+     },
+     "lighter_nograph": {
+      "tool_match": 0.5098,
+      "full_match": 0.0,
+      "first_tool_match": 0.5098,
+      "first_full_match": 0.0,
+      "tool_turn_match": 0.5098,
+      "tool_turn_full_match": 0.0,
+      "spec": {
+       "name": "lighter_nograph",
+       "strategy": "transfer@auto",
+       "native_tools": true,
+       "turn_tail_max": 4096,
+       "turn_tail_msgs": 3,
+       "mapper": "4b-27b-fid-agent+4b-27b-fid-agent-attn",
+       "env": {
+        "XKV_NO_GRAPH_TAIL": "1"
+       }
+      },
+      "first_tool_counts": {
+       "find_user_id_by_email": 11,
+       "text": 25,
+       "find_user_id_by_name_zip": 15
+      },
+      "native_share": {
+       "n": 51,
+       "mean_prompt_tokens": 5302,
+       "native_token_share": 0.703,
+       "native_share_mean": 0.7032,
+       "native_token_share_with_repair_upper": 0.703,
+       "native_share_with_repair_upper_mean": 0.7032
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 1.1334,
+       "mean_s": 1.1376,
+       "mean_prompt_tokens": 5306
+      },
+      "invalid_tool_rate": 0.0,
+      "action_counts": {
+       "find_user_id_by_email": 11,
+       "text": 25,
+       "find_user_id_by_name_zip": 15
+      }
+     },
+     "agent_nograph": {
+      "tool_match": 0.8824,
+      "full_match": 0.0,
+      "first_tool_match": 0.8824,
+      "first_full_match": 0.0,
+      "tool_turn_match": 0.8824,
+      "tool_turn_full_match": 0.0,
+      "spec": {
+       "name": "agent_nograph",
+       "strategy": "transfer@auto+rep4096m",
+       "native_tools": true,
+       "turn_tail_max": 8192,
+       "turn_tail_msgs": 10,
+       "env": {
+        "XKV_NO_GRAPH_TAIL": "1"
+       }
+      },
+      "first_tool_counts": {
+       "find_user_id_by_email": 11,
+       "find_user_id_by_name_zip": 34,
+       "text": 6
+      },
+      "native_share": {
+       "n": 51,
+       "mean_prompt_tokens": 5302,
+       "native_token_share": 0.7043,
+       "native_share_mean": 0.7044,
+       "native_token_share_with_repair_upper": 1.0,
+       "native_share_with_repair_upper_mean": 1.0
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 1.4409,
+       "mean_s": 1.4453,
+       "mean_prompt_tokens": 5306
+      },
+      "invalid_tool_rate": 0.0,
+      "action_counts": {
+       "find_user_id_by_email": 11,
+       "find_user_id_by_name_zip": 34,
+       "text": 6
+      }
+     },
+     "native2": {
+      "tool_match": 0.5294,
+      "full_match": 0.0,
+      "first_tool_match": 0.5294,
+      "first_full_match": 0.0,
+      "tool_turn_match": 0.5294,
+      "tool_turn_full_match": 0.0,
+      "spec": {
+       "name": "native2",
+       "strategy": "target"
+      },
+      "first_tool_counts": {
+       "find_user_id_by_email": 9,
+       "find_user_id_by_name_zip": 17,
+       "text": 24,
+       "transfer_to_human_agents": 1
+      },
+      "ttft": {
+       "n": 16,
+       "median_s": 1.0059,
+       "mean_s": 1.0148,
+       "mean_prompt_tokens": 5306
+      },
+      "invalid_tool_rate": 0.0,
+      "action_counts": {
+       "find_user_id_by_email": 9,
+       "find_user_id_by_name_zip": 17,
+       "text": 24,
+       "transfer_to_human_agents": 1
+      }
+     }
+    }
+   }
   }
  ]
 }
