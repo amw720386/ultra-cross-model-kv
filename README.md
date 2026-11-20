@@ -76,7 +76,7 @@ sizes or runs were tried, the cell shows the best one and says so.
 | TTFT speedup 8K / 16K / 32K | 2.4–2.8 / 2.8–3.0 / 2.95–3.1× | 0.97–2.55× (4B pair, +rep512 to +rep4096) | 2.6 / 2.7 / 2.8× | fast mode level at 8K, ahead at 16–32K |
 | TTFT speedup 64K / 128K / 1M | 3.4–4.0 / 5.0 / 21.5× | — | 3.0 / 3.3 / 3.9× [1] | ahead (speed only, see *Beyond 32K*) |
 | TPOT | = native at every batch size measured | = native | not published | — |
-| serving goodput, TTFT ≤ 5 s | 2.2× native | not measured | not published | — |
+| serving goodput, TTFT ≤ 5 s | 1.9× native (phase-2 map run: 2.2×) | 1.6× native (`+rep1024`) | not published | — |
 
 **Quality.** "Share of native" is each side's transfer score divided by its own native 27B score under its own
 harness (see the charts and caveats below). For τ2 the share cell reads **lighter · agent setting / OneTriangle**;
@@ -250,7 +250,7 @@ differ from step-by-step decoding: on 6 real prompts at batch 1, 4 produced a di
 decoding (`results/spec_decode_row_independence.json`) — the same kind of divergence plain decoding shows between
 batch sizes. OneTriangle publishes no TPOT for this pair.
 
-### Serving under load (fast mode)
+### Serving under load
 
 One H200, Poisson arrivals, prompts drawn from {8K, 16K, 32K}, 256 output tokens each, identical FCFS scheduler for
 both arms, one seed, 30 requests per rate (`results/serve_h200_8k-32k.json`, 8 slots, and
@@ -267,7 +267,22 @@ both arms, one seed, 30 requests per rate (`results/serve_h200_8k-32k.json`, 8 s
 
 Throughput gains much less than TTFT because the 256-token decode, identical for both arms, dominates once prefill
 is cheap. With 30 requests per point the p99 values in the result files are close to the maximum and the curves are
-noisy. These runs used the phase-2 map; serving in recall mode was not measured.
+noisy. These runs used the phase-2 map.
+
+**Same benchmark, current fidelity map, with recall mode** (`results/serve_h200_8k-32k_fid_recall.json`; one run, 8
+slots, all three arms in the same container, same arrival seed):
+
+| | native 27B | fast mode | recall mode `+rep1024` |
+|---|---:|---:|---:|
+| max throughput (offline) | 0.30 req/s | 0.42 req/s (1.39×) | 0.38 req/s (1.26×) |
+| best goodput, TTFT ≤ 5 s | 0.16 req/s | 0.30 req/s (1.9×) | 0.25 req/s (1.6×) |
+| best goodput, TTFT ≤ 2 s | 0.09 req/s | 0.18 req/s (2.0×) | 0.12 req/s (1.3×) |
+| TTFT p50 at 0.2 / 0.3 req/s | 2.1 / 5.4 s | 2.0 / 1.6 s | 1.8 / 2.6 s |
+
+The fast-mode gain is a little lower than in the phase-2 run (1.9× vs 2.2× goodput), within the noise of 30
+requests per point; the native arm here peaks at a lower throughput (0.30 vs 0.36 req/s) because this run used only
+the 8-slot scheduler. Recall mode keeps most of the serving gain at TTFT ≤ 5 s and about a third of it at ≤ 2 s. The
+graphed tail was on, as in the other serving runs.
 
 ## Quality
 

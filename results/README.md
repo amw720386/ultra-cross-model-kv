@@ -41,7 +41,7 @@ setting only); `4b-27b-chat`, `4b-27b-w8192-distill-ret` and `4b-27b-r2-*` are e
 | `ttft_h100_8k-64k.json`, `ttft_h200_64k-128k_reps3.json`, `ttft_h200_128k-1m*.json` | TTFT 64K to 1M |
 | `ttft_h100_untuned_lengths_batches.json` | TTFT at lengths and batch sizes the kernels were not tuned for |
 | `tpot_and_batch_sweeps.json` | Decode speed (TPOT) and batch sweeps |
-| `serve_h200_8k-32k*.json` | Online serving with Poisson arrivals: goodput and throughput, native vs transfer |
+| `serve_h200_8k-32k*.json` | Online serving with Poisson arrivals: goodput and throughput, native vs transfer (`_fid_recall`: current map, fast and recall mode) |
 | `profile_h100.json`, `profile_kernels_h100.json` | Where transfer time goes (stages, kernels) |
 
 ## Correctness and maps
