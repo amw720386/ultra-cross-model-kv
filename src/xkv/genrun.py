@@ -94,6 +94,7 @@ def task_gen_evals(src="4b", tgt="27b", mapper_name="4b-27b-w8192-distill-ret", 
                    strategies=("target", "transfer", "source"), limit=100, seed=0, tail=128, window=8192,
                    batch=8, max_ctx=None, bench_kw=None, full_until=None, exec_modal=False, limits=None,
                    env=None):
+    """Run genevals benchmarks per strategy. bench_kw/limits: per-benchmark kwargs/limits; env: extra env vars set for the run."""
     from . import genevals as G
     from .experiments import ART, get, load_mapper
 

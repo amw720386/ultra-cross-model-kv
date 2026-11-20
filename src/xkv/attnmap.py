@@ -181,6 +181,7 @@ class AttnMap:
 
 def task_calibrate_attn(src="4b", tgt="27b", n_seqs=64, seq_len=16384, radius=2, lam=1e-3, embed=True, name=None,
                         source="fineweb"):
+    """Fit the richer attention-KV ridge map (radius: neighbour-token context, embed: add token embeddings); saves to ART/maps."""
     import time
 
     from . import evals

@@ -188,6 +188,49 @@
      }
     ]
    }
+  },
+  {
+   "source_file": "results/raw/ttft_repair-H100-20261119-183932.json",
+   "args": {
+    "src": "2b",
+    "mapper_name": "2b-27b-fid+2b-27b-fid-attn",
+    "repairs": [
+     0,
+     1024
+    ]
+   },
+   "result": {
+    "gpu": "NVIDIA H100 80GB HBM3",
+    "rows": [
+     {
+      "len": 8192,
+      "tail": 128,
+      "native_s": 0.9065119059999915,
+      "transfer_rep0_s": 0.23118967399997814,
+      "speedup_rep0": 3.921074372898148,
+      "transfer_rep1024_s": 0.44573409899999206,
+      "speedup_rep1024": 2.033750408671354
+     },
+     {
+      "len": 16384,
+      "tail": 128,
+      "native_s": 1.901083519999986,
+      "transfer_rep0_s": 0.42583390299998314,
+      "speedup_rep0": 4.464378027693256,
+      "transfer_rep1024_s": 0.6662064120000082,
+      "speedup_rep1024": 2.853595350865465
+     },
+     {
+      "len": 32768,
+      "tail": 128,
+      "native_s": 4.136865033000021,
+      "transfer_rep0_s": 0.8433016230000021,
+      "speedup_rep0": 4.905558011715116,
+      "transfer_rep1024_s": 1.1603721109999867,
+      "speedup_rep1024": 3.5651193214519337
+     }
+    ]
+   }
   }
  ]
 }

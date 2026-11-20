@@ -871,6 +871,47 @@
     }
    },
    "note": "regression check after the repair-protection fix (88e631c): RULER rep1024 re-run, 0.905 as before"
+  },
+  {
+   "source_file": "results/raw/gen_evals-H200-20261119-190332.json",
+   "args": {
+    "src": "2b",
+    "mapper_name": "2b-27b-fid+2b-27b-fid-attn",
+    "full_until": 32768,
+    "max_ctx": 32768,
+    "benches": [
+     "arc_chat",
+     "math500"
+    ],
+    "strategies": [
+     "target",
+     "transfer@auto"
+    ],
+    "limit": 100
+   },
+   "scores": {
+    "arc_chat": {
+     "target": {
+      "score": 0.98,
+      "n_scored": 100
+     },
+     "transfer@auto": {
+      "score": 0.98,
+      "n_scored": 100
+     }
+    },
+    "math500": {
+     "target": {
+      "score": 0.87,
+      "n_scored": 100
+     },
+     "transfer@auto": {
+      "score": 0.87,
+      "n_scored": 100
+     }
+    }
+   },
+   "note": "ARC-Chat and MATH-500 re-run with the fidelity map (previously phase-2 map only)"
   }
  ],
  "baselines_2b_chat_map": [

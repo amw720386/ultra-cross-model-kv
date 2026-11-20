@@ -702,7 +702,7 @@
      }
     }
    },
-   "note": "official simulator; faster setting with the agent-trained map 4b-27b-fid-agent (transfer@auto, tools + last 3 messages <= 4096 tokens native, no repair); the one pre-registered official run; telecom held out from training"
+   "note": "official simulator; lighter agent setting with the agent-trained map 4b-27b-fid-agent (transfer@auto, tools + last 3 messages <= 4096 tokens native, no repair); the one pre-registered official run; telecom held out from training"
   },
   {
    "source_file": "results/raw/tau2-H200-20261119-182036.json",
@@ -737,7 +737,7 @@
      }
     }
    },
-   "note": "official simulator; same pre-registered faster setting as above; airline is in-sample (its native traces trained the map), retail held out"
+   "note": "official simulator; same pre-registered lighter agent setting as above; airline is in-sample (its native traces trained the map), retail held out"
   }
  ]
 }

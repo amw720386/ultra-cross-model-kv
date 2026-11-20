@@ -1,4 +1,4 @@
-"""Shared Modal image and volumes for xkv jobs."""
+"""Shared Modal image, volumes and model registry (MODELS) for xkv jobs, plus the optional launch guard hook."""
 from __future__ import annotations
 
 from pathlib import Path
