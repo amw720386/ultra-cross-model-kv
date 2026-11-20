@@ -1,4 +1,4 @@
-"""Shared Modal image, volumes and model registry (MODELS) for xkv jobs, plus the optional launch guard hook."""
+"""Shared Modal image, volumes and model registry (MODELS) for xkv jobs."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -39,14 +39,3 @@ MODELS = {
     "27b": "Qwen/Qwen3.8-27B",
 }
 
-
-def charge(app, gpu, minutes, note=""):
-    """Optional local launch guard; lives outside the repository (private/launch_guard.py)."""
-    import sys
-
-    sys.path.insert(0, str(ROOT / "private"))
-    try:
-        from launch_guard import charge as _charge
-    except ImportError:
-        return
-    _charge(app, gpu, minutes, note)

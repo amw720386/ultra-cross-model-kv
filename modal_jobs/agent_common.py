@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import modal
 
-from common import MODELS, VOLUMES, artifacts, charge, weights  # noqa: F401  (re-exported for agent_lab)
+from common import MODELS, VOLUMES, artifacts, weights  # noqa: F401  (re-exported for agent_lab)
 
 TAU2_REPO = "https://github.com/sierra-research/tau2-bench"
 TAU2_COMMIT = "c06b07dd7c4d4ec61ba6ff9bcdf0b15dd7ef36d4"  # tau2 2.0.0 (text-v1 manifest, revision regional-release-data-v16)
