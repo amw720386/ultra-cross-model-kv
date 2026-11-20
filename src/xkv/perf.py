@@ -513,10 +513,12 @@ def task_serve(src="4b", tgt="27b", mapper_name="4b-27b-chat", rates=(0.1, 0.2, 
     cap = _bucket(max(lengths) + new + 16)
 
     def prefill(arm, ids, between=None):
+        """arm: "native", "transfer" (fixed `tail`), or "transfer+repN" (recall mode: N tokens of block repair)."""
         if arm == "native":
             return native_prefill(tm, ids, chunk=chunk, between=between)
+        rep = int(arm.split("+rep")[1]) if "+rep" in arm else 0
         return transfer_prefill(sm, tm, mapper, ids, tail=tail, window=window, full_until=full_until, chunk=chunk,
-                                between=between)
+                                between=between, repair=rep)
 
     def make_ids(L, g):
         return torch.randint(1000, 100000, (1, L), generator=g, device="cuda")
