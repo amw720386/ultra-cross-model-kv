@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xkv"
+version = "0.1.0"
+description = "Prefill Qwen3.8-27B with Qwen3.5-4B: cross-model KV and Gated DeltaNet state transfer for hybrid models"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.11"
+dependencies = [
+    "torch==2.8.0",
+    "transformers==5.20.2",
+    "accelerate",
+    "safetensors",
+    "huggingface_hub",
+    "datasets",
+    "numpy",
+    "kernels",
+    "flash-linear-attention==0.4.1",
+    "fla-core==0.4.1",
+    "math-verify[antlr4_13_2]>=0.7",
+    "rouge-score>=0.1.2",
+    "nltk>=3.8",
+]
+
+[project.optional-dependencies]
+modal = ["modal"]
+test = ["pytest"]
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -8,7 +8,7 @@ from pathlib import Path
 
 import modal
 
-from common import VOLUMES, artifacts, charge, image, weights
+from common import VOLUMES, artifacts, image, weights
 
 app = modal.App("xkv-lab")
 KW = dict(image=image, volumes=VOLUMES, retries=0, max_containers=1, timeout=3 * 3600, cpu=8.0, memory=65536)
@@ -57,7 +57,6 @@ FN = {"L40S": run_l40s, "A100-80GB": run_a100, "H100": run_h100, "H200": run_h20
 
 @app.local_entrypoint()
 def main(task: str, gpu: str = "L40S", minutes: int = 20, args: str = "{}"):
-    charge(f"xkv-lab:{task}", gpu, minutes, args[:200])
     fn = FN[gpu].with_options(timeout=minutes * 60)
     out = fn.remote(task, json.loads(args))
     d = Path(__file__).resolve().parents[1] / "results" / "raw"

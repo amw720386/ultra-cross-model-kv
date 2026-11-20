@@ -17,8 +17,5 @@ def fetch(repo: str):
 
 @app.local_entrypoint()
 def main(which: str = "0.8b,2b,4b,27b"):
-    from common import charge
-
-    charge("xkv-prefetch", None, 60, which)
     for r in fetch.map([MODELS[k] for k in which.split(",")]):
         print(r)

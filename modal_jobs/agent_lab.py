@@ -17,7 +17,7 @@ from pathlib import Path
 
 import modal
 
-from agent_common import VOLUMES, agent_image, artifacts, charge, weights
+from agent_common import VOLUMES, agent_image, artifacts, weights
 
 app = modal.App("xkv-agent-lab")
 # Optional Modal secrets to attach (comma-separated names), e.g. the Harbor Modal token or an OpenAI key.
@@ -81,7 +81,6 @@ def probe():
 
 @app.local_entrypoint()
 def main(task: str, gpu: str = "H100", minutes: int = 600, args: str = "{}"):
-    charge(f"xkv-agent-lab:{task}", gpu, minutes, args[:200])
     fn = FN[gpu].with_options(timeout=minutes * 60)
     out = fn.remote(task, json.loads(args))
     d = Path(__file__).resolve().parents[1] / "results" / "raw"
