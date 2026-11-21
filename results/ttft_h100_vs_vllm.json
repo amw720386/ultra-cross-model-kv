@@ -1,0 +1,247 @@
+{
+ "what": "Time to first token of native Qwen3.8-27B in vLLM 0.34.0 against this engine's native and transfer (Qwen3.5-4B reads, fast mode), batch 1, the same prompts, on one GPU, one engine at a time.",
+ "gpu": "NVIDIA H100 80GB HBM3",
+ "date": "2026-11-21",
+ "engine": {
+  "commit": "990fb1f",
+  "torch": "2.8.0+cu128",
+  "mapper": "4b-27b-fid+4b-27b-fid-attn",
+  "calls": "perf.task_ttft_repair, repair 0"
+ },
+ "vllm": {
+  "default (16K-token chunks)": {
+   "engine": "vllm 0.34.0",
+   "torch": "2.14.0+cu130",
+   "scheduler": {
+    "max_num_batched_tokens": 16384,
+    "max_num_seqs": 128,
+    "chunked_prefill": true
+   },
+   "compile_mode": -1
+  },
+  "torch.compile, first pass": {
+   "engine": "vllm 0.34.0",
+   "torch": "2.14.0+cu130",
+   "scheduler": {
+    "max_num_batched_tokens": 16384,
+    "max_num_seqs": 128,
+    "chunked_prefill": true
+   },
+   "compile_mode": 3
+  },
+  "40,960-token chunks": {
+   "engine": "vllm 0.34.0",
+   "torch": "2.14.0+cu130",
+   "scheduler": {
+    "max_num_batched_tokens": 40960,
+    "max_num_seqs": 128,
+    "chunked_prefill": true
+   },
+   "compile_mode": -1
+  },
+  "torch.compile, last pass (drift check)": {
+   "engine": "vllm 0.34.0",
+   "torch": "2.14.0+cu130",
+   "scheduler": {
+    "max_num_batched_tokens": 16384,
+    "max_num_seqs": 128,
+    "chunked_prefill": true
+   },
+   "compile_mode": 3
+  }
+ },
+ "method": "vLLM: wall time of generate(max_tokens=1) from token ids, prefix caching off, max_num_seqs 128, one warm-up then 5 timed requests per prompt, the lowest median over its configurations. Engine: the repo's native_prefill / transfer_prefill with a sync on each side, arms interleaved after one warm-up, median of 5; random-id rows average two passes run before and after vLLM. Real prompts: six seeded LongHealth prompts from scripts/vllm_baseline/make_prompts.py, one process per prompt.",
+ "rows": [
+  {
+   "prompt": "random ids, 8K",
+   "tokens": 8192,
+   "vllm_native_s": 0.6892836848273873,
+   "vllm_config": "torch.compile, first pass",
+   "engine_native_s": 0.9095690865069628,
+   "engine_native_passes_s": [
+    0.9082968290895224,
+    0.9108413439244032
+   ],
+   "transfer_s": 0.34859731141477823,
+   "transfer_passes_s": [
+    0.3488241517916322,
+    0.3483704710379243
+   ],
+   "transfer_vs_vllm": 1.9773063711534014,
+   "transfer_vs_engine_native": 2.609225764867454,
+   "engine_native_vs_vllm": 1.3195859796605225
+  },
+  {
+   "prompt": "random ids, 16K",
+   "tokens": 16384,
+   "vllm_native_s": 1.407161776907742,
+   "vllm_config": "torch.compile, first pass",
+   "engine_native_s": 1.9159855782054365,
+   "engine_native_passes_s": [
+    1.9135120627470315,
+    1.9184590936638415
+   ],
+   "transfer_s": 0.6728603260125965,
+   "transfer_passes_s": [
+    0.6726568900048733,
+    0.6730637620203197
+   ],
+   "transfer_vs_vllm": 2.0913133417252467,
+   "transfer_vs_engine_native": 2.8475234816706485,
+   "engine_native_vs_vllm": 1.361595809129951
+  },
+  {
+   "prompt": "random ids, 32K",
+   "tokens": 32768,
+   "vllm_native_s": 2.966298947110772,
+   "vllm_config": "40,960-token chunks",
+   "engine_native_s": 4.188698502024636,
+   "engine_native_passes_s": [
+    4.176750299055129,
+    4.200646704994142
+   ],
+   "transfer_s": 1.414076274028048,
+   "transfer_passes_s": [
+    1.411779098212719,
+    1.4163734498433769
+   ],
+   "transfer_vs_vllm": 2.0976937394339847,
+   "transfer_vs_engine_native": 2.96214467278556,
+   "engine_native_vs_vllm": 1.412095873244503
+  },
+  {
+   "prompt": "longhealth-0-patient_09-q11",
+   "tokens": 31883,
+   "vllm_native_s": 2.807217055000365,
+   "vllm_config": "40,960-token chunks",
+   "engine_native_s": 4.033472076058388,
+   "transfer_s": 1.3686064071953297,
+   "first_token": {
+    "native": 760,
+    "transfer": 760
+   },
+   "transfer_vs_vllm": 2.051150016718952,
+   "transfer_vs_engine_native": 2.947138092334478,
+   "engine_native_vs_vllm": 1.436822303738057
+  },
+  {
+   "prompt": "longhealth-1-patient_15-q1",
+   "tokens": 31938,
+   "vllm_native_s": 2.830337456893176,
+   "vllm_config": "40,960-token chunks",
+   "engine_native_s": 4.0610680426470935,
+   "transfer_s": 1.3751046722754836,
+   "first_token": {
+    "native": 760,
+    "transfer": 760
+   },
+   "transfer_vs_vllm": 2.0582705549313673,
+   "transfer_vs_engine_native": 2.953279211775897,
+   "engine_native_vs_vllm": 1.4348352818341579
+  },
+  {
+   "prompt": "longhealth-2-patient_01-q3",
+   "tokens": 31906,
+   "vllm_native_s": 2.8157638516277075,
+   "vllm_config": "40,960-token chunks",
+   "engine_native_s": 4.040981489233673,
+   "transfer_s": 1.3685974241234362,
+   "first_token": {
+    "native": 760,
+    "transfer": 760
+   },
+   "transfer_vs_vllm": 2.0574084109731223,
+   "transfer_vs_engine_native": 2.952644377379165,
+   "engine_native_vs_vllm": 1.4351279802451133
+  },
+  {
+   "prompt": "longhealth-3-patient_06-q5",
+   "tokens": 31918,
+   "vllm_native_s": 2.814714937005192,
+   "vllm_config": "40,960-token chunks",
+   "engine_native_s": 4.033613023813814,
+   "transfer_s": 1.3693009060807526,
+   "first_token": {
+    "native": 760,
+    "transfer": 760
+   },
+   "transfer_vs_vllm": 2.055585389964825,
+   "transfer_vs_engine_native": 2.945746260665906,
+   "engine_native_vs_vllm": 1.4330449491647308
+  },
+  {
+   "prompt": "longhealth-4-patient_02-q12",
+   "tokens": 31976,
+   "vllm_native_s": 2.819000676739961,
+   "vllm_config": "40,960-token chunks",
+   "engine_native_s": 4.059954263269901,
+   "transfer_s": 1.372371000237763,
+   "first_token": {
+    "native": 760,
+    "transfer": 760
+   },
+   "transfer_vs_vllm": 2.054109767877323,
+   "transfer_vs_engine_native": 2.9583503750563915,
+   "engine_native_vs_vllm": 1.4402104606675878
+  },
+  {
+   "prompt": "longhealth-5-patient_13-q9",
+   "tokens": 31916,
+   "vllm_native_s": 2.8191622314043343,
+   "vllm_config": "40,960-token chunks",
+   "engine_native_s": 4.041712637990713,
+   "transfer_s": 1.3704360602423549,
+   "first_token": {
+    "native": 760,
+    "transfer": 760
+   },
+   "transfer_vs_vllm": 2.0571278830081132,
+   "transfer_vs_engine_native": 2.9492164977590827,
+   "engine_native_vs_vllm": 1.4336573443584262
+  }
+ ],
+ "real_prompts": {
+  "transfer_vs_vllm": [
+   2.051150016718952,
+   2.0582705549313673
+  ],
+  "same_first_token_all_arms": true
+ },
+ "vllm_decode": {
+  "torch.compile, first pass": {
+   "prompt": "longhealth-0-patient_09-q11",
+   "tokens": 64,
+   "wall_s": [
+    4.140969361178577,
+    4.141187509056181,
+    4.137014683801681
+   ],
+   "tpot_ms": 20.141974637226667
+  },
+  "40,960-token chunks": {
+   "prompt": "longhealth-0-patient_09-q11",
+   "tokens": 64,
+   "wall_s": [
+    4.0958201312460005,
+    4.084584572352469,
+    4.088739484082907
+   ],
+   "tpot_ms": 20.02378795441473
+  },
+  "torch.compile, last pass (drift check)": {
+   "prompt": "longhealth-0-patient_09-q11",
+   "tokens": 64,
+   "wall_s": [
+    4.139194484334439,
+    4.135093719232827,
+    4.128297313116491
+   ],
+   "tpot_ms": 20.018426548631396
+  }
+ },
+ "order": "vLLM default, vLLM torch.compile, engine random ids (pass 1), engine real prompts 0-5 (one process each), vLLM 40,960-token chunks, engine random ids (pass 2), vLLM torch.compile again",
+ "engine_decode_ms": {
+  "value": 29.1,
+  "note": "this engine's decode at ~32K context, batch 1, on the first real prompt, both arms (29.2 native / 29.1 transfer), measured on the same machine an hour earlier"
+ }
+}

@@ -34,6 +34,33 @@ warmed up and is excluded). Both used an earlier engine build and the phase-2 ma
 window. **Beyond 32K these are speed results only**: exact recall degrades there (see
 [benchmarks.md](benchmarks.md#beyond-32k)). All TTFT and TPOT runs use random token ids.
 
+### Against native vLLM
+
+The table above divides by this engine's own native prefill. On the same H100, vLLM 0.34 reads the same prompts
+1.3–1.4× faster (FlashAttention 3, FlashInfer's Gated-DeltaNet prefill, fused norms), so against vLLM the transfer is
+about 2.1× (`ttft_h100_vs_vllm.json`; scripts and how to rerun in
+[`scripts/vllm_baseline/`](../scripts/vllm_baseline/README.md)):
+
+| prompt | vLLM 0.34 native | this engine, native | transfer (fast mode) | **vs vLLM** | vs this engine |
+|---:|---:|---:|---:|---:|---:|
+| 8K | 0.689 s | 0.910 s | 0.349 s | **1.98×** | 2.61× |
+| 16K | 1.407 s | 1.916 s | 0.673 s | **2.09×** | 2.85× |
+| 32K | 2.966 s | 4.189 s | 1.414 s | **2.10×** | 2.96× |
+| six real 32K LongHealth prompts | 2.81–2.83 s | 4.03–4.06 s | 1.37 s | **2.05–2.06×** | 2.95–2.96× |
+
+- One H100 80 GB, batch 1, the same token ids for both engines, one engine on the GPU at a time. vLLM: wall time of
+  `generate(max_tokens=1)`, prefix caching off, the fastest of three configurations (default, `torch.compile`,
+  40,960-token chunks; they differ by under 0.6% on random ids and 1.6% on the real prompts). This engine: the calls
+  of `perf.task_ttft_repair`, arms interleaved; the random-id rows average two passes run before and after vLLM
+  (within 1%). Every arm emits the same first token on all six real prompts.
+- **Decode** at ~32K context, batch 1: vLLM 20.0 ms a token, this engine 29.1 ms. The transfer leaves decode as it
+  is, so on a 32K prompt vLLM's native finishes first once an answer passes about 160 tokens. Running the maps inside
+  vLLM, through its KV-connector interface, would keep both gains.
+- **Headroom.** At 700 TFLOP/s for GEMMs, 550 for attention and 150 for the scans, the native 27B needs about 2.8 s at
+  32K and the transfer about 0.8 s (the 4B's prefill, the maps, the 27B's scans, the tail). vLLM runs the native
+  27B at 1.08× that bound and this engine runs the transfer at 1.8×, so on vLLM-class kernels the ceiling against
+  vLLM is about 3.5×.
+
 ### Recall mode
 
 4B → 27B (`ttft_h100_recall_mode.json`, H100, same native baseline):
