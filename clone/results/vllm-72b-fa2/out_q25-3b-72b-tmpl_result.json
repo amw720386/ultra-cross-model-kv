@@ -1,0 +1,101 @@
+{
+ "calib_last_doc": null,
+ "feat": "kv",
+ "eval_L": 1024,
+ "eval_src": "fineweb-edu",
+ "lam_rel": 0.001,
+ "src": "Qwen/Qwen2.5-3B",
+ "tgt": "Qwen/Qwen2.5-72B",
+ "n_calib": 500,
+ "L": 1024,
+ "stride": 4,
+ "lam": 0.01,
+ "P": 960,
+ "n_eval": 64,
+ "Ls": 36,
+ "Lt": 80,
+ "Hs": 2,
+ "Ht": 8,
+ "D": 128,
+ "t_load": 104.81713628768921,
+ "maps_from": "q25-3b-72b",
+ "t_fit": 2.91253399848938,
+ "r2": {},
+ "eval": {
+  "ref_nocontext": {
+   "kl": 0.9449886232614517,
+   "kl_first": 4.705081552267075,
+   "agree": 0.633056640625,
+   "agree_first": 0.140625
+  },
+  "ref_source_model": {
+   "kl": 0.4570485092699528,
+   "kl_first": 0.4992812182754278,
+   "agree": 0.72998046875,
+   "agree_first": 0.734375
+  },
+  "map_k16_none": {
+   "kl": 4.092028796672821,
+   "kl_first": 2.56450205296278,
+   "agree": 0.20703125,
+   "agree_first": 0.40625
+  },
+  "oracleK_mapV_k16": {
+   "kl": 3.7352443039417267,
+   "kl_first": 2.5642536133527756,
+   "agree": 0.240234375,
+   "agree_first": 0.453125
+  },
+  "mapK_oracleV_k16": {
+   "kl": 0.28582565067335963,
+   "kl_first": 0.23174964310601354,
+   "agree": 0.851806640625,
+   "agree_first": 0.90625
+  },
+  "oracle_roundtrip": {
+   "kl": 0.0006759267416782677,
+   "kl_first": 0.0003337289617775241,
+   "agree": 0.986572265625,
+   "agree_first": 1.0
+  },
+  "map_k16_none_tail256": {
+   "kl": 3.7150849997997284,
+   "kl_first": 3.690860152244568,
+   "agree": 0.23974609375,
+   "agree_first": 0.21875
+  },
+  "map_k16_none_sink4_tail0": {
+   "kl": 0.37341899052262306,
+   "kl_first": 0.6360117718577385,
+   "agree": 0.7568359375,
+   "agree_first": 0.671875
+  },
+  "map_k16_none_sink4_tail256": {
+   "kl": 0.08612428000196815,
+   "kl_first": 0.0913857149425894,
+   "agree": 0.883544921875,
+   "agree_first": 0.875
+  },
+  "map_k16_none_sinkmeankv4": {
+   "kl": 0.3808533400297165,
+   "kl_first": 0.6642737630754709,
+   "agree": 0.756103515625,
+   "agree_first": 0.671875
+  },
+  "map_k16_none_sinkmeankv4_tail256": {
+   "kl": 0.08769244095310569,
+   "kl_first": 0.0946384472772479,
+   "agree": 0.88427734375,
+   "agree_first": 0.859375
+  },
+  "map_k16_none_sinkmeanv4": {
+   "kl": 0.5234944112598896,
+   "kl_first": 0.8184497691690922,
+   "agree": 0.74462890625,
+   "agree_first": 0.65625
+  }
+ },
+ "t_eval": 41.16279649734497,
+ "gpu": "NVIDIA B200",
+ "t_total": 151.54191398620605
+}

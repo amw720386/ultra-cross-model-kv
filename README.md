@@ -50,7 +50,18 @@ Details:
 - [docs/speed.md](docs/speed.md): TTFT, recall-mode cost, decode, serving
 - [docs/agents.md](docs/agents.md): τ2-bench and Terminal-Bench
 - [docs/method.md](docs/method.md): how it works, glossary, evaluation caveats, limitations
+- [docs/onetriangle-clone.md](docs/onetriangle-clone.md) and [clone/](clone/README.md): earlier clone (`kvx`) results and code, Qwen3, Qwen2.5, Gemma and Llama pairs
 - [results/](results/README.md): the result file behind every number
+
+## TODO
+
+We are still working on beating all of OneTriangle's published benchmarks. Open items:
+
+- τ2 telecom and Terminal-Bench 2.0 in a setting that is not slower than native
+- exact recall beyond 32K
+- decode speed level with vLLM 0.34
+- OneTriangle's other pairs (Qwen3 1.7B → 32B, Qwen2.5 3B → 72B, Ministral → Mistral Medium): partial results in the
+  [clone notes](docs/onetriangle-clone.md), 128K and recall still short of their claims
 
 ## Reproduce
 
@@ -93,6 +104,7 @@ src/xkv/genrun.py       batched generation for native / transfer / source arms
 src/xkv/agentbench.py   OpenAI-compatible local server; τ2 and Terminal-Bench drivers
 src/xkv/perf.py         TTFT / TPOT / serving benchmarks
 src/xkv/experiments.py  selftest, calibrate, distill, quality, longctx, bench
+clone/                  kvx: earlier OneTriangle clone (plain-attention pairs, vLLM connector), still TODO
 modal_jobs/             Modal images and entrypoints
 results/                result files behind every number
 docs/                   detailed results and method
