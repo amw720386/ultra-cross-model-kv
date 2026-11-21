@@ -50,7 +50,18 @@ Details:
 - [docs/speed.md](docs/speed.md): TTFT, recall-mode cost, decode, serving
 - [docs/agents.md](docs/agents.md): τ2-bench and Terminal-Bench
 - [docs/method.md](docs/method.md): how it works, glossary, evaluation caveats, limitations
+- [docs/onetriangle-clone.md](docs/onetriangle-clone.md): earlier clone results on Qwen3, Qwen2.5, Gemma and Llama pairs
 - [results/](results/README.md): the result file behind every number
+
+## TODO
+
+We are still working on beating all of OneTriangle's published benchmarks. Open items:
+
+- τ2 telecom and Terminal-Bench 2.0 in a setting that is not slower than native
+- exact recall beyond 32K
+- decode speed level with vLLM 0.34
+- OneTriangle's other pairs (Qwen3 1.7B → 32B, Qwen2.5 3B → 72B, Ministral → Mistral Medium): partial results in the
+  [clone notes](docs/onetriangle-clone.md), 128K and recall still short of their claims
 
 ## Reproduce
 
