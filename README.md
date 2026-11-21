@@ -7,8 +7,9 @@
 Prefill Qwen3.8-27B with Qwen3.5-4B. The 4B reads the prompt; learned maps turn its activations into the 27B's
 full-attention KV **and** Gated-DeltaNet recurrent states; the 27B decodes from there. One GPU, no cache over the wire.
 
-- **2.4–3.1× faster TTFT** at 8K–32K, no decode slowdown
-- **~2× goodput** under load (TTFT ≤ 5 s)
+- **2.0–2.1× faster TTFT than native vLLM 0.34** at 8K–32K on the same H100 (2.4–3.1× against this engine's own
+  native); decode unchanged
+- **~2× goodput** under load (TTFT ≤ 5 s), against this engine's native
 - **Level with or ahead of [OneTriangle](https://onetriangle.ai/blog/transfer-benchmarks?pair=qwen-27)** on every
   long-document and coding benchmark both ran
 - 5× at 128K, 21.5× at 1M, but exact recall is not preserved beyond 32K
@@ -21,10 +22,11 @@ full-attention KV **and** Gated-DeltaNet recurrent states; the 27B decodes from 
 
 | | ours | OneTriangle |
 |---|---:|---:|
-| TTFT speedup, 8K / 16K / 32K | 2.4–2.8 / 2.8–3.0 / 2.95–3.1× | 2.6 / 2.7 / 2.8× |
+| TTFT speedup vs native vLLM 0.34, 8K / 16K / 32K (same H100) | 2.0 / 2.1 / 2.1× | not published |
+| TTFT speedup vs each side's own native, 8K / 16K / 32K | 2.4–2.8 / 2.8–3.0 / 2.95–3.1× | 2.6 / 2.7 / 2.8× |
 | TTFT speedup, 128K / 1M | 5.0 / 21.5× (speed only) | 3.3 / 3.9× (projected) |
-| decode (TPOT) | = native | not published |
-| serving goodput, TTFT ≤ 5 s | 1.9× native | not published |
+| decode (TPOT) | = this engine's native (vLLM 0.34 is faster: 20 vs 29 ms at 32K) | not published |
+| serving goodput, TTFT ≤ 5 s | 1.9× this engine's native | not published |
 | ContractNLI | **0.757** | 0.61 |
 | LongHealth | **0.845** | 0.76 |
 | HumanEval / MBPP / BigCodeBench | 0.927 / 0.875 / 0.56 | 0.91 / 0.88 / 0.55 |
@@ -38,7 +40,9 @@ full-attention KV **and** Gated-DeltaNet recurrent states; the 27B decodes from 
 gap is much closer: −0.46 for us, −0.39 for them (17 tasks, ±0.23).
 
 **Where it loses:** agents with long rule-heavy policies (τ2 telecom, Terminal-Bench) only match native in a setting
-that is slower than native; exact recall beyond 32K; MMLU with a fully mapped prompt.
+that is slower than native; exact recall beyond 32K; MMLU with a fully mapped prompt; decode, where this engine
+runs at 29 ms a token and vLLM 0.34 at 20 (one H100, 32K context), so past ~160 output tokens on a 32K prompt
+vLLM's native finishes first ([speed.md](docs/speed.md#against-native-vllm)).
 
 Details:
 

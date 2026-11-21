@@ -37,6 +37,7 @@ setting only); `4b-27b-chat`, `4b-27b-w8192-distill-ret` and `4b-27b-r2-*` are e
 | file | what it holds |
 |---|---|
 | `ttft_h100_final_engine_two_runs.json`, `ttft_h100_8k-32k_final_engine.json` | Headline TTFT, 8K–32K, final engine |
+| `ttft_h100_vs_vllm.json` | TTFT against native vLLM 0.34 on the same H100 (random ids, six real 32K prompts) and vLLM's decode speed |
 | `ttft_h100_recall_mode.json` | TTFT with repair (recall mode), both pairs |
 | `ttft_h100_8k-64k.json`, `ttft_h200_64k-128k_reps3.json`, `ttft_h200_128k-1m*.json` | TTFT 64K to 1M |
 | `ttft_h100_untuned_lengths_batches.json` | TTFT at lengths and batch sizes the kernels were not tuned for |
