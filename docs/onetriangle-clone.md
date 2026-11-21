@@ -145,7 +145,7 @@ Other mapper and recompute variants were tried; none beat the recipe above.
 
 ## Reproduce
 
-Commands run from this directory. Modal volume: `clone-push-kvx`.
+Commands run from this directory. Modal volume: `kvx`.
 
 1. Fit maps and measure quality with the recommended recipe:
 

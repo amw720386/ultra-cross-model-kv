@@ -50,7 +50,7 @@ Details:
 - [docs/speed.md](docs/speed.md): TTFT, recall-mode cost, decode, serving
 - [docs/agents.md](docs/agents.md): τ2-bench and Terminal-Bench
 - [docs/method.md](docs/method.md): how it works, glossary, evaluation caveats, limitations
-- [docs/onetriangle-clone.md](docs/onetriangle-clone.md): earlier clone results on Qwen3, Qwen2.5, Gemma and Llama pairs
+- [docs/onetriangle-clone.md](docs/onetriangle-clone.md) and [clone/](clone/README.md): earlier clone (`kvx`) results and code, Qwen3, Qwen2.5, Gemma and Llama pairs
 - [results/](results/README.md): the result file behind every number
 
 ## TODO
@@ -104,6 +104,7 @@ src/xkv/genrun.py       batched generation for native / transfer / source arms
 src/xkv/agentbench.py   OpenAI-compatible local server; τ2 and Terminal-Bench drivers
 src/xkv/perf.py         TTFT / TPOT / serving benchmarks
 src/xkv/experiments.py  selftest, calibrate, distill, quality, longctx, bench
+clone/                  kvx: earlier OneTriangle clone (plain-attention pairs, vLLM connector), still TODO
 modal_jobs/             Modal images and entrypoints
 results/                result files behind every number
 docs/                   detailed results and method
