@@ -12,6 +12,7 @@ kvx/vllm_connector.py   vLLM v1 KV connector (CrossModelConnector), tensor-paral
 kvx/ttft.py, bench.py   TTFT and stage benchmarks
 kvx/{fa,fp8,mlp,recompute,distill,triton_kernels}.py   source prefill, fp8, MLP value map, recompute, kernels
 modal_*.py, run_local.py   Modal entrypoints and a local runner
+results/                raw result files behind every number in the clone notes
 tests/                  CPU unit tests (test_core_cpu.py) and Modal-run checks
 ```
 
