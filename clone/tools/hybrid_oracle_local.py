@@ -3,7 +3,7 @@ Identity kvx-hybrid-v1 maps (source = target, drop_q False, restore none, no sin
 reproduce the native engine: the connector writes the target's own taps back as attention KV + GatedDeltaNet states.
 
 python tools/hybrid_oracle_local.py maps Qwen/Qwen3.5-4B /tmp/oracle_maps.pt
-python tools/hybrid_oracle_local.py run native|mapped Qwen/Qwen3.5-4B /tmp/oracle_maps.pt <quality parquet> out.json
+python tools/hybrid_oracle_local.py run native|mapped Qwen/Qwen3.5-4B /tmp/oracle_maps.pt <quality parquet> out.json [tp] [extra json]
 python tools/hybrid_oracle_local.py compare native.json mapped.json
 """
 import json
@@ -33,17 +33,20 @@ def oracle_maps(model, out):
                     sink_template={}), out)
 
 
-def run(mode, model, maps, parquet, out):
+def run(mode, model, maps, parquet, out, tp="1", extra="{}"):
+    """tp: tensor parallel size; extra: JSON merged into the connector's extra_config (e.g. {"stream_feats": 0,
+    "fast_gdn": 0}) to A/B one connector path at a time."""
     from vllm import LLM, SamplingParams
     from vllm.inputs import TokensPrompt
     kw = dict(model=model, max_model_len=8192, gpu_memory_utilization=0.45, enable_prefix_caching=False,
-              limit_mm_per_prompt={"image": 0, "video": 0}, seed=0, enforce_eager=True, max_num_seqs=32)
+              limit_mm_per_prompt={"image": 0, "video": 0}, seed=0, enforce_eager=True, max_num_seqs=32,
+              tensor_parallel_size=int(tp))
     if mode == "mapped":
         from vllm.config import KVTransferConfig
         kw["kv_transfer_config"] = KVTransferConfig(
             kv_connector="HybridCrossModelConnector", kv_connector_module_path="kvx.vllm_hybrid_connector",
-            kv_role="kv_both", kv_connector_extra_config={"src": model, "maps": maps, "tail": 64, "min_len": 256,
-                                                          "recolor": 0})
+            kv_role="kv_both", kv_connector_extra_config=dict({"src": model, "maps": maps, "tail": 64, "min_len": 256,
+                                                               "recolor": 0}, **json.loads(extra)))
     llm = LLM(**kw)
     from transformers import AutoTokenizer
     import pyarrow.parquet as pq
@@ -74,6 +77,6 @@ if __name__ == "__main__":  # vLLM spawns its engine core: nothing may start on 
     if c == "maps":
         oracle_maps(sys.argv[2], sys.argv[3])
     elif c == "run":
-        run(*sys.argv[2:7])
+        run(*sys.argv[2:9])
     else:
         compare(sys.argv[2], sys.argv[3])

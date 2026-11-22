@@ -72,6 +72,7 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
         # and deterministic, so the same KV/state as reusing the cache) and the target computes everything after it
         # natively: later user turns, tool outputs and the agent's own replies never go through the map.
         self.map_once = bool(int(cfg.get_from_extra_config("map_once", 0)))
+        self.stream_feats = bool(int(cfg.get_from_extra_config("stream_feats", 1)))  # 0: all-layer feats (A/B)
         self._prefixes = {}  # key length K -> {hash(first prompt[:K]): its mapped prefix length}
         self._mstats = dict(first_n=0, first_prompt=0, first_mapped=0, later_n=0, later_prompt=0, later_mapped=0)
         self._recent = []  # last 32 first prompts (diagnostic log only)
@@ -384,6 +385,10 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
                     write_lin_state(conv_c, ssm_c, int(blocks[0]), conv, S, self.dim_first)
 
             if self.xm is not None:
+                for t in layers:
+                    do_target(t)
+            elif not self.stream_feats:  # A/B: the pre-streaming path (all source layers' features at once)
+                feats.update(enumerate(hybrid.source_features(self.Sdec, ids, drop_q=self.mf.get("drop_q", True))))
                 for t in layers:
                     do_target(t)
             else:
