@@ -13,9 +13,10 @@ import os
 import re
 import statistics
 
-SB = os.path.expanduser("~/kvx-data/scoreboard.json")
-OURS = os.path.expanduser("~/kvx-data/seats/kvx-speed/ours.json")
-LEDGER = os.path.expanduser("~/kvx-data/seats/kvx-speed/LEDGER.jsonl")
+DATA = os.path.expanduser(os.environ.get("KVX_DATA", "~/kvx-data"))  # scoreboard + seat files (set KVX_DATA)
+SB = os.path.join(DATA, "scoreboard.json")
+OURS = os.path.join(DATA, "seats/kvx-speed/ours.json")
+LEDGER = os.path.join(DATA, "seats/kvx-speed/LEDGER.jsonl")
 
 # target model -> (home-row pair, component-row pair, context labels by prompt length)
 PAIRS = {
@@ -52,7 +53,8 @@ def main():
     a = ap.parse_args()
     res = sum((json.load(open(f)) for f in a.result), [])
     run_id = os.path.basename(a.result[-1]).rsplit(".", 1)[0]
-    ok = [dict(x["result"], tag=x["result"].get("tag") or x["cfg"].get("tag"), maps=x["result"].get("maps") or x["cfg"].get("maps"))
+    ok = [dict(x["result"], tag=x["result"].get("tag") or x["cfg"].get("tag"), maps=x["result"].get("maps") or x["cfg"].get("maps"),
+               extra_cfg=x["cfg"].get("extra"))
           for x in res if "result" in x]
     for x in res:  # a config that died later (e.g. OOM at 128K) still measured its shorter lengths
         if "error" in x and x.get("partial_rows"):
@@ -85,8 +87,18 @@ def main():
         hid = re.sub(r"-+", "-", hid)
         n_m = ((L - best["tail"]) // 16) * 16
         comp = components(best.get("connector_log", []), n_m)
+        qn = ""
+        try:  # this config's own quality vs native vLLM (lead's rule for configs that change the source computation)
+            from speed_quality import cmp as _cmp
+            for key, lab_ in (("first_token_top20", "FW 1K"), ("long_first_token_top20", "PG19 long")):
+                nq = next((r.get(key) for r in native if r.get(key)), None)
+                if nq and best.get(key):
+                    ag, nn, kl = _cmp(nq, best[key])
+                    qn += f"; quality {lab_}: top1 {ag}/{nn}, approx first-token KL {kl:.3f} vs native"
+        except Exception:
+            pass
         note = (f"mapped {t:.3f} s vs native vLLM {nat[L]:.3f} s ({tag}); src_tp={best.get('src_tp')}, tail={best['tail']}, "
-                f"fp8 mapper={best.get('fp8')}, YaRN-served; maps {best.get('maps')}")
+                f"fp8 mapper={best.get('fp8')}, YaRN-served; maps {best.get('maps')}; extra {best.get('extra_cfg')}" + qn)
         for rid, val in ((f"{hid}-{lab}-ttft", t), (f"{hid}-{lab}-speedup", sp)):
             if rid not in byid:
                 print("no scoreboard row", rid); continue
