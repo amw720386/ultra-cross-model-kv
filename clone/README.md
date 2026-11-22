@@ -79,7 +79,7 @@ This repo rebuilds, from public material only, the method that OneTriangle (YC S
 
 All rows (Tier 2 and untracked included):
 
-**Beaten 132 of 1143** published OneTriangle numbers (tied 24, behind 54, blocked 1, open 835). Full row table: [docs/SCOREBOARD.md](docs/SCOREBOARD.md). Rules: same pair, context/benchmark and N or more; TTFT on their GPU class (H100) and speedups against native vLLM/SGLang.
+**Beaten 133 of 1143** published OneTriangle numbers (tied 24, behind 53, blocked 1, open 835). Full row table: [docs/SCOREBOARD.md](docs/SCOREBOARD.md). Rules: same pair, context/benchmark and N or more; TTFT on their GPU class (H100) and speedups against native vLLM/SGLang.
 
 | pair | category | rows | beaten | tied | behind | blocked | open |
 |---|---|---|---|---|---|---|---|
@@ -108,7 +108,7 @@ All rows (Tier 2 and untracked included):
 | Gemma-4-E2B -> Gemma-4-31B | TTFT table | 15 | 0 | 0 | 0 | 0 | 15 |
 | Gemma-4-E4B -> Gemma-4-31B | TTFT table | 15 | 0 | 0 | 0 | 0 | 15 |
 | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT table | 15 | 0 | 0 | 0 | 0 | 15 |
-| Qwen3-1.7B -> Qwen3-32B | TTFT table | 15 | 6 | 0 | 6 | 0 | 3 |
+| Qwen3-1.7B -> Qwen3-32B | TTFT table | 15 | 7 | 0 | 5 | 0 | 3 |
 | Qwen3-1.7B -> Qwen3-8B | TTFT table | 15 | 5 | 0 | 5 | 0 | 5 |
 | Qwen3.5-2B -> Qwen3.8-27B | TTFT table | 15 | 0 | 0 | 0 | 0 | 15 |
 | Qwen3.5-4B -> Qwen3.8-27B | TTFT table | 15 | 0 | 0 | 0 | 0 | 15 |
