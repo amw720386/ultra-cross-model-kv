@@ -67,7 +67,7 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
         # and deterministic, so the same KV/state as reusing the cache) and the target computes everything after it
         # natively: later user turns, tool outputs and the agent's own replies never go through the map.
         self.map_once = bool(int(cfg.get_from_extra_config("map_once", 0)))
-        self._prefixes = {}  # first-prompt length -> {hash(first prompt tokens): its mapped prefix length}
+        self._prefixes = {}  # key length K -> {hash(first prompt[:K]): its mapped prefix length}
         self._mstats = dict(first_n=0, first_prompt=0, first_mapped=0, later_n=0, later_prompt=0, later_mapped=0)
         self.tgt_name = vllm_config.model_config.model
         if vllm_config.cache_config.enable_prefix_caching:
@@ -106,12 +106,15 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
         return p.get("kvx_tail") if isinstance(p, dict) else None
 
     def _map_once(self, ids, tail):
-        """Mapped prefix length under map_once. A later turn starts with its conversation's WHOLE first prompt: it maps
-        exactly that first request's mapped prefix. Otherwise this is a first request: n - tail, remembered."""
+        """Mapped prefix length under map_once. A later turn starts with its conversation's first prompt up to the
+        generation suffix: the chat template re-renders the end of the generation prompt once the reply exists
+        (Qwen3.x: "<think>\n" becomes "<think>\n\n</think>\n\n", so the LAST token differs), so the key is the first
+        prompt minus G = min(16, native tail) tokens: it still covers the whole mapped prefix and the first user turn.
+        A match maps exactly that first request's mapped prefix. Otherwise this is a first request: n - tail."""
         n = len(ids)
-        for N in sorted(self._prefixes, reverse=True):  # N = a first prompt's length -> {hash(first prompt): m}
-            if N <= n:
-                L = self._prefixes[N].get(hash(tuple(ids[:N])))
+        for K in sorted(self._prefixes, reverse=True):  # K = key length -> {hash(first prompt[:K]): m}
+            if K <= n:
+                L = self._prefixes[K].get(hash(tuple(ids[:K])))
                 if L is not None:
                     st = self._mstats
                     st["later_n"] += 1
@@ -120,7 +123,8 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
                     return L
         m = self._n_mapped(n, tail)
         if m > 0:
-            self._prefixes.setdefault(n, {})[hash(tuple(ids))] = m
+            K = n - min(16, n - m)
+            self._prefixes.setdefault(K, {})[hash(tuple(ids[:K]))] = m
             if sum(len(v) for v in self._prefixes.values()) > 4096:  # bound memory: forget the shortest prompts
                 self._prefixes.pop(min(self._prefixes))
         st = self._mstats

@@ -47,10 +47,12 @@ def test_map_once_multi_turn():
     assert m("a1", a1) == 4784                # first request: n - 256
     assert m("a2", a2) == 4784                # later turns map only a's first-request prefix
     assert m("a3", a3) == 4784
+    # the template re-renders the first prompt's last token once the reply exists ("<think>\n" -> "<think>\n\n...")
+    assert m("a4", a1[:-1] + [77, 78] + [6] * 400) == 4784
     assert m("b1", b1) == 4804                # a new conversation gets its own n - 256, not a's prefix
     assert m("b2", b1 + [3] * 500) == 4804
     assert m("s", list(range(100, 140))) == 30  # short first prompt: tail capped at 25%
     assert m("s", list(range(100, 140))) == 30  # the scheduler asking again gets the same decision
     st = c._mstats
-    assert (st["first_n"], st["later_n"]) == (3, 3)
+    assert (st["first_n"], st["later_n"]) == (3, 4)
     assert st["first_mapped"] == 4784 + 4804 + 30
