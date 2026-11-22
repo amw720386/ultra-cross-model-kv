@@ -519,3 +519,21 @@ def test_connector_lean_source_equals_hf_source(tmp_path, fp8, tc, monkeypatch):
     for l in res[0]:
         for X, Y in zip(res[1][l], res[0][l]):
             assert ((X - Y).norm() / Y.norm()).item() < 2e-2
+
+
+def test_sink_template_pairs_format_equals_stacked(tmp_path):
+    """kvx-pairs' sink template {layer: {"k": [A, H*D], "v": ...}} loads like the stacked {"K","V": [Lt, H, A, D]}."""
+    from tests.test_core_cpu import _import_connector_with_stub_vllm
+    vc = _import_connector_with_stub_vllm()
+    d, maps, sp = _tiny_maps(tmp_path, "kv", sink=True)  # stacked format, Ls=3, H=2, A=4, D=16
+    st = torch.load(sp)
+    pairs = {t: {"k": st["K"][t].permute(1, 0, 2).reshape(4, -1), "v": st["V"][t].permute(1, 0, 2).reshape(4, -1)} for t in range(3)}
+    sp2 = str(tmp_path / "sink_pairs.pt")
+    torch.save(pairs, sp2)
+    out = []
+    for path in (sp, sp2):
+        c = _conn(vc, d, maps, (0, 1), False)
+        c.sink_path = path
+        c._init_worker(torch.device("cpu"))
+        out.append((c.sinkK.clone(), c.sinkV.clone()))
+    assert torch.allclose(out[0][0], out[1][0]) and torch.allclose(out[0][1], out[1][1])

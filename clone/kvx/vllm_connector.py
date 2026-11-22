@@ -260,8 +260,15 @@ class CrossModelConnector(KVConnectorBase_V1):
         scfg = AutoConfig.from_pretrained(self.src_name)
         if getattr(self, "yarn", 0.0) > 0:
             apply_yarn(scfg, self.yarn, self.orig_ctx)
-        self.S = AutoModelForCausalLM.from_pretrained(self.src_name, config=scfg, dtype=torch.bfloat16,
-                                                      attn_implementation="sdpa").to(device).eval()
+        if getattr(scfg, "text_config", None) is not None and "ConditionalGeneration" in ((scfg.architectures or [""])[0]):
+            # multimodal checkpoint (Ministral 3, Gemma 3/4): the text decoder behind the TextLM view (vision unused)
+            from transformers import AutoModelForImageTextToText
+            from .models import TextLM
+            self.S = TextLM(AutoModelForImageTextToText.from_pretrained(self.src_name, dtype=torch.bfloat16,
+                                                                        attn_implementation="sdpa")).to(device).eval()
+        else:
+            self.S = AutoModelForCausalLM.from_pretrained(self.src_name, config=scfg, dtype=torch.bfloat16,
+                                                          attn_implementation="sdpa").to(device).eval()
         self.tp_rank, self.tp_size = _tp_rank_size(getattr(self, "tp_override", None))
         self.src_tp_on = False
         if self.tp_size > 1 and getattr(self, "src_tp", True):
@@ -307,6 +314,7 @@ class CrossModelConnector(KVConnectorBase_V1):
             m.pop("W16", None)
         # tensor parallel: this rank owns KV heads [r*H/tp, (r+1)*H/tp) of every target layer -> keep only those columns
         H0, D0 = mp["k"][0]["H"], mp["k"][0]["D"]
+        mp_H0D0 = (H0, D0)
         if self.tp_size > 1:
             assert H0 % self.tp_size == 0, (H0, self.tp_size)
             Hl = H0 // self.tp_size
@@ -423,6 +431,11 @@ class CrossModelConnector(KVConnectorBase_V1):
         self.sinkK = self.sinkV = None
         if self.sink_path:
             st_ = torch.load(self.sink_path, map_location="cpu")  # K, V [Lt, H, A, D] (K pre-RoPE)
+            if "K" not in st_:  # kvx-pairs' per-layer format {layer: {"k": [A, H*D], "v": [A, H*D]}} (pre-RoPE K)
+                H0_, D0_ = mp_H0D0
+                ls_ = sorted(int(t) for t in st_)
+                st_ = {X.upper(): torch.stack([st_[t][X].float().view(-1, H0_, D0_).permute(1, 0, 2) for t in ls_])
+                       for X in ("k", "v")}
             A = st_["K"].shape[2]
             Kr = core.rope(st_["K"].float().to(device), self.ct[:A], self.st[:A])
             self.sinkK = Kr.permute(2, 0, 1, 3).to(torch.bfloat16).contiguous()       # [A, Lt, H, D] RoPE'd
