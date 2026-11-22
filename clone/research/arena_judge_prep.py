@@ -1,7 +1,7 @@
 """Build the pairwise-judging packet for note 020 (their 36 annotated Arena prompts, plus all 100).
 
 For each prompt: reference = THEIR native Qwen3-8B reply (from their CSV); candidates = OUR mapped reply (arena run) and
-THEIR KV-Lingo reply. One judge (GLM via lab/oc-go) labels each candidate vs the reference better / same / worse, in a
+THEIR KV-Lingo reply. One LLM judge labels each candidate vs the reference better / same / worse, in a
 randomized A/B order, so ours and theirs are judged by the same rubric (their own labels were hand annotations).
 python research/arena_judge_prep.py ARENA_ITEMS_JSON THEIR_CSV THEIR_INTERESTING_CSV OUT_DIR
 """

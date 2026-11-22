@@ -19,7 +19,7 @@ image = (
     .env({"HF_HOME": "/vol/hf", "HF_HUB_ENABLE_HF_TRANSFER": "1", "TOKENIZERS_PARALLELISM": "false"})
     .add_local_python_source("kvx", "research")
 )
-vol = modal.Volume.from_name("kvx-research", create_if_missing=True)
+vol = modal.Volume.from_name(os.environ.get("KVX_RESEARCH_VOLUME", "kvx-research"), create_if_missing=True)
 hf_shared = modal.Volume.from_name(os.environ.get("KVX_WEIGHTS_VOLUME", "kvx-hf"))
 app = modal.App(os.environ.get("KVX_APP", "kvx-research-mc128"), image=image)
 kvx_vol = modal.Volume.from_name(os.environ.get("KVX_VOLUME", "kvx"))  # lead / kvx-pairs maps (read-only here)
