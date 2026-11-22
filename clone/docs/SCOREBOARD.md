@@ -74,7 +74,7 @@
 | home-qwen3-5-2b-qwen3-8-27b-256K-speedup | Qwen3.5-2B -> Qwen3.8-27B | speedup x vs their native | 256K | 7.018 | est. |  | open |
 | home-qwen3-5-2b-qwen3-8-27b-512K-ttft | Qwen3.5-2B -> Qwen3.8-27B | TTFT s (mapped) | 512K | 79.43 | est. |  | open |
 | home-qwen3-5-2b-qwen3-8-27b-512K-speedup | Qwen3.5-2B -> Qwen3.8-27B | speedup x vs their native | 512K | 7.419 | est. |  | open |
-| home-qwen3-5-2b-qwen3-8-27b-peak | Qwen3.5-2B -> Qwen3.8-27B | peak speedup x (headline) | 1M | 7.7 | est. |  | open |
+| home-qwen3-5-2b-qwen3-8-27b-peak | Qwen3.5-2B -> Qwen3.8-27B | peak speedup x (headline) | 1M | 7.7 | est. | 1.9 | behind |
 | home-gemma-4-e4b-gemma-4-31b-8K-ttft | Gemma-4-E4B -> Gemma-4-31B | TTFT s (mapped) | 8K | 0.37 | est. | 0.3926 | behind |
 | home-gemma-4-e4b-gemma-4-31b-8K-speedup | Gemma-4-E4B -> Gemma-4-31B | speedup x vs their native | 8K | 3.216 | est. |  | open |
 | home-gemma-4-e4b-gemma-4-31b-16K-ttft | Gemma-4-E4B -> Gemma-4-31B | TTFT s (mapped) | 16K | 0.75 | est. | 0.7314 | beaten |
@@ -104,7 +104,7 @@
 | home-qwen3-5-4b-qwen3-8-27b-256K-speedup | Qwen3.5-4B -> Qwen3.8-27B | speedup x vs their native | 256K | 3.566 | est. |  | open |
 | home-qwen3-5-4b-qwen3-8-27b-512K-ttft | Qwen3.5-4B -> Qwen3.8-27B | TTFT s (mapped) | 512K | 157.4 | est. |  | open |
 | home-qwen3-5-4b-qwen3-8-27b-512K-speedup | Qwen3.5-4B -> Qwen3.8-27B | speedup x vs their native | 512K | 3.744 | est. |  | open |
-| home-qwen3-5-4b-qwen3-8-27b-peak | Qwen3.5-4B -> Qwen3.8-27B | peak speedup x (headline) | 1M | 3.9 | est. |  | open |
+| home-qwen3-5-4b-qwen3-8-27b-peak | Qwen3.5-4B -> Qwen3.8-27B | peak speedup x (headline) | 1M | 3.9 | est. | 2.4 | behind |
 | home-glm-4-7-flash-glm-5-3-8K-ttft | GLM-4.7-Flash -> GLM-5.3 | TTFT s (mapped) | 8K | 0.63 | est. |  | open |
 | home-glm-4-7-flash-glm-5-3-8K-speedup | GLM-4.7-Flash -> GLM-5.3 | speedup x vs their native | 8K | 2.556 | est. |  | open |
 | home-glm-4-7-flash-glm-5-3-16K-ttft | GLM-4.7-Flash -> GLM-5.3 | TTFT s (mapped) | 16K | 1.25 | est. |  | open |
