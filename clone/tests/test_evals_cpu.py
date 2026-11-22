@@ -88,3 +88,21 @@ def test_ladder_loaders_parse():
                 assert it["answer"] in "ABCDEFGHIJ"[:it["meta"]["n_opts"]], (b, it["id"])
             if it["kind"] == "zebra":
                 assert all(isinstance(v, dict) and v for v in it["answer"].values())
+
+
+def test_select_excerpt_finds_the_needle():
+    """Reread selection picks the window holding the question's rare terms."""
+    from kvx.evals.run import select_excerpt
+
+    class Tok:  # whitespace tokenizer
+        def __call__(self, text, add_special_tokens=False):
+            return {"input_ids": text.split()}
+
+        def decode(self, ids):
+            return " ".join(ids)
+
+    filler = ("the weather was mild and people walked in the park " * 40).split()
+    needle = "the patient received cyclophosphamide on day twelve of admission".split()
+    ctx = " ".join(filler[:200] + needle + filler[200:])
+    ex = select_excerpt(Tok(), ctx, "On which day did the patient receive cyclophosphamide?", 32)
+    assert "cyclophosphamide" in ex and "twelve" in ex

@@ -39,6 +39,8 @@ def _arm_cmd(arm, out_dir):
         c += ["--max-num-seqs", str(arm["max_num_seqs"])]
     if arm.get("question_tail"):
         c.append("--question-tail")
+    if arm.get("reread"):
+        c.append("--reread")
     if arm.get("ns"):
         c += ["--ns", json.dumps(arm["ns"])]
     return c

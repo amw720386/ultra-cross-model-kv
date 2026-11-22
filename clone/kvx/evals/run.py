@@ -26,6 +26,60 @@ def sampling(SamplingParams, bench, thinking, seed=0):
     return SamplingParams(temperature=0.0, max_tokens=gen_budget(bench, False))
 
 
+_STOP = set("""a an the and or of to in on for with by from at as is are was were be been being this that these those
+it its which who whom what when where why how not no yes do does did can could would should will may might shall
+than then there their them they he she his her you your we our us i me my question answer option options letter
+correct only following based above below""".split())
+
+
+def _terms(text):
+    import re
+    return [w for w in re.findall(r"[a-z0-9]+", text.lower()) if len(w) >= 3 and w not in _STOP]
+
+
+def select_excerpt(tok, ctx, question, budget):
+    """OneTriangle-style reread on the vLLM path (the connector can only map a PREFIX, so a span cannot be recomputed in
+    place): pick the context window of `budget` tokens most relevant to the question (BM25-style term saturation x
+    idf over the windows) and return it as text; it is re-read natively right before the question."""
+    import math
+    if budget < 16 or not ctx:
+        return ""
+    ids = tok(ctx, add_special_tokens=False)["input_ids"]
+    step = max(8, budget // 2)
+    wins = [ids[i:i + budget] for i in range(0, max(1, len(ids) - budget + 1), step)]
+    texts = [tok.decode(w) for w in wins]
+    q = set(_terms(question))
+    if not q:
+        return ""
+    docs = [_terms(t) for t in texts]
+    df = {w: sum(1 for d in docs if w in d) for w in q}
+    n = len(docs)
+    best, best_s = 0, -1.0
+    for k, d in enumerate(docs):
+        s = 0.0
+        for w in q:
+            tf = d.count(w)
+            if tf:
+                s += math.log(1 + (n - df[w] + 0.5) / (df[w] + 0.5)) * tf * 2.2 / (tf + 1.2)
+        if s > best_s:
+            best, best_s = k, s
+    return texts[best] if best_s > 0 else ""
+
+
+def apply_reread(tok, items, total=240):
+    """Prefix each context item's question with its most relevant excerpt; excerpt + question <= `total` tokens
+    (the native tail cap), so the whole re-read part stays native under --question-tail."""
+    out = []
+    for it in items:
+        if not it["context"]:
+            out.append(it)
+            continue
+        qlen = len(tok(it["question"], add_special_tokens=False)["input_ids"])
+        ex = select_excerpt(tok, it["context"], it["question"], total - qlen - 24)
+        out.append(dict(it, question=(f"Relevant excerpt (re-read):\n{ex}\n\n" if ex else "") + it["question"]))
+    return out
+
+
 def build_prompts(tok, items, max_len, thinking):
     out = []
     for it in items:
@@ -73,6 +127,8 @@ def main():
     ap.add_argument("--question-tail", action="store_true", help="mapped arm: native tail = question tokens (+extra)")
     ap.add_argument("--question-tail-extra", type=int, default=16)
     ap.add_argument("--tail-cap", type=int, default=256, help="native tail cap in tokens")
+    ap.add_argument("--reread", action="store_true", help="re-read the most question-relevant excerpt natively "
+                                                          "(use with --question-tail; counts against the cap)")
     ap.add_argument("--tail-frac", type=float, default=0.25, help="native tail cap as a fraction of the prompt")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
@@ -83,6 +139,8 @@ def main():
     ns = json.loads(a.ns) if a.ns else {}
     for b in a.benches.split(","):
         items += data.load(b, a.data_root, int(ns.get(b, a.n)))
+    if a.reread:
+        items = apply_reread(tok, items, total=a.tail_cap - 16)
     prompts = build_prompts(tok, items, a.max_model_len, a.thinking)
     lens = [len(p) for p, _, _ in prompts]
     print(json.dumps(dict(items=len(items), max_len=max(lens), mean_len=sum(lens) / len(lens),
