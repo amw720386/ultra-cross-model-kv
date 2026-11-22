@@ -40,7 +40,7 @@ def make_batch_gen(strategy, sm, tm, mapper, tok, tail=128, window=8192, batch=8
         strategy, sink = strategy.split(":s")[0], int(strategy.split(":s")[1])
     if strategy.startswith("transfer@"):  # e.g. transfer@16: only the last 16 prompt tokens run natively
         strategy, tail = "transfer", strategy.split("@")[1]  # transfer@auto: mapper.adaptive_tail
-        tail = tail if tail == "auto" else int(tail)
+        tail = tail if tail in ("auto", "cap") else int(tail)
     model = sm if strategy == "source" else tm
     im_start = tok.convert_tokens_to_ids("<|im_start|>")
 
@@ -48,7 +48,8 @@ def make_batch_gen(strategy, sm, tm, mapper, tok, tail=128, window=8192, batch=8
         """turn_tail_max: the target natively reads the whole newest turn (from the last non-assistant message
         start; with turn_tail_msgs=k, the last k messages), up to turn_tail_max tokens; the mapped part is the
         system prompt and older history."""
-        base = adaptive_tail(len(p)) if tail == "auto" else tail
+        # "cap": native tail = min(256, 25% of the prompt) (kvx bundle rule: rows must stay mostly mapped)
+        base = adaptive_tail(len(p)) if tail == "auto" else (max(1, min(256, len(p) // 4)) if tail == "cap" else tail)
         if not turn_tail_max:
             return base
         starts = [i for i, t in enumerate(p) if t == im_start]
