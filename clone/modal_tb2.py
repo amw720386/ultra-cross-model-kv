@@ -94,7 +94,11 @@ def main(arm: str, run_id: str, model: str = "Qwen/Qwen3.8-27B", connector: str 
     jobs = os.path.join(out_dir, run_id, arm)
     os.makedirs(jobs, exist_ok=True)
     cmd = [harbor, "run", "-d", "terminal-bench@2.0", "-a", "terminus-2", "-m", "hosted_vllm/agent",
-           "--ak", f"api_base={url}/v1", "-e", "modal", "-n", str(concurrency), "-o", jobs]
+           "--ak", f"api_base={url}/v1",
+           # Harbor's hosted_vllm validation needs token limits + costs (our own server: cost 0)
+           "--ak", "model_info=" + json.dumps(dict(max_input_tokens=max_len, max_output_tokens=8192,
+                                                   input_cost_per_token=0.0, output_cost_per_token=0.0)),
+           "-e", "modal", "-n", str(concurrency), "-o", jobs]
     for t in tasks:
         cmd += ["-i", t]
     t0 = time.time()
