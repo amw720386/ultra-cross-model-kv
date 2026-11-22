@@ -16,7 +16,10 @@ from modal_fit_hybrid import hf_shared, image, snapshot, vol  # same image/volum
 app = modal.App(os.environ.get("KVX_APP", "kvx-g4-compare"), image=image.add_local_python_source("modal_fit_hybrid"))
 
 
-@app.function(gpu=os.environ.get("KVX_GPU", "H200"), volumes={"/vol": vol, "/hf": hf_shared.read_only()},
+_G = os.environ.get("KVX_GPU", "H200")
+
+
+@app.function(gpu=_G.split(",") if "," in _G else _G, volumes={"/vol": vol, "/hf": hf_shared.read_only()},
               timeout=1800, memory=131072)
 def compare(dump: str, maps_run: str, src: str, tgt: str):
     import torch
