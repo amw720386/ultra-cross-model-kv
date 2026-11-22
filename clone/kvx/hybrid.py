@@ -228,6 +228,29 @@ def source_features(src, ids, drop_q=True, emb=False, on_feat=None):
     return out
 
 
+@torch.no_grad()
+def source_features_cached(src, ids, cache=None, drop_q=True):
+    """source_features over a token chunk that continues `cache` (the source's own cache from earlier chunks; None for
+    the first). Returns (per-layer [B*T, d_l] features of this chunk, None for KV-shared layers; the updated cache).
+    kvx-speed: token-chunked source prefill for 1M on 80 GB (the Gemma connector's src_chunk)."""
+    feats = {}
+    qw = lin_q_width(src) if any(k == "lin" for k, _ in layer_taps(src)) else 0
+    taps_s = layer_taps(src)
+    kinds = [k for k, _ in taps_s]
+
+    def on_layer(l, d):
+        if kinds[l] == "lin":
+            qkv = d["qkv"][..., qw:] if drop_q else d["qkv"]
+            x = torch.cat([qkv, d["a"], d["b"]], -1)
+        else:
+            x = torch.cat([d[n] for n, _, _ in taps_s[l][1]], -1)
+        feats[l] = x.reshape(-1, x.shape[-1]).to(device=src.device0, dtype=torch.bfloat16)
+
+    with Taps(src).record(on_layer):
+        _, cache = src.forward(ids, cache=cache, keep=1, use_cache=True)
+    return [feats.get(l) for l in range(len(kinds))], cache
+
+
 def windows(Ls, Lt, w, kinds_s, kinds_t, same_kind=True):
     """Source layers per target layer: the w nearest by relative depth, plus the nearest source layer of the same
     kind (an attention target always sees a source attention layer)."""

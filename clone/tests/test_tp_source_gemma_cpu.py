@@ -141,3 +141,59 @@ def test_gemma_connector_src_tp_equals_tp1(tmp_path, world):
             for X, Y in ((K, ref[t][0][:, h0:h0 + H]), (V, ref[t][1][:, h0:h0 + H])):
                 rel = ((X - Y).norm() / Y.norm()).item()
                 assert X.shape == Y.shape and rel < 5e-3, (world, r, t, rel)  # maps are bf16 GEMMs
+
+
+@pytest.mark.parametrize("chunk", [5, 8, 21])
+def test_gemma_chunked_cached_taps_equal_whole(chunk):
+    """Gemma-4 source in token chunks with its own cache (sliding layers, KV-shared layers) gives the same k/v taps
+    as one pass (hybrid.source_features_cached vs source_features)."""
+    from kvx import hybrid
+    dec = _tiny(False)
+    ids = _ids()
+    whole = hybrid.source_features(dec, ids)
+    parts, cache = [], None
+    for c0 in range(0, ids.shape[1], chunk):
+        f, cache = hybrid.source_features_cached(dec, ids[:, c0:c0 + chunk], cache)
+        parts.append(f)
+    for l, w in enumerate(whole):
+        if w is None:
+            assert all(p[l] is None for p in parts)
+            continue
+        x = torch.cat([p[l] for p in parts], 0).float()
+        rel = ((x - w.float()).norm() / w.float().norm()).item()
+        assert x.shape == w.shape and rel < 1e-2, (chunk, l, rel)  # features are bf16
+
+
+def test_gemma_connector_chunked_write_equals_one_pass(tmp_path):
+    """_write_requests with src_chunk (token-chunked source + per-chunk map/write) fills the paged caches exactly like
+    the one-pass write: sliding layers only their last window, global layers every token, null block untouched."""
+    from kvx.vllm_gemma_connector import GemmaMeta, _GReq
+    dec = _tiny(False)
+    d = str(tmp_path / "g4")
+    dec.model.save_pretrained(d, safe_serialization=True)
+    mp_path = _identity_maps(dec.model, d, str(tmp_path))
+    T, bs, nb = 21, 4, 12
+    types = dec.model.config.layer_types
+    win = dec.model.config.sliding_window
+    sl = [t for t, ty in enumerate(types) if ty == "sliding_attention"]
+    gl = [t for t in range(len(types)) if t not in sl]
+    ids = _ids()[0].tolist()
+    gblocks = list(range(1, 7))                       # 6 blocks of 4 >= 21 tokens
+    sblocks = [0, 0, 0, 7, 8, 9]                       # window 8: the last 3 blocks are real
+    out = []
+    for chunk in (0, 6):
+        c = _connector(d, mp_path, 0, 1, 0)
+        c.groups = [(bs, sl), (bs, gl)]
+        c.layer_group = {**{t: 0 for t in sl}, **{t: 1 for t in gl}}
+        c._layouts, c._backend, c.src_chunk = {}, "FLASH_ATTN", chunk
+        views = {}
+        for t in c.maps:
+            H, D = c.maps[t]["k"]["H"], c.maps[t]["k"]["D"]
+            views[t] = torch.full((nb, bs, H, 2 * D), 7.0).permute(0, 2, 1, 3)
+        c._write_requests(GemmaMeta(requests=[_GReq(token_ids=ids, block_ids=(sblocks, gblocks))]), views,
+                          torch.device("cpu"))
+        out.append(views)
+    for t in out[0]:
+        a, b = out[0][t].float(), out[1][t].float()
+        assert torch.allclose(a, b, atol=2e-2), (t, (a - b).abs().max())
+        assert (out[1][t].permute(0, 2, 1, 3)[0] == 7.0).all()

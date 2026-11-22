@@ -87,6 +87,9 @@ class GemmaCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
         self.src_name, self.maps_path, self.sink_path = g("src", None), g("maps", None), g("sink_template", None)
         self.src_sdpa = str(g("src_sdpa", "vllm_fa"))
         self.src_tp = int(g("g4_src_tp", 0))  # kvx-speed: Megatron-split source prefill, opt-in until GPU-checked
+        # kvx-speed: token-chunked source prefill + per-chunk map/write (1M on 80 GB: all-layer taps of a 1M prompt do
+        # not fit); 0 = one pass
+        self.src_chunk = int(g("src_chunk", 0))
         self.dump_path = g("dump_path", None)  # debug: save the first request's written K/V (rank 0) for an HF check
         self.tgt_name = vllm_config.model_config.model
         self.max_len = vllm_config.model_config.max_model_len
@@ -217,8 +220,9 @@ class GemmaCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
             feats = gather_taps(self.Sdec, feats)
         return feats  # per source layer [T, wk + wv] (k | v), None for KV-shared layers
 
-    def _map_layer(self, t, feats, T):
-        """Target layer t: (K [T, H, D] post-RoPE, V [T, H, D]) float32, this rank's heads."""
+    def _map_layer(self, t, feats, T, c0=0):
+        """Target layer t: (K [T, H, D] post-RoPE, V [T, H, D]) float32, this rank's heads, for the T tokens at absolute
+        positions c0..c0+T (c0 > 0: a later token chunk; the sink template covers positions < its length only)."""
         out = []
         for kind in ("k", "v"):
             m = self.maps[t][kind]
@@ -230,14 +234,16 @@ class GemmaCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
         w = self.kw[t]
         K = restore_k(K, w)
         V = restore_v(V)
-        if self.sink is not None and t in self.sink:
+        if self.sink is not None and t in self.sink and c0 < self.sink[t]["k"].shape[0]:
+            if c0 > 0:
+                raise ValueError("src_chunk must exceed the sink template length")
             A = min(T, self.sink[t]["k"].shape[0])
             mk, mv = self.maps[t]["k"], self.maps[t]["v"]
             sk = self.sink[t]["k"][:A].view(A, -1, mk["D"])[:, mk["h0"]:mk["h0"] + mk["H"]]
             sv = self.sink[t]["v"][:A].view(A, -1, mv["D"])[:, mv["h0"]:mv["h0"] + mv["H"]]
             K[:A], V[:A] = sk, sv
         cos, sin = self.tabs[self.types[t]]
-        return _rope(K, cos[:T], sin[:T]), V
+        return _rope(K, cos[c0:c0 + T], sin[c0:c0 + T]), V
 
     def start_load_kv(self, forward_context, **kwargs: Any) -> None:
         meta = self._get_connector_metadata()
@@ -269,6 +275,13 @@ class GemmaCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
             t0 = _t.perf_counter()
             T = len(r.token_ids)
             ids = torch.tensor([r.token_ids], device=device)
+            if getattr(self, "src_chunk", 0) and T > self.src_chunk:
+                self._write_chunked(r, ids, T, views, device)
+                if device.type == "cuda":
+                    torch.cuda.synchronize(device)
+                logger.info("kvx gemma: n=%d chunked (src_chunk=%d) total_ms=%.1f src_tp=%d", T, self.src_chunk,
+                            1e3 * (_t.perf_counter() - t0), int(getattr(self, "src_tp_on", False)))
+                continue
             feats = self._features(ids)
             t1 = _t.perf_counter()
             dump = {} if (getattr(self, "dump_path", None) and not getattr(self, "_dumped", False)
@@ -308,6 +321,55 @@ class GemmaCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
                 torch.cuda.synchronize(device)
             logger.info("kvx gemma: n=%d src_ms=%.1f map+write_ms=%.1f src_tp=%d", T, 1e3 * (t1 - t0),
                         1e3 * (_t.perf_counter() - t1), int(getattr(self, "src_tp_on", False)))
+
+    def _write_rows(self, t, K, V, pos, r, views, device):
+        """Write mapped rows K/V [n, H, D] for absolute positions pos [n] of request r into layer t's paged cache
+        (sliding layers: only the last window lives in the cache; vLLM's null block 0 is never written)."""
+        from .vllm_connector import kv_layout, write_kv
+        T = len(r.token_ids)
+        bs = self.groups[self.layer_group[t]][0]
+        blocks = torch.tensor(r.block_ids[self.layer_group[t]], dtype=torch.long)
+        keep = torch.ones_like(pos, dtype=torch.bool)
+        if self.types[t] == "sliding_attention" and self.window:
+            keep &= pos >= T - self.window
+        bi = torch.zeros_like(pos)
+        bi[keep] = blocks[pos[keep] // bs]
+        keep &= bi > 0
+        if not keep.any():
+            return
+        idx = keep.nonzero()[:, 0]
+        pos, bi = pos[idx], bi[idx]
+        kv = views[t]
+        be = getattr(self, "_backends", {}).get(t, getattr(self, "_backend", ""))
+        key = (tuple(kv.shape), K.shape[1], K.shape[2], be)
+        if key not in self._layouts:
+            self._layouts[key] = kv_layout(kv, K.shape[1], K.shape[2], be)
+        ix = idx.to(K.device)
+        write_kv(kv, bi.to(device), (pos % bs).to(device), K[ix].to(torch.bfloat16), V[ix].to(torch.bfloat16), bs,
+                 self._layouts[key])
+
+    @torch.no_grad()
+    def _write_chunked(self, r, ids, T, views, device):
+        """Token-chunked load: the source runs chunk by chunk with its own cache carried (hybrid.source_features_cached),
+        each chunk's taps are gathered (source TP split), mapped for every target layer at the chunk's positions and
+        written. Peak memory: one chunk's taps instead of every layer's taps of the whole prompt."""
+        from . import hybrid
+        C = self.src_chunk
+        cache = None
+        for c0 in range(0, T, C):
+            c1 = min(T, c0 + C)
+            feats, cache = hybrid.source_features_cached(self.Sdec, ids[:, c0:c1], cache)
+            if getattr(self, "src_tp_on", False):
+                from .tp_source_gemma import gather_taps
+                feats = gather_taps(self.Sdec, feats)
+            pos = torch.arange(c0, c1)
+            for t in sorted(self.maps):
+                if self.types[t] == "sliding_attention" and self.window and c1 <= T - self.window:
+                    continue  # this chunk lies wholly before the sliding window: nothing of it lives in the cache
+                K, V = self._map_layer(t, feats, c1 - c0, c0)
+                self._write_rows(t, K, V, pos, r, views, device)
+                del K, V
+            del feats
 
     def wait_for_layer_load(self, layer_name: str) -> None:
         return
