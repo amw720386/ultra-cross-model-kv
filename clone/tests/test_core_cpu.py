@@ -265,6 +265,13 @@ def test_rank_disagreement_scores_out_of_span_tokens():
 
 def _import_connector_with_stub_vllm():
     import sys, types, logging
+    import importlib
+    try:  # the vLLM image has the real thing: never shadow it with stubs (later imports of vLLM would see the stub)
+        importlib.import_module("vllm.distributed.kv_transfer.kv_connector.v1.base")
+        importlib.import_module("vllm.logger")
+        return importlib.import_module("kvx.vllm_connector")
+    except ImportError:
+        pass
     names = ["vllm", "vllm.distributed", "vllm.distributed.kv_transfer", "vllm.distributed.kv_transfer.kv_connector",
              "vllm.distributed.kv_transfer.kv_connector.v1", "vllm.distributed.kv_transfer.kv_connector.v1.base",
              "vllm.logger"]

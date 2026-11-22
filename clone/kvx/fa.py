@@ -10,6 +10,13 @@ FP8 = False
 # sliding attention window for the SOURCE prefill (0 = full causal). Each source token attends to the last WINDOW tokens
 # only: attention FLOPs drop from O(T^2) to O(T*W). The target still attends over the whole mapped prefix.
 WINDOW = 0
+# what the kernel was actually asked to do (proof that a windowed arm ran windowed): calls, calls with a window_size,
+# the distinct window_size values passed, fp8 calls. Reset with reset_stats().
+STATS = {"calls": 0, "windowed_calls": 0, "window_sizes": [], "fp8_calls": 0}
+
+
+def reset_stats():
+    STATS.update(calls=0, windowed_calls=0, window_sizes=[], fp8_calls=0)
 
 
 def quant_e4m3(x, n_kv):
@@ -54,6 +61,13 @@ def vllm_fa_attention(module, query, key, value, attention_mask=None, scaling=No
     win = min(w for w in (sw, WINDOW) if w) if (sw or WINDOW) else 0
     if win and S > win:
         kw["window_size"] = [win - 1, 0]
+    STATS["calls"] += 1
+    if "window_size" in kw:
+        STATS["windowed_calls"] += 1
+        if kw["window_size"] not in STATS["window_sizes"]:
+            STATS["window_sizes"].append(list(kw["window_size"]))
+    if FP8:
+        STATS["fp8_calls"] += 1
     sc = kwargs.get("softcap") or getattr(module, "attn_logit_softcapping", None)
     if sc:
         kw["softcap"] = float(sc)
