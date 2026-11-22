@@ -22,8 +22,14 @@ RUNNER = ("import json, sys; from modal_vllm import serve_impl; "
           "r = serve_impl(**json.loads(sys.argv[1])); json.dump(r, open(sys.argv[2], 'w'))")
 
 
-@app.function(gpu=GPU, volumes={"/vol": vol, "/hf": hf_shared.read_only()}, timeout=3300)
-def run_plan(configs: list, deadline_s: int = 3000):
+TIMEOUT = int(os.environ.get("KVX_PLAN_TIMEOUT", "3300"))  # long windows (8xH100 1M: decision w8-1m-window) raise it
+
+
+@app.function(gpu=GPU, volumes={"/vol": vol, "/hf": hf_shared.read_only()}, timeout=TIMEOUT)
+def run_plan(configs: list, deadline_s: int = 3000, hard_s: int = 0, res_dir: str = ""):
+    """deadline_s: start no new config after this; hard_s > 0: kill the config in flight at this wall time (cost cap),
+    keeping what finished. res_dir: each config's entry is written to /vol/<res_dir>/<i>.json and committed as soon as
+    it ends, so results are pulled per config, not only at the end."""
     hf_shared.reload()
     t0 = time.time()
     out = []
@@ -33,8 +39,15 @@ def run_plan(configs: list, deadline_s: int = 3000):
             continue
         path = f"/tmp/res{i}.json"
         ts = time.time()
-        p = subprocess.run([sys.executable, "-c", RUNNER, json.dumps(cfg), path], capture_output=True, text=True)
-        full = p.stdout + p.stderr
+        left = (hard_s - (time.time() - t0)) if hard_s else None
+        try:
+            p = subprocess.run([sys.executable, "-c", RUNNER, json.dumps(cfg), path], capture_output=True, text=True,
+                               timeout=max(30, left) if left is not None else None)
+            full = p.stdout + p.stderr
+        except subprocess.TimeoutExpired as e:
+            dec = lambda b: b.decode(errors="replace") if isinstance(b, bytes) else (b or "")
+            full = dec(e.stdout) + dec(e.stderr) + f"\n[run_plan] KILLED at the hard cap ({hard_s} s)"
+            p = type("P", (), {"returncode": 124, "stdout": full, "stderr": ""})()
         os.makedirs("/vol/runs/speed_logs", exist_ok=True)
         with open(f"/vol/runs/speed_logs/{cfg.get('tag', i)}.log", "w") as fh:
             fh.write(full)
@@ -54,7 +67,14 @@ def run_plan(configs: list, deadline_s: int = 3000):
             part = json.loads(m[-1]) if m else []
             out.append(dict(cfg=cfg, error=log, partial_rows=part, connector_log=kvx_lines))
         print(json.dumps(dict(i=i, tag=cfg.get("tag"), rc=p.returncode, wall_s=round(time.time() - ts),
-                              rows=out[-1].get("result", {}).get("rows"))), flush=True)
+                              rows=out[-1].get("result", {}).get("rows") or out[-1].get("partial_rows"))), flush=True)
+        if res_dir:
+            os.makedirs(f"/vol/{res_dir}", exist_ok=True)
+            json.dump(out[-1], open(f"/vol/{res_dir}/{i}.json", "w"))
+            try:
+                vol.commit()
+            except Exception:
+                pass
     try:
         vol.commit()
     except Exception:
@@ -65,7 +85,8 @@ def run_plan(configs: list, deadline_s: int = 3000):
 @app.local_entrypoint()
 def main(plan: str, tag: str = ""):
     configs = json.load(open(plan))
-    r = run_plan.remote(configs)
+    r = run_plan.remote(configs, deadline_s=int(os.environ.get("KVX_PLAN_DEADLINE", "3000")),
+                        hard_s=int(os.environ.get("KVX_PLAN_HARD", "0")), res_dir=os.environ.get("KVX_PLAN_RESDIR", ""))
     os.makedirs("out/speed", exist_ok=True)
     name = f"out/speed/{os.path.basename(plan).rsplit('.', 1)[0]}{tag}.json"
     json.dump(r, open(name, "w"), indent=1)
