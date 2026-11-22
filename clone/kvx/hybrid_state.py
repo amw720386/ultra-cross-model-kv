@@ -151,10 +151,15 @@ def delta_rule_state_ref(k, v, beta, g, S0=None):
 def delta_rule_state(k, v, beta, g):
     """Final state [H, dk, dv] fp32: vLLM's fla chunk kernel on CUDA/ROCm (same recurrence, chunked), else the reference."""
     if k.is_cuda:
-        try:
-            from vllm.model_executor.layers.fla.ops import chunk_gated_delta_rule
-        except ImportError:
-            chunk_gated_delta_rule = None
+        chunk_gated_delta_rule = None
+        # vLLM 0.34 ships FLA under vllm.third_party (the old path failed silently -> the per-token Python loop below:
+        # 25.8 s mapped TTFT at 8K on Qwen3.8-27B TP2, linear in T); standalone flash-linear-attention as a last resort
+        for mod in ("vllm.third_party.flash_linear_attention.ops", "vllm.model_executor.layers.fla.ops", "fla.ops"):
+            try:
+                chunk_gated_delta_rule = __import__(mod, fromlist=["chunk_gated_delta_rule"]).chunk_gated_delta_rule
+                break
+            except (ImportError, AttributeError):
+                continue
         if chunk_gated_delta_rule is not None:
             # q is only needed for the kernel's outputs, which we drop: pass k (already l2-normed; no in-kernel norm)
             _, S = chunk_gated_delta_rule(q=k[None].contiguous(), k=k[None].contiguous(), v=v[None].contiguous(),
