@@ -29,35 +29,62 @@ CFG = dict(mode="native", src=TGT, tgt=TGT, maps="", lens="8192,131072,524288,10
            max_num_seqs=4, tag="-h200x8-tp8-glm53-native-1m")
 
 
-def _sh(argv, log):
+OUT_DIR = "/vol/runs/glm53-native-probe"
+BACKEND_PAT = ("backend", "Using", "indexer", "index_topk", "sparse", "MLA", "kv_cache_dtype", "KV cache", "max_model_len")
+
+
+def _sh(argv, log, timeout=None):
     t = time.time()
-    p = subprocess.run(argv, capture_output=True, text=True)
+    try:
+        p = subprocess.run(argv, capture_output=True, text=True, timeout=timeout)
+        rc, txt = p.returncode, p.stdout + p.stderr
+    except subprocess.TimeoutExpired as e:  # lead rule: the gate must fit the 2 h budget
+        rc = 124
+        txt = ((e.stdout or b"").decode(errors="replace") if isinstance(e.stdout, bytes) else (e.stdout or "")) + \
+              ((e.stderr or b"").decode(errors="replace") if isinstance(e.stderr, bytes) else (e.stderr or "")) + \
+              f"\n[probe] TIMEOUT after {timeout} s"
     os.makedirs(os.path.dirname(log), exist_ok=True)
-    open(log, "w").write(p.stdout + p.stderr)
-    return p.returncode, round(time.time() - t, 1), (p.stdout + p.stderr)[-3000:]
+    open(log, "w").write(txt)
+    vol.commit()
+    return rc, round(time.time() - t, 1), txt
+
+
+def _save(out):
+    os.makedirs(OUT_DIR, exist_ok=True)
+    json.dump(out, open(os.path.join(OUT_DIR, "result.json"), "w"), indent=1)
+    vol.commit()  # visible to the laptop poller before the container ends (lead rule 4)
 
 
 @app.function(gpu=GPU, timeout=7200, memory=900_000, volumes={"/vol": vol, "/hf": hf_shared.read_only()})
 def probe(gate_cmd: str = ""):
+    t0 = time.time()
     hf_shared.reload()
-    out = {"cfg": CFG}
-    rc, wall, tail = _sh([sys.executable, "-c", RUNNER, json.dumps(CFG), "/tmp/native.json"],
-                         f"/vol/runs/speed_logs/{CFG['tag']}.log")
-    out.update(native_rc=rc, native_wall_s=wall)
+    out = {"cfg": CFG, "stage": "native"}
+    _save(out)
+    rc, wall, txt = _sh([sys.executable, "-c", RUNNER, json.dumps(CFG), "/tmp/native.json"],
+                        f"/vol/runs/speed_logs/{CFG['tag']}.log", timeout=5400)
+    out.update(native_rc=rc, native_wall_s=wall,
+               vllm_settings=sorted({l.strip()[-300:] for l in txt.splitlines() if any(k in l for k in BACKEND_PAT)})[:60])
     if rc != 0 or not os.path.exists("/tmp/native.json"):
-        out["native_error"] = tail
+        out.update(native_error=txt[-3000:], stage="done")
+        _save(out)
         return out
     res = json.load(open("/tmp/native.json"))
     out["native"] = res
     rows = {r["len"]: r["ttft_s"] for r in res.get("rows", [])}
     t1m = rows.get(1048320)
-    out["native_1m_s"] = t1m
-    out["gate_threshold_s"] = GATE_S
+    out.update(native_1m_s=t1m, native_ttft=rows, gate_threshold_s=GATE_S)
     if t1m is None or t1m < GATE_S or not gate_cmd:
         out["gate"] = "skipped" + ("" if gate_cmd else " (no command)") + (f": native 1M {t1m} s < {GATE_S}" if t1m and t1m < GATE_S else "")
+        out["stage"] = "done"
+        _save(out)
         return out
-    grc, gwall, gtail = _sh(json.loads(gate_cmd), "/vol/runs/speed_logs/glm53-window-gate.log")
-    out.update(gate_rc=grc, gate_wall_s=gwall, gate_tail=gtail)
+    out["stage"] = "gate"
+    _save(out)  # native numbers are on the volume now, before the gate runs
+    left = int(7200 - (time.time() - t0) - 180)  # keep 3 min to save and return
+    grc, gwall, gtxt = _sh(json.loads(gate_cmd), "/vol/runs/speed_logs/glm53-window-gate.log", timeout=max(60, left))
+    out.update(gate_rc=grc, gate_wall_s=gwall, gate_tail=gtxt[-3000:], gate_timeout_s=left, stage="done")
+    _save(out)  # nonzero gate: return at once, no retry (lead rule 3)
     return out
 
 
