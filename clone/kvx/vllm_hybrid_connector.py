@@ -45,6 +45,27 @@ class HybridMeta(KVConnectorMetadata):
     requests: list = field(default_factory=list)
 
 
+@torch.no_grad()
+def chunked_source_features(dec, ids, layers, chunk):
+    """Token-chunked source prefill (kvx-speed: 1M on 80 GB). Runs dec over ids[:, c0:c0+chunk] with the source's own
+    cache carried across chunks (GDN conv/recurrent states, attention KV), and yields (c0, {layer: input_layernorm
+    output [B, chunk, h]}) per chunk: exactly the features of one forward over all tokens, a chunk at a time.
+    Use an attention implementation that needs no 4D mask at long lengths (kvx/fa.py's vllm_fa)."""
+    cache = None
+    T = ids.shape[1]
+    for c0 in range(0, T, chunk):
+        feats, hs_ = {}, []
+        for i in layers:
+            hs_.append(dec.layers[i].input_layernorm.register_forward_hook(
+                lambda mod, inp, out, i=i: feats.__setitem__(i, out.detach())))
+        try:
+            _, cache = dec.forward(ids[:, c0:c0 + chunk], cache=cache, keep=1, use_cache=True)
+        finally:
+            for h in hs_:
+                h.remove()
+        yield c0, feats
+
+
 def _lcp(a, b):
     n = min(len(a), len(b))
     return next((i for i in range(n) if a[i] != b[i]), n)
@@ -76,6 +97,9 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
         self.stream_feats = bool(int(cfg.get_from_extra_config("stream_feats", 1)))  # 0: all-layer feats (A/B)
         # xkv path streaming: opt-in until GPU-checked against xkv_stream=0 in one boot (verified xkv rows ran without)
         self.xkv_stream = bool(int(cfg.get_from_extra_config("xkv_stream", 0)))
+        # kvx-speed: token-chunked xkv path for 1M on 80 GB: source prefill in chunks of xkv_chunk tokens (its cache
+        # carried), each chunk mapped and written (attention K/V at their positions, GDN state carried); 0 = off
+        self.xkv_chunk = int(cfg.get_from_extra_config("xkv_chunk", 0))
         self._prefixes = {}  # key length K -> {hash(first prompt[:K]): its mapped prefix length}
         self._mstats = dict(first_n=0, first_prompt=0, first_mapped=0, later_n=0, later_prompt=0, later_mapped=0)
         self._recent = []  # last 32 first prompts (diagnostic log only)
@@ -317,6 +341,9 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
             shard_hybrid_source(self.Sdec, self.tp_rank, self.tp_size, _tp_group())
             torch.cuda.empty_cache()
             self.src_tp_on = True
+        if self.xkv_chunk and device.type == "cuda":  # chunked prefill with a cache: mask-free varlen kernel (a 4D mask
+            from .fa import use_vllm_fa             # of chunk x 1M would itself be tens of GB)
+            use_vllm_fa(self.Sdec.model)
         from vllm.model_executor.layers.mamba.mamba_utils import is_conv_state_dim_first
         self.dim_first = bool(is_conv_state_dim_first())
         self.layer_group = {}
@@ -353,6 +380,11 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
         for r in meta.requests:
             ids = torch.tensor([r.token_ids], device=device)
             T = len(r.token_ids)
+            if self.xm is not None and self.xkv_chunk and T > self.xkv_chunk and self.prefix is None:
+                self._load_xkv_chunked(r, ids, T, device, forward_context)
+                self.stats["requests"] += 1
+                self.stats["mapped_tokens"] += T
+                continue
             feats = {}
             if self.xm is not None:
                 from .xkv_adapter import source_inputs
@@ -450,6 +482,69 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
                 fs.finish()
             self.stats["requests"] += 1
             self.stats["mapped_tokens"] += T
+
+    def _attn_layout_for(self, forward_context, t, kv, H, D):
+        if self._layout is None:
+            fl = next((l for n, l in forward_context.no_compile_layers.items()
+                       if _LAYER_RE.search(n) and int(_LAYER_RE.search(n).group(1)) == t), None)
+            be = getattr(fl, "attn_backend", None)
+            bname = be.get_name() if hasattr(be, "get_name") else type(getattr(fl, "impl", None)).__name__
+            self._layout = self.kv_layout(kv, H, D, str(bname))
+            print(f"[kvx] hybrid: attention backend {bname}, KV layout {self._layout}, kv shape {tuple(kv.shape)}, "
+                  f"{H} KV heads on this rank", flush=True)
+        return self._layout
+
+    @torch.no_grad()
+    def _load_xkv_chunked(self, r, ids, T, device, forward_context):
+        """xkv path in token chunks (kvx-speed, 1M on 80 GB): per chunk, the source runs with its cache carried
+        (chunked_source_features), every target layer's taps are mapped for the chunk's tokens (the xkv maps are
+        per-token), attention K/V are RoPE'd at their absolute positions and written to their slots, and GDN states are
+        carried across chunks (hs.lin_states_chunk) and written after the last chunk. Same result as one pass over T
+        (tests/test_tp_source_hybrid_cpu.py), at a peak of one chunk's features."""
+        from .vllm_connector import write_kv
+        C = self.xkv_chunk
+        layers = sorted(self.kinds)
+        carry = {}
+        prev = None
+        emb_fn = self.Sdec.text.get_input_embeddings()
+        for c0, xf in chunked_source_features(self.Sdec, ids, self.xkv_needed, C):
+            c1 = min(T, c0 + C)
+            emb = emb_fn(ids[:, c0:c1])
+            emb_prev = torch.cat([torch.zeros_like(emb[:, :1]) if prev is None else prev, emb[:, :-1]], 1)
+            prev = emb[:, -1:]
+            for t in layers:
+                tp = (hs.xkv_layer_taps_r(self.xm, xf, emb, emb_prev, t) if self._sharded else
+                      hs.xkv_layer_taps(self.xm, xf, emb, emb_prev, t, self.kinds[t], self.tcfg))
+                d = {k: v[0] for k, v in tp.items()}
+                del tp
+                if self.kinds[t] == "attn":
+                    K, V = hs.attn_kv(self.params, d["k"], d["v"], offset=c0)
+                    if not self._sharded:
+                        _, K, V = hs.slice_for_rank(self.params, ("attn", K, V), self.tp_rank, self.tp_size)
+                    cache = self._kv.get(t)
+                    if cache is None:
+                        raise RuntimeError(f"kvx hybrid: target layer {t} has no cache")
+                    kv = cache[0] if isinstance(cache, (list, tuple)) else cache
+                    blocks = torch.tensor(r.block_ids[self.layer_group[t]])
+                    bs = self.groups[self.layer_group[t]][1]
+                    pos = torch.arange(c0, c1)
+                    bi, off = blocks[pos // bs].to(device), (pos % bs).to(device)
+                    lay = self._attn_layout_for(forward_context, t, kv, K.shape[1], K.shape[2])
+                    write_kv(kv, bi, off, K.to(torch.bfloat16), V.to(torch.bfloat16), bs, lay)
+                    del K, V
+                else:
+                    carry[t] = hs.lin_states_chunk(self.params, t, d["qkv"], d["a"], d["b"], carry.get(t))
+                del d
+            del xf
+        for t, (xp, S) in carry.items():
+            st = ("lin", xp.t().contiguous(), S)
+            if not self._sharded:
+                st = hs.slice_for_rank(self.params, st, self.tp_rank, self.tp_size)
+            cache = self._kv.get(t)
+            if not (isinstance(cache, (list, tuple)) and len(cache) >= 2):
+                raise RuntimeError(f"kvx hybrid: unexpected GDN cache object for layer {t}")
+            write_lin_state(cache[0], cache[1], int(r.block_ids[self.layer_group[t]][0]), st[1], st[2], self.dim_first)
+        logger.info("kvx hybrid: chunked xkv load n=%d chunk=%d", T, C)
 
     def wait_for_layer_load(self, layer_name: str) -> None:
         return

@@ -174,8 +174,24 @@ def delta_rule_state_ref(k, v, beta, g, S0=None):
     return S
 
 
-def delta_rule_state(k, v, beta, g):
-    """Final state [H, dk, dv] fp32: vLLM's fla chunk kernel on CUDA/ROCm (same recurrence, chunked), else the reference."""
+def delta_rule_state(k, v, beta, g, S0=None):
+    """Final state [H, dk, dv] fp32: vLLM's fla chunk kernel on CUDA/ROCm (same recurrence, chunked), else the reference.
+    S0 [H, dk, dv]: state carried in from earlier tokens (token-chunked prefill, kvx-speed)."""
+    if k.is_cuda and S0 is not None:
+        delta_rule_state(k[:1], v[:1], beta[:1], g[:1])  # runs the one-time orientation check (if not done yet)
+        if _FLA_OK.get("ok"):
+            mod = next(m for m in ("vllm.third_party.flash_linear_attention.ops", "vllm.model_executor.layers.fla.ops",
+                                   "fla.ops") if _imp_ok(m))
+            fn = __import__(mod, fromlist=["chunk_gated_delta_rule"]).chunk_gated_delta_rule
+            kb, vb = k[None].to(torch.bfloat16).contiguous(), v[None].to(torch.bfloat16).contiguous()
+            init = (S0.transpose(-1, -2) if _FLA_OK["transpose"] else S0)[None].float().contiguous()
+            _, S = fn(q=kb, k=kb, v=vb, g=g[None].float().contiguous(), beta=beta[None].to(torch.bfloat16).contiguous(),
+                      initial_state=init, output_final_state=True, use_qk_l2norm_in_kernel=False)
+            S = S[0].float()
+            return S.transpose(-1, -2).contiguous() if _FLA_OK["transpose"] else S
+        return delta_rule_state_ref(k.float(), v.float(), beta.float(), g.float(), S0)
+    if S0 is not None:
+        return delta_rule_state_ref(k.float(), v.float(), beta.float(), g.float(), S0)
     if k.is_cuda:
         chunk_gated_delta_rule = None
         # vLLM 0.34 ships FLA under vllm.third_party (the old path failed silently -> the per-token Python loop below:
@@ -219,6 +235,13 @@ def delta_rule_state(k, v, beta, g):
 _FLA_OK = {}
 
 
+def _imp_ok(mod):
+    try:
+        return hasattr(__import__(mod, fromlist=["chunk_gated_delta_rule"]), "chunk_gated_delta_rule")
+    except ImportError:
+        return False
+
+
 def lin_states(p, l, qkv, a, b, conv_rows=None):
     """Mapped taps of lin layer l for T prefix tokens -> (conv_state [C, kernel-1] float32 (HF orientation, oldest
     first), recurrent_state [Hv, dk, dv] float32). qkv [T, C] pre-conv (q|k|v), a/b [T, Hv]."""
@@ -238,6 +261,28 @@ def lin_states(p, l, qkv, a, b, conv_rows=None):
     n = (conv_rows or p.kernel - 1)
     last = x[-n:] if T >= n else torch.cat([x.new_zeros(n - T, x.shape[1]), x], 0)
     return last.t().contiguous(), S
+
+
+def lin_states_chunk(p, l, qkv, a, b, carry=None):
+    """lin_states over a token chunk with the previous chunks' carry = (x_prev [kernel-1, C] pre-conv rows, S [Hv,dk,dv])
+    (None for the first chunk). Returns the new carry; after the last chunk, (carry[0].t(), carry[1]) is exactly
+    lin_states(...) over all tokens (kvx-speed: 1M prefill on 80 GB, token-chunked)."""
+    prm = p.lin[l]
+    T = qkv.shape[0]
+    x = qkv.float()
+    kd = p.Hk * p.dk
+    n = p.kernel - 1
+    xp = x.new_zeros(n, x.shape[1]) if carry is None else carry[0].to(x)
+    y = causal_conv_silu(torch.cat([xp, x], 0), prm["conv_w"], prm["conv_b"])[n:]
+    k = y[:, kd:2 * kd].view(T, p.Hk, p.dk)
+    v = y[:, 2 * kd:].view(T, p.Hv, p.dv)
+    k = _l2n(k)
+    if p.Hv != p.Hk:
+        k = k.repeat_interleave(p.Hv // p.Hk, dim=1)
+    beta = torch.sigmoid(b.float())
+    g = -prm["A_log"].exp() * F.softplus(a.float() + prm["dt_bias"])
+    S = delta_rule_state(k, v, beta, g, None if carry is None else carry[1])
+    return torch.cat([xp, x], 0)[-n:].contiguous(), S
 
 
 # ---------------------------------------------------------------- serving glue (used by kvx.vllm_hybrid_connector)
