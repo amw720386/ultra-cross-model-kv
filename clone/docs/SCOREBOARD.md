@@ -173,18 +173,18 @@
 | x-kr-maptime-ratio | Qwen3-1.7B -> Qwen3-4B | mapping time ratio x [mapped] | k=8 -> k=24 | 2.6 | yes |  | open |
 | x-kr-k24-retention | Qwen3-1.7B -> Qwen3-4B | chance-normalized task retention % [mapped] | selected k=24 mapper, HellaSwag/PIQA (later eval, note 003) | 91.2 | yes |  | open |
 | x-kr-k24-nta | Qwen3-1.7B -> Qwen3-4B | next-token agreement % [mapped] | selected k=24 mapper (later eval, note 003) | 65 | yes |  | open |
-| x-v0-k1-ppl | Qwen3-0.6B -> Qwen3-1.7B | perplexity [mapped] | held-out eval | 17.3496 | yes | 17.6817 | behind |
-| x-v0-k1-nta | Qwen3-0.6B -> Qwen3-1.7B | next-token agreement % [mapped] | held-out next-token top-1 | 61 | yes | 80.6152 | beaten |
-| x-v0-k1-hellaswag | Qwen3-0.6B -> Qwen3-1.7B | accuracy [mapped] | HellaSwag | 54.6 | yes | 49.1 | behind |
-| x-v0-k1-piqa | Qwen3-0.6B -> Qwen3-1.7B | accuracy [mapped] | PIQA | 70.2 | yes | 68.8 | behind |
-| x-v0-k4-ppl | Qwen3-0.6B -> Qwen3-1.7B | perplexity [mapped_k4_stabilized] | held-out eval | 17.0744 | yes | 16.6864 | beaten |
-| x-v0-k4-nta | Qwen3-0.6B -> Qwen3-1.7B | next-token agreement % [mapped_k4_stabilized] | held-out next-token top-1 | 62 | yes | 81.6406 | beaten |
-| x-v0-k4-hellaswag | Qwen3-0.6B -> Qwen3-1.7B | accuracy [mapped_k4_stabilized] | HellaSwag | 51.2 | yes | 49.1 | behind |
-| x-v0-k4-piqa | Qwen3-0.6B -> Qwen3-1.7B | accuracy [mapped_k4_stabilized] | PIQA | 68.4 | yes | 68.8 | beaten |
-| x-v0-retention-k1 | Qwen3-0.6B -> Qwen3-1.7B | chance-normalized task retention % [mapped] | HellaSwag+PIQA mean, k=1 | 85.1 | yes | 83.6598 | behind |
-| x-v0-retention-k4 | Qwen3-0.6B -> Qwen3-1.7B | chance-normalized task retention % [mapped_k4_stabilized] | HellaSwag+PIQA mean, stabilized k=4 | 76.4 | yes | 83.6598 | beaten |
-| x-v0-ppl-ratio | Qwen3-0.6B -> Qwen3-1.7B | mapped-to-oracle perplexity ratio [mapped] | held-out eval, k=1 | 1.1402 | yes | 1.215 | behind |
-| x-v0-nta-gain | Qwen3-0.6B -> Qwen3-1.7B | next-token agreement gain x [mapped] | mapped k=1 vs direct injection | 30 | yes | 2.1248 | behind |
+| x-v0-k1-ppl | Qwen3-0.6B -> Qwen3-1.7B | perplexity [mapped] | held-out eval | 17.3496 | yes | 17.6817 | hold(rig) |
+| x-v0-k1-nta | Qwen3-0.6B -> Qwen3-1.7B | next-token agreement % [mapped] | held-out next-token top-1 | 61 | yes | 80.6152 | hold(rig) |
+| x-v0-k1-hellaswag | Qwen3-0.6B -> Qwen3-1.7B | accuracy [mapped] | HellaSwag | 54.6 | yes | 49.1 | hold(rig) |
+| x-v0-k1-piqa | Qwen3-0.6B -> Qwen3-1.7B | accuracy [mapped] | PIQA | 70.2 | yes | 68.8 | hold(rig) |
+| x-v0-k4-ppl | Qwen3-0.6B -> Qwen3-1.7B | perplexity [mapped_k4_stabilized] | held-out eval | 17.0744 | yes | 16.6864 | hold(rig) |
+| x-v0-k4-nta | Qwen3-0.6B -> Qwen3-1.7B | next-token agreement % [mapped_k4_stabilized] | held-out next-token top-1 | 62 | yes | 81.6406 | hold(rig) |
+| x-v0-k4-hellaswag | Qwen3-0.6B -> Qwen3-1.7B | accuracy [mapped_k4_stabilized] | HellaSwag | 51.2 | yes | 49.1 | hold(rig) |
+| x-v0-k4-piqa | Qwen3-0.6B -> Qwen3-1.7B | accuracy [mapped_k4_stabilized] | PIQA | 68.4 | yes | 68.8 | hold(rig) |
+| x-v0-retention-k1 | Qwen3-0.6B -> Qwen3-1.7B | chance-normalized task retention % [mapped] | HellaSwag+PIQA mean, k=1 | 85.1 | yes | 83.6598 | hold(rig) |
+| x-v0-retention-k4 | Qwen3-0.6B -> Qwen3-1.7B | chance-normalized task retention % [mapped_k4_stabilized] | HellaSwag+PIQA mean, stabilized k=4 | 76.4 | yes | 83.6598 | hold(rig) |
+| x-v0-ppl-ratio | Qwen3-0.6B -> Qwen3-1.7B | mapped-to-oracle perplexity ratio [mapped] | held-out eval, k=1 | 1.1402 | yes | 1.215 | hold(rig) |
+| x-v0-nta-gain | Qwen3-0.6B -> Qwen3-1.7B | next-token agreement gain x [mapped] | mapped k=1 vs direct injection | 30 | yes | 2.1248 | hold(rig) |
 | x-ar-loop-mapped_kvlingo | Qwen3-1.7B -> Qwen3-8B | loop rate % [mapped_kvlingo] | 100 Chatbot Arena prompts, free-form generation, up to 2,048 tokens | 2 | yes | 1.0 | beaten |
 | x-ar-loop-mapped_ridge | Qwen3-1.7B -> Qwen3-8B | loop rate % [mapped_ridge] | 100 Chatbot Arena prompts, free-form generation, up to 2,048 tokens | 3 | yes | 1.0 | beaten |
 | x-ar-loop-mapped_heterofold | Qwen3-1.7B -> Qwen3-8B | loop rate % [mapped_heterofold] | 100 Chatbot Arena prompts, free-form generation, up to 2,048 tokens | 4 | yes | 1.0 | beaten |
@@ -288,10 +288,10 @@
 | x-ml-cold-8k-speedup | Llama-3.1-Minitron-4B-Width-Base -> Llama-3.1-8B | speedup x [mapped_direct+rank8_residual] | 8K incl. Minitron prefill | 1.25 | yes |  | open |
 | x-ml-ttft-learned-4k | Llama-3.1-Minitron-4B-Width-Base -> Llama-3.1-8B | target TTFT p50 ms (approx) [mapped_direct+rank8_residual] | <=4K prefixes | 30 | yes |  | open |
 | x-ml-crossover | Llama-3.1-Minitron-4B-Width-Base -> Llama-3.1-8B | crossover prefix length vs native [mapped_direct+rank8_residual] | resident source cache | 1024 | yes |  | open |
-| x-ml-kl32-mapped_direct+ | Llama-3.1-Minitron-4B-Width-Base -> Llama-3.1-8B | KL32 [mapped_direct+rank8_residual] | Quality on 64 untouched WikiText-103 prompts, 256-token prefix, 32 forced steps | 0.18138 | yes | 0.18253 | behind |
-| x-ml-top1-mapped_direct+ | Llama-3.1-Minitron-4B-Width-Base -> Llama-3.1-8B | 32-step top-1 agreement [mapped_direct+rank8_residual] | Quality on 64 untouched WikiText-103 prompts, 256-token prefix, 32 forced steps | 82.52 | yes | 82.51953 | tied |
-| x-ml-kl32-mapped_ridge | Llama-3.1-Minitron-4B-Width-Base -> Llama-3.1-8B | KL32 [mapped_ridge] | Quality on 64 untouched WikiText-103 prompts, 256-token prefix, 32 forced steps | 0.37489 | yes | 0.2179 | beaten |
-| x-ml-top1-mapped_ridge | Llama-3.1-Minitron-4B-Width-Base -> Llama-3.1-8B | 32-step top-1 agreement [mapped_ridge] | Quality on 64 untouched WikiText-103 prompts, 256-token prefix, 32 forced steps | 75.1 | yes | 79.73633 | beaten |
+| x-ml-kl32-mapped_direct+ | Llama-3.1-Minitron-4B-Width-Base -> Llama-3.1-8B | KL32 [mapped_direct+rank8_residual] | Quality on 64 untouched WikiText-103 prompts, 256-token prefix, 32 forced steps | 0.18138 | yes | 0.18253 | hold(rig) |
+| x-ml-top1-mapped_direct+ | Llama-3.1-Minitron-4B-Width-Base -> Llama-3.1-8B | 32-step top-1 agreement [mapped_direct+rank8_residual] | Quality on 64 untouched WikiText-103 prompts, 256-token prefix, 32 forced steps | 82.52 | yes | 82.51953 | hold(rig) |
+| x-ml-kl32-mapped_ridge | Llama-3.1-Minitron-4B-Width-Base -> Llama-3.1-8B | KL32 [mapped_ridge] | Quality on 64 untouched WikiText-103 prompts, 256-token prefix, 32 forced steps | 0.37489 | yes | 0.2179 | hold(rig) |
+| x-ml-top1-mapped_ridge | Llama-3.1-Minitron-4B-Width-Base -> Llama-3.1-8B | 32-step top-1 agreement [mapped_ridge] | Quality on 64 untouched WikiText-103 prompts, 256-token prefix, 32 forced steps | 75.1 | yes | 79.73633 | hold(rig) |
 | x-ml-kl32-red | Llama-3.1-Minitron-4B-Width-Base -> Llama-3.1-8B | KL32 reduction vs direct [mapped_direct+rank8_residual] | Quality on 64 untouched WikiText-103 prompts, 256-token prefix, 32 forced steps | 9.54 | yes |  | open |
 | x-ml-wins | Llama-3.1-Minitron-4B-Width-Base -> Llama-3.1-8B | paired prompts improved vs direct [mapped_direct+rank8_residual] | Quality on 64 untouched WikiText-103 prompts, 256-token prefix, 32 forced steps | 54 | yes |  | open |
 | x-ml-ridge-losses | Llama-3.1-Minitron-4B-Width-Base -> Llama-3.1-8B | paired prompts lost vs direct [mapped_ridge] | Quality on 64 untouched WikiText-103 prompts, 256-token prefix, 32 forced steps | 60 | yes |  | open |
@@ -385,12 +385,12 @@
 | x-b2-ttft-speedup | Qwen3-4B -> Qwen3-32B-(direct-depth-map,-repair-32,-adaptive-speculation) | speedup x [mapped] | 8 long-context prompts, TTFT | 2.64 | yes |  | open |
 | x-b2-accept | Qwen3-4B -> Qwen3-32B-(direct-depth-map,-repair-32,-adaptive-speculation) | draft acceptance % [mapped] | adaptive 4-24 token speculation, mapped verifier | 84.1 | yes |  | open |
 | x-b2-nll-mapped | Qwen3-4B -> Qwen3-32B-(direct-depth-map,-repair-32,-adaptive-speculation) | NLL [mapped] | target NLL, 8 disjoint ~8K-token continuations | 0.51 | yes |  | open |
-| x-30b-kl-ridge | Qwen3-30B-A3B-Instruct-2507 -> Qwen3-30B-A3B-Thinking | mean KL32 [mapped_ridge] | 28 WikiText windows, 1,024-token prefix, 32 oracle-forced steps | 0.017956 | yes | 0.016 | beaten |
-| x-30b-top1-ridge | Qwen3-30B-A3B-Instruct-2507 -> Qwen3-30B-A3B-Thinking | top-1 agreement % [mapped_ridge] | 28 WikiText windows, 1,024-token prefix, 32 oracle-forced steps | 93.53 | yes | 92.29911 | behind |
-| x-30b-kl-direct_plus_residual | Qwen3-30B-A3B-Instruct-2507 -> Qwen3-30B-A3B-Thinking | mean KL32 [mapped_direct_plus_residual] | 28 WikiText windows, 1,024-token prefix, 32 oracle-forced steps | 0.018833 | yes | 0.016 | beaten |
-| x-30b-top1-direct_plus_residual | Qwen3-30B-A3B-Instruct-2507 -> Qwen3-30B-A3B-Thinking | top-1 agreement % [mapped_direct_plus_residual] | 28 WikiText windows, 1,024-token prefix, 32 oracle-forced steps | 93.42 | yes | 92.29911 | behind |
-| x-30b-kl-ridge_plus_residual | Qwen3-30B-A3B-Instruct-2507 -> Qwen3-30B-A3B-Thinking | mean KL32 [mapped_ridge_plus_residual] | 28 WikiText windows, 1,024-token prefix, 32 oracle-forced steps | 0.018333 | yes | 0.016 | beaten |
-| x-30b-top1-ridge_plus_residual | Qwen3-30B-A3B-Instruct-2507 -> Qwen3-30B-A3B-Thinking | top-1 agreement % [mapped_ridge_plus_residual] | 28 WikiText windows, 1,024-token prefix, 32 oracle-forced steps | 92.86 | yes | 92.29911 | behind |
+| x-30b-kl-ridge | Qwen3-30B-A3B-Instruct-2507 -> Qwen3-30B-A3B-Thinking | mean KL32 [mapped_ridge] | 28 WikiText windows, 1,024-token prefix, 32 oracle-forced steps | 0.017956 | yes | 0.016 | hold(rig) |
+| x-30b-top1-ridge | Qwen3-30B-A3B-Instruct-2507 -> Qwen3-30B-A3B-Thinking | top-1 agreement % [mapped_ridge] | 28 WikiText windows, 1,024-token prefix, 32 oracle-forced steps | 93.53 | yes | 92.29911 | hold(rig) |
+| x-30b-kl-direct_plus_residual | Qwen3-30B-A3B-Instruct-2507 -> Qwen3-30B-A3B-Thinking | mean KL32 [mapped_direct_plus_residual] | 28 WikiText windows, 1,024-token prefix, 32 oracle-forced steps | 0.018833 | yes | 0.016 | hold(rig) |
+| x-30b-top1-direct_plus_residual | Qwen3-30B-A3B-Instruct-2507 -> Qwen3-30B-A3B-Thinking | top-1 agreement % [mapped_direct_plus_residual] | 28 WikiText windows, 1,024-token prefix, 32 oracle-forced steps | 93.42 | yes | 92.29911 | hold(rig) |
+| x-30b-kl-ridge_plus_residual | Qwen3-30B-A3B-Instruct-2507 -> Qwen3-30B-A3B-Thinking | mean KL32 [mapped_ridge_plus_residual] | 28 WikiText windows, 1,024-token prefix, 32 oracle-forced steps | 0.018333 | yes | 0.016 | hold(rig) |
+| x-30b-top1-ridge_plus_residual | Qwen3-30B-A3B-Instruct-2507 -> Qwen3-30B-A3B-Thinking | top-1 agreement % [mapped_ridge_plus_residual] | 28 WikiText windows, 1,024-token prefix, 32 oracle-forced steps | 92.86 | yes | 92.29911 | hold(rig) |
 | x-30b-ridge-red | Qwen3-30B-A3B-Instruct-2507 -> Qwen3-30B-A3B-Thinking | KL32 reduction % [mapped_ridge] | 28 WikiText windows, 1,024-token prefix, 32 oracle-forced steps; ridge vs direct (paired C | 10.86 | yes |  | open |
 | x-30b-resid-red | Qwen3-30B-A3B-Instruct-2507 -> Qwen3-30B-A3B-Thinking | KL32 reduction % [mapped_direct_plus_residual] | 28 WikiText windows, 1,024-token prefix, 32 oracle-forced steps; direct+residual vs direct | 6.51 | yes |  | open |
 | x-30b-resid-windows | Qwen3-30B-A3B-Instruct-2507 -> Qwen3-30B-A3B-Thinking | windows improved [mapped_direct_plus_residual] | 28 WikiText windows, 1,024-token prefix, 32 oracle-forced steps; direct+residual vs direct | 20 | yes |  | open |

@@ -79,7 +79,7 @@ This repo rebuilds, from public material only, the method that OneTriangle (YC S
 
 All rows (Tier 2 and untracked included):
 
-**Beaten 148 of 1143** published OneTriangle numbers (tied 30, behind 59, blocked 1, open 732). Full row table: [docs/SCOREBOARD.md](docs/SCOREBOARD.md). Rules: same pair, context/benchmark and N or more; TTFT on their GPU class (H100) and speedups against native vLLM/SGLang.
+**Beaten 138 of 1143** published OneTriangle numbers (tied 29, behind 48, blocked 1, open 732). Full row table: [docs/SCOREBOARD.md](docs/SCOREBOARD.md). Rules: same pair, context/benchmark and N or more; TTFT on their GPU class (H100) and speedups against native vLLM/SGLang.
 
 | pair | category | rows | beaten | tied | behind | blocked | open |
 |---|---|---|---|---|---|---|---|
@@ -96,12 +96,12 @@ All rows (Tier 2 and untracked included):
 | Qwen3.5-2B -> Qwen3.8-27B | TTFT component | 32 | 0 | 0 | 0 | 0 | 32 |
 | Qwen3.5-4B -> Qwen3.8-27B | TTFT component | 32 | 0 | 0 | 0 | 0 | 32 |
 | Qwen3.5-2B -> Qwen3.8-27B | quality | 31 | 0 | 0 | 0 | 0 | 31 |
-| Llama-3.1-Minitron-4B-Width-Base -> Llama-3.1-8B | quality | 27 | 2 | 1 | 1 | 0 | 21 |
+| Llama-3.1-Minitron-4B-Width-Base -> Llama-3.1-8B | quality | 27 | 0 | 0 | 0 | 0 | 21 |
 | Qwen3-32B -> Qwen3-8B | quality | 26 | 0 | 0 | 0 | 0 | 18 |
 | Qwen2.5-3B -> Qwen2.5-72B | TTFT component | 24 | 6 | 0 | 3 | 0 | 4 |
 | Gemma-4-E4B -> Gemma-4-31B | quality | 20 | 0 | 0 | 0 | 0 | 20 |
 | GLM-4.7-Flash -> GLM-5.3 | quality | 19 | 0 | 0 | 0 | 0 | 19 |
-| Qwen3-0.6B -> Qwen3-1.7B | quality | 18 | 8 | 1 | 7 | 0 | 0 |
+| Qwen3-0.6B -> Qwen3-1.7B | quality | 18 | 3 | 1 | 0 | 0 | 0 |
 | Gemma-4-E2B -> Gemma-4-31B | quality | 17 | 0 | 0 | 0 | 0 | 17 |
 | Ultravox-8B -> Ultravox-1B-(ridge-+-rank-16-residual) | quality | 16 | 0 | 0 | 0 | 0 | 16 |
 | GLM-4.7-Flash -> GLM-5.3 | TTFT table | 15 | 0 | 0 | 0 | 0 | 15 |
@@ -113,7 +113,7 @@ All rows (Tier 2 and untracked included):
 | Qwen3.5-2B -> Qwen3.8-27B | TTFT table | 15 | 0 | 0 | 0 | 0 | 15 |
 | Qwen3.5-4B -> Qwen3.8-27B | TTFT table | 15 | 5 | 0 | 0 | 0 | 10 |
 | Qwen3-4B -> Ministral-3-14B | quality | 14 | 0 | 0 | 0 | 0 | 10 |
-| Qwen3-30B-A3B-Instruct-2507 -> Qwen3-30B-A3B-Thinking | quality | 13 | 3 | 0 | 3 | 0 | 6 |
+| Qwen3-30B-A3B-Instruct-2507 -> Qwen3-30B-A3B-Thinking | quality | 13 | 0 | 0 | 0 | 0 | 6 |
 | Qwen3-4B -> Ministral-3-14B | speed/cost | 13 | 0 | 0 | 0 | 0 | 13 |
 | Qwen2.5-3B -> Qwen2.5-72B | quality | 12 | 0 | 1 | 3 | 0 | 8 |
 | Qwen2.5-3B -> Qwen2.5-72B | TTFT table | 11 | 3 | 0 | 3 | 0 | 0 |
