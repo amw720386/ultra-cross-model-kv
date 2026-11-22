@@ -182,6 +182,7 @@ class CrossModelConnector(KVConnectorBase_V1):
         self.src_chunk = int(cfg.get_from_extra_config("src_chunk", 0))
         self.src_fp8_attn = bool(int(cfg.get_from_extra_config("src_fp8_attn", 0)))
         self.src_window = int(cfg.get_from_extra_config("src_window", 0))  # sliding window for the source (vllm_fa)
+        self.src_full_last = int(cfg.get_from_extra_config("src_full_last", 0))  # with src_window + src_lean: last N layers full
         # "dense": one GEMM over all source layers (zero blocks for unselected); "sparse": per target layer, only its k
         # selected source layers (gather + GEMM): the fast mapper for small-k maps
         self.mapper = str(cfg.get_from_extra_config("mapper", "dense"))
@@ -474,10 +475,19 @@ class CrossModelConnector(KVConnectorBase_V1):
         lean = getattr(self, "lean", None)
         if lean is not None:  # plain-tensor forward: pre-RoPE K and V straight into per-layer buffers
             from .lean_source import fa_attn, sdpa_attn
+            W, fp8a = getattr(self, "src_window", 0), getattr(self, "src_fp8_attn", False)
+            nfull = int(getattr(self, "src_full_last", 0) or 0)  # last N source layers keep FULL attention (recall)
+            Ls_src = len(lean.layers)
             if getattr(self, "src_sdpa", "cudnn") == "vllm_fa" and device.type == "cuda":
-                attn = fa_attn(window=getattr(self, "src_window", 0), fp8=getattr(self, "src_fp8_attn", False))
+                mk = lambda w: fa_attn(window=w, fp8=fp8a)
             else:
-                attn = lambda q, k, v, sc_: sdpa_attn(q, k, v, sc_, window=getattr(self, "src_window", 0))
+                mk = lambda w: (lambda q, k, v, sc_: sdpa_attn(q, k, v, sc_, window=w))
+            if W and nfull:
+                fw, ff = mk(W), mk(0)
+                attn = lambda li: ff if li >= Ls_src - nfull else fw
+                attn.per_layer = True
+            else:
+                attn = mk(W)
             Ts = x.shape[1]
             lay_pre = lean.forward(x[0], self.cs[:Ts], self.ss[:Ts], attn, chunk=sc)
         with sdpa_kernel(order, set_priority=True):

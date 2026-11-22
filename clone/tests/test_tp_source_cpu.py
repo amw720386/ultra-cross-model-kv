@@ -537,3 +537,27 @@ def test_sink_template_pairs_format_equals_stacked(tmp_path):
         c._init_worker(torch.device("cpu"))
         out.append((c.sinkK.clone(), c.sinkV.clone()))
     assert torch.allclose(out[0][0], out[1][0]) and torch.allclose(out[0][1], out[1][1])
+
+
+def test_lean_source_window_schedule_last_layers_full():
+    """Per-layer attention schedule: window below, full attention in the last N layers. N = all layers == full;
+    the last layers' K equal the full-attention ones only when N covers every layer (attention errors propagate)."""
+    from kvx.lean_source import LeanSource, sdpa_attn
+    m = _model(_cfg("qwen3", 2))
+    ids = torch.randint(0, 97, (40,))
+    cos, sin = core.rope_cos_sin(m, 40, "cpu")
+    lean = LeanSource(m)
+    full = lean.forward(ids, cos, sin, sdpa_attn)
+    win = lambda q, k, v, s: sdpa_attn(q, k, v, s, window=8)
+    def sched(n):
+        f = lambda li: (sdpa_attn if li >= 3 - n else win)
+        f.per_layer = True
+        return f
+    allfull = lean.forward(ids, cos, sin, sched(3))
+    for (a, _), (b, _) in zip(full, allfull):
+        assert torch.allclose(a, b, atol=1e-5)
+    # a layer's own K/V come BEFORE its attention: full attention in layer 1 changes layer 2's K/V, never layer 1's
+    part = lean.forward(ids, cos, sin, sched(2))
+    allwin = lean.forward(ids, cos, sin, win)
+    assert torch.allclose(part[1][0], allwin[1][0], atol=1e-5) and torch.allclose(part[1][1], allwin[1][1], atol=1e-5)
+    assert not torch.allclose(part[2][1], allwin[2][1], atol=1e-4)

@@ -102,7 +102,8 @@ class LeanSource:
                     vv = V[0, :, :b_].transpose(0, 1)
                 else:
                     kk, vv = kr, v
-                o = attn(q, kk, vv, l["scale"])
+                fn = attn(li) if getattr(attn, "per_layer", False) else attn  # per-layer attention (window schedule)
+                o = fn(q, kk, vv, l["scale"])
                 ao = self._ar(F.linear(o.reshape(o.shape[0], -1), l["Wo"]))
                 if l["bo"] is not None:
                     ao = ao + l["bo"]
