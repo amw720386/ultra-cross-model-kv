@@ -42,6 +42,18 @@ def run_tasks(run_id: str, tasks: list):
     if not os.path.exists("/artifacts"):
         os.symlink("/vol/xkv", "/artifacts")
     from xkv.experiments import dispatch
+    from xkv import evals as _xev
+    _orig = _xev.load_heldout_text
+
+    def _load(tokenizer, n_seqs, seq_len, seed=0, split="eval", source="wikitext", **kw):
+        # source "file:<path under /vol>": prebuilt token sequences {"calib": [...], "eval": [...]} (tools/build_codemix.py)
+        if isinstance(source, str) and source.startswith("file:"):
+            d = torch.load(f"/vol/{source[5:]}")
+            seqs = [s[:seq_len] for s in d[split] if len(s) >= seq_len]
+            assert len(seqs) >= min(n_seqs, 1), (split, len(seqs), seq_len)
+            return [seqs[i % len(seqs)] for i in range(n_seqs)]
+        return _orig(tokenizer, n_seqs, seq_len, seed=seed, split=split, source=source, **kw)
+    _xev.load_heldout_text = _load
     torch.backends.cuda.matmul.allow_tf32 = True  # as modal_jobs/lab.py
     out = {"run_id": run_id, "gpu": torch.cuda.get_device_name(), "tasks": []}
     t0 = time.time()
