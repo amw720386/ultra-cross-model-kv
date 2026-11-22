@@ -27,15 +27,15 @@ This repo rebuilds, from public material only, the method that OneTriangle (YC S
 ## Scoreboard: every OneTriangle number vs ours
 
 <!-- SCOREBOARD:BEGIN -->
-**OneTriangle Tier 1: 19 / 45 beaten** (tied 5, behind 2, on quality hold 10, blocked 1, open 8): the 9 homepage peak speedups, their measured end-to-end TTFT points, and the 15 rows of their benchmark bundle. Only Tier 1 is the goal.
+**OneTriangle Tier 1: 23 / 45 beaten** (tied 5, behind 3, on quality hold 5, blocked 1, open 8): the 9 homepage peak speedups, their measured end-to-end TTFT points, and the 15 rows of their benchmark bundle. Only Tier 1 is the goal.
 
 | id | pair | metric | context / benchmark | theirs | ours | owner | status |
 |---|---|---|---|---|---|---|---|
-| home-ministral-3-3b-mistral-medium-3-5-128b-8K-ttft | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT s (mapped) | 8K | 0.36 | 0.1519 | speed | hold |
-| home-ministral-3-3b-mistral-medium-3-5-128b-16K-ttft | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT s (mapped) | 16K | 0.64 | 0.2467 | speed | hold |
-| home-ministral-3-3b-mistral-medium-3-5-128b-32K-ttft | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT s (mapped) | 32K | 1.45 | 0.471 | speed | hold |
-| home-ministral-3-3b-mistral-medium-3-5-128b-64K-ttft | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT s (mapped) | 64K | 4.01 | 1.0833 | speed | hold |
-| home-ministral-3-3b-mistral-medium-3-5-128b-peak | Ministral-3-3B -> Mistral-Medium-3.5-128B | peak speedup x (headline) | 32K | 12.6 | 7.8877 | speed | hold |
+| home-ministral-3-3b-mistral-medium-3-5-128b-8K-ttft | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT s (mapped) | 8K | 0.36 | 0.1842 | speed | beaten |
+| home-ministral-3-3b-mistral-medium-3-5-128b-16K-ttft | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT s (mapped) | 16K | 0.64 | 0.2781 | speed | beaten |
+| home-ministral-3-3b-mistral-medium-3-5-128b-32K-ttft | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT s (mapped) | 32K | 1.45 | 0.5155 | speed | beaten |
+| home-ministral-3-3b-mistral-medium-3-5-128b-64K-ttft | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT s (mapped) | 64K | 4.01 | 1.139 | speed | beaten |
+| home-ministral-3-3b-mistral-medium-3-5-128b-peak | Ministral-3-3B -> Mistral-Medium-3.5-128B | peak speedup x (headline) | 32K | 12.6 | 7.11 | speed | behind |
 | home-qwen3-1-7b-qwen3-32b-8K-ttft | Qwen3-1.7B -> Qwen3-32B | TTFT s (mapped) | 8K | 0.21 | 0.1077 | speed | beaten |
 | home-qwen3-1-7b-qwen3-32b-16K-ttft | Qwen3-1.7B -> Qwen3-32B | TTFT s (mapped) | 16K | 0.4 | 0.154 | speed | beaten |
 | home-qwen3-1-7b-qwen3-32b-32K-ttft | Qwen3-1.7B -> Qwen3-32B | TTFT s (mapped) | 32K | 0.87 | 0.2952 | speed | beaten |
@@ -79,7 +79,7 @@ This repo rebuilds, from public material only, the method that OneTriangle (YC S
 
 All rows (Tier 2 and untracked included):
 
-**Beaten 138 of 1143** published OneTriangle numbers (tied 28, behind 49, blocked 1, open 732). Full row table: [docs/SCOREBOARD.md](docs/SCOREBOARD.md). Rules: same pair, context/benchmark and N or more; TTFT on their GPU class (H100) and speedups against native vLLM/SGLang.
+**Beaten 154 of 1143** published OneTriangle numbers (tied 28, behind 58, blocked 1, open 732). Full row table: [docs/SCOREBOARD.md](docs/SCOREBOARD.md). Rules: same pair, context/benchmark and N or more; TTFT on their GPU class (H100) and speedups against native vLLM/SGLang.
 
 | pair | category | rows | beaten | tied | behind | blocked | open |
 |---|---|---|---|---|---|---|---|
@@ -90,7 +90,7 @@ All rows (Tier 2 and untracked included):
 | GLM-4.7-Flash -> GLM-5.3 | TTFT component | 32 | 0 | 0 | 0 | 0 | 32 |
 | Gemma-4-E2B -> Gemma-4-31B | TTFT component | 32 | 0 | 0 | 0 | 0 | 32 |
 | Gemma-4-E4B -> Gemma-4-31B | TTFT component | 32 | 0 | 0 | 0 | 0 | 32 |
-| Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component | 32 | 0 | 0 | 0 | 0 | 16 |
+| Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component | 32 | 12 | 0 | 4 | 0 | 16 |
 | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component | 32 | 14 | 0 | 4 | 0 | 0 |
 | Qwen3-1.7B -> Qwen3-8B | TTFT component | 32 | 15 | 0 | 5 | 0 | 0 |
 | Qwen3.5-2B -> Qwen3.8-27B | TTFT component | 32 | 0 | 0 | 0 | 0 | 32 |
@@ -107,7 +107,7 @@ All rows (Tier 2 and untracked included):
 | GLM-4.7-Flash -> GLM-5.3 | TTFT table | 15 | 0 | 0 | 0 | 0 | 15 |
 | Gemma-4-E2B -> Gemma-4-31B | TTFT table | 15 | 0 | 0 | 0 | 0 | 15 |
 | Gemma-4-E4B -> Gemma-4-31B | TTFT table | 15 | 1 | 0 | 1 | 0 | 13 |
-| Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT table | 15 | 0 | 0 | 0 | 0 | 6 |
+| Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT table | 15 | 4 | 0 | 5 | 0 | 6 |
 | Qwen3-1.7B -> Qwen3-32B | TTFT table | 15 | 4 | 0 | 5 | 0 | 0 |
 | Qwen3-1.7B -> Qwen3-8B | TTFT table | 15 | 5 | 0 | 5 | 0 | 2 |
 | Qwen3.5-2B -> Qwen3.8-27B | TTFT table | 15 | 0 | 0 | 0 | 0 | 15 |

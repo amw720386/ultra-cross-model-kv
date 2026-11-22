@@ -4,21 +4,21 @@
 
 | id | pair | metric | context / benchmark | theirs | their measured? | ours | status |
 |---|---|---|---|---|---|---|---|
-| home-ministral-3-3b-mistral-medium-3-5-128b-8K-ttft | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT s (mapped) | 8K | 0.36 | yes | 0.1519 | hold(rig) |
-| home-ministral-3-3b-mistral-medium-3-5-128b-8K-speedup | Ministral-3-3B -> Mistral-Medium-3.5-128B | speedup x vs their native | 8K | 9.167 | yes | 4.5964 | hold(rig) |
-| home-ministral-3-3b-mistral-medium-3-5-128b-16K-ttft | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT s (mapped) | 16K | 0.64 | yes | 0.2467 | hold(rig) |
-| home-ministral-3-3b-mistral-medium-3-5-128b-16K-speedup | Ministral-3-3B -> Mistral-Medium-3.5-128B | speedup x vs their native | 16K | 11.656 | yes | 6.4838 | hold(rig) |
-| home-ministral-3-3b-mistral-medium-3-5-128b-32K-ttft | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT s (mapped) | 32K | 1.45 | yes | 0.471 | hold(rig) |
-| home-ministral-3-3b-mistral-medium-3-5-128b-32K-speedup | Ministral-3-3B -> Mistral-Medium-3.5-128B | speedup x vs their native | 32K | 12.566 | yes | 7.8877 | hold(rig) |
-| home-ministral-3-3b-mistral-medium-3-5-128b-64K-ttft | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT s (mapped) | 64K | 4.01 | yes | 1.0833 | hold(rig) |
-| home-ministral-3-3b-mistral-medium-3-5-128b-64K-speedup | Ministral-3-3B -> Mistral-Medium-3.5-128B | speedup x vs their native | 64K | 12.424 | yes | 8.7975 | hold(rig) |
+| home-ministral-3-3b-mistral-medium-3-5-128b-8K-ttft | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT s (mapped) | 8K | 0.36 | yes | 0.1842 | beaten |
+| home-ministral-3-3b-mistral-medium-3-5-128b-8K-speedup | Ministral-3-3B -> Mistral-Medium-3.5-128B | speedup x vs their native | 8K | 9.167 | yes | 3.7634 | behind |
+| home-ministral-3-3b-mistral-medium-3-5-128b-16K-ttft | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT s (mapped) | 16K | 0.64 | yes | 0.2781 | beaten |
+| home-ministral-3-3b-mistral-medium-3-5-128b-16K-speedup | Ministral-3-3B -> Mistral-Medium-3.5-128B | speedup x vs their native | 16K | 11.656 | yes | 5.7027 | behind |
+| home-ministral-3-3b-mistral-medium-3-5-128b-32K-ttft | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT s (mapped) | 32K | 1.45 | yes | 0.5155 | beaten |
+| home-ministral-3-3b-mistral-medium-3-5-128b-32K-speedup | Ministral-3-3B -> Mistral-Medium-3.5-128B | speedup x vs their native | 32K | 12.566 | yes | 7.11 | behind |
+| home-ministral-3-3b-mistral-medium-3-5-128b-64K-ttft | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT s (mapped) | 64K | 4.01 | yes | 1.139 | beaten |
+| home-ministral-3-3b-mistral-medium-3-5-128b-64K-speedup | Ministral-3-3B -> Mistral-Medium-3.5-128B | speedup x vs their native | 64K | 12.424 | yes | 8.2589 | behind |
 | home-ministral-3-3b-mistral-medium-3-5-128b-128K-ttft | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT s (mapped) | 128K | 12.9 | est. |  | open |
 | home-ministral-3-3b-mistral-medium-3-5-128b-128K-speedup | Ministral-3-3B -> Mistral-Medium-3.5-128B | speedup x vs their native | 128K | 11.83 | est. |  | open |
 | home-ministral-3-3b-mistral-medium-3-5-128b-256K-ttft | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT s (mapped) | 256K | 45.76 | est. |  | open |
 | home-ministral-3-3b-mistral-medium-3-5-128b-256K-speedup | Ministral-3-3B -> Mistral-Medium-3.5-128B | speedup x vs their native | 256K | 11.315 | est. |  | open |
 | home-ministral-3-3b-mistral-medium-3-5-128b-512K-ttft | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT s (mapped) | 512K | 171.76 | est. |  | open |
 | home-ministral-3-3b-mistral-medium-3-5-128b-512K-speedup | Ministral-3-3B -> Mistral-Medium-3.5-128B | speedup x vs their native | 512K | 10.979 | est. |  | open |
-| home-ministral-3-3b-mistral-medium-3-5-128b-peak | Ministral-3-3B -> Mistral-Medium-3.5-128B | peak speedup x (headline) | 32K | 12.6 | yes | 7.8877 | hold(rig) |
+| home-ministral-3-3b-mistral-medium-3-5-128b-peak | Ministral-3-3B -> Mistral-Medium-3.5-128B | peak speedup x (headline) | 32K | 12.6 | yes | 7.11 | behind |
 | home-qwen3-1-7b-qwen3-32b-8K-ttft | Qwen3-1.7B -> Qwen3-32B | TTFT s (mapped) | 8K | 0.21 | yes | 0.1077 | beaten |
 | home-qwen3-1-7b-qwen3-32b-8K-speedup | Qwen3-1.7B -> Qwen3-32B | speedup x vs their native | 8K | 5.667 | yes | 3.5916 | behind |
 | home-qwen3-1-7b-qwen3-32b-16K-ttft | Qwen3-1.7B -> Qwen3-32B | TTFT s (mapped) | 16K | 0.4 | yes | 0.154 | beaten |
@@ -680,22 +680,22 @@
 | x-tb-ministral-v0-quality-3-mapped | Ministral-3-3B -> Mistral-Medium-3.5-128B | accuracy (0-1) [mapped] | QuALITY (100 questions (screen of 500); section: long context) | 0.69 | yes |  | open |
 | x-tb-ministral-v0-longbench-v2-4-mapped | Ministral-3-3B -> Mistral-Medium-3.5-128B | accuracy (0-1) [mapped] | LongBench v2 (97 questions; section: long context) | 0.37 | yes |  | open |
 | x-tb-ministral-v0-deveval-code-5-mapped | Ministral-3-3B -> Mistral-Medium-3.5-128B | pass@1 (0-1) [mapped] | DevEval (code) (100 items · pass@1; section: long context) | 0.45 | yes |  | open |
-| x-tb-ministral-ttft-prefill-8k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: source-model prefill (ms) [mapped] | context 8K; p50 | 169 | yes | 66.7 | hold(rig) |
-| x-tb-ministral-ttft-map-8k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: KV map (ms) [mapped] | context 8K; p50 | 13 | yes | 29.5 | hold(rig) |
-| x-tb-ministral-ttft-move-8k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: cache move (ms) [mapped] | context 8K; p50 | 20 | yes | 10.1 | hold(rig) |
-| x-tb-ministral-ttft-decode-8k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: first target token (ms) [mapped] | context 8K; p50 | 160 | yes | 45.1 | hold(rig) |
-| x-tb-ministral-ttft-prefill-16k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: source-model prefill (ms) [mapped] | context 16K; p50 | 406 | yes | 133.1 | hold(rig) |
-| x-tb-ministral-ttft-map-16k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: KV map (ms) [mapped] | context 16K; p50 | 21 | yes | 47.6 | hold(rig) |
-| x-tb-ministral-ttft-move-16k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: cache move (ms) [mapped] | context 16K; p50 | 34 | yes | 10.9 | hold(rig) |
-| x-tb-ministral-ttft-decode-16k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: first target token (ms) [mapped] | context 16K; p50 | 177 | yes | 55.0 | hold(rig) |
-| x-tb-ministral-ttft-prefill-32k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: source-model prefill (ms) [mapped] | context 32K; p50 | 1131 | yes | 295.5 | hold(rig) |
-| x-tb-ministral-ttft-map-32k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: KV map (ms) [mapped] | context 32K; p50 | 39 | yes | 83.7 | hold(rig) |
-| x-tb-ministral-ttft-move-32k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: cache move (ms) [mapped] | context 32K; p50 | 62 | yes | 17.4 | hold(rig) |
-| x-tb-ministral-ttft-decode-32k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: first target token (ms) [mapped] | context 32K; p50 | 213 | yes | 74.3 | hold(rig) |
-| x-tb-ministral-ttft-prefill-64k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: source-model prefill (ms) [mapped] | context 64K; p50 | 3518 | est. | 770.6 | hold(rig) |
-| x-tb-ministral-ttft-map-64k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: KV map (ms) [mapped] | context 64K; p50 | 80 | est. | 172.6 | hold(rig) |
-| x-tb-ministral-ttft-move-64k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: cache move (ms) [mapped] | context 64K; p50 | 129 | est. | 37.3 | hold(rig) |
-| x-tb-ministral-ttft-decode-64k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: first target token (ms) [mapped] | context 64K; p50 | 283 | est. | 103.0 | hold(rig) |
+| x-tb-ministral-ttft-prefill-8k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: source-model prefill (ms) [mapped] | context 8K; p50 | 169 | yes | 72.1 | beaten |
+| x-tb-ministral-ttft-map-8k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: KV map (ms) [mapped] | context 8K; p50 | 13 | yes | 39.2 | behind |
+| x-tb-ministral-ttft-move-8k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: cache move (ms) [mapped] | context 8K; p50 | 20 | yes | 14.9 | beaten |
+| x-tb-ministral-ttft-decode-8k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: first target token (ms) [mapped] | context 8K; p50 | 160 | yes | 57.9 | beaten |
+| x-tb-ministral-ttft-prefill-16k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: source-model prefill (ms) [mapped] | context 16K; p50 | 406 | yes | 143.8 | beaten |
+| x-tb-ministral-ttft-map-16k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: KV map (ms) [mapped] | context 16K; p50 | 21 | yes | 58.0 | behind |
+| x-tb-ministral-ttft-move-16k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: cache move (ms) [mapped] | context 16K; p50 | 34 | yes | 15.0 | beaten |
+| x-tb-ministral-ttft-decode-16k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: first target token (ms) [mapped] | context 16K; p50 | 177 | yes | 60.8 | beaten |
+| x-tb-ministral-ttft-prefill-32k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: source-model prefill (ms) [mapped] | context 32K; p50 | 1131 | yes | 316.4 | beaten |
+| x-tb-ministral-ttft-map-32k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: KV map (ms) [mapped] | context 32K; p50 | 39 | yes | 101.1 | behind |
+| x-tb-ministral-ttft-move-32k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: cache move (ms) [mapped] | context 32K; p50 | 62 | yes | 20.2 | beaten |
+| x-tb-ministral-ttft-decode-32k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: first target token (ms) [mapped] | context 32K; p50 | 213 | yes | 77.6 | beaten |
+| x-tb-ministral-ttft-prefill-64k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: source-model prefill (ms) [mapped] | context 64K; p50 | 3518 | est. | 797.0 | beaten |
+| x-tb-ministral-ttft-map-64k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: KV map (ms) [mapped] | context 64K; p50 | 80 | est. | 204.6 | behind |
+| x-tb-ministral-ttft-move-64k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: cache move (ms) [mapped] | context 64K; p50 | 129 | est. | 41.8 | beaten |
+| x-tb-ministral-ttft-decode-64k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: first target token (ms) [mapped] | context 64K; p50 | 283 | est. | 95.8 | beaten |
 | x-tb-ministral-ttft-prefill-128k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: source-model prefill (ms) [mapped] | context 128K; p50 | 12061 | est. |  | open |
 | x-tb-ministral-ttft-map-128k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: KV map (ms) [mapped] | context 128K; p50 | 161 | est. |  | open |
 | x-tb-ministral-ttft-move-128k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: cache move (ms) [mapped] | context 128K; p50 | 257 | est. |  | open |
