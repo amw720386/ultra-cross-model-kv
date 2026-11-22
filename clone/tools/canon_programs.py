@@ -24,6 +24,26 @@ def _import_header(src):
     return "\n".join(l for l in src.splitlines() if re.match(r"\s*(import|from)\s+\S+", l) and not l.startswith(" "))
 
 
+def prompt_helpers(prompt, code, entry_point):
+    """HumanEval prompts can define helper functions the ORIGINAL check() calls (HE/38 encode_cyclic, HE/50
+    encode_shift). evalplus.sanitize keeps only the entry point and its dependencies, and EvalPlus's own harness
+    tests the entry point alone; with the original HumanEval tests (ours) a helper the model did not redefine must
+    come from the prompt, as in HumanEval's prompt + completion convention. Returns the missing helpers' source."""
+    import ast
+    try:
+        pt = ast.parse(prompt)
+    except SyntaxError:
+        return ""
+    have = set()
+    try:
+        have = {n.name for n in ast.parse(code).body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
+    except SyntaxError:
+        pass
+    out = [ast.get_source_segment(prompt, n) for n in pt.body
+           if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name != entry_point and n.name not in have]
+    return "\n\n".join(x for x in out if x)
+
+
 def he_program(d, code):  # == xkv genevals._humaneval_program
     ep = d["entry_point"]
     if not re.search(rf"^\s*def\s+{re.escape(ep)}\s*\(", code, re.M):
@@ -47,9 +67,10 @@ def main():
             raw = EVALPLUS_PREFIX + o["output"]
             ep = d.get("entry_point") if bench == "humaneval" else None
             s = sanitize(raw, ep)
-            prog = he_program(d, s) if bench == "humaneval" else mbpp_program(d, s)
+            helpers = prompt_helpers(d["prompt"], s, ep) if bench == "humaneval" else ""
+            prog = he_program(d, (helpers + "\n\n" + s) if helpers else s) if bench == "humaneval" else mbpp_program(d, s)
             rows.append(dict(id=str(d["task_id"]), bench=bench, entry_point=ep, raw=raw, sanitized=s, program=prog,
-                             old_score=o.get("score")))
+                             prompt_helpers_added=bool(helpers), old_score=o.get("score")))
     else:  # kvx gens.jsonl (BigCodeBench rows); the BCB scorer assembles the test program from `sanitized`
         from bigcodebench.sanitize import sanitize
         for l in open(path):
@@ -58,8 +79,10 @@ def main():
                 continue
             raw = re.sub(r"<think>.*?</think>", "", g["text"], flags=re.S)
             s = sanitize(raw, "task_func")
-            rows.append(dict(id=g["id"], bench=bench, entry_point="task_func", raw=raw, sanitized=s, program=None,
-                             meta=g.get("meta")))
+            # gens-compatible: tools/modal_score_bcb.py --gens out.jsonl extracts the fenced block == `sanitized`
+            rows.append(dict(id=g["id"], bench=bench, kind="code", arm=g.get("arm"), entry_point="task_func", raw=raw,
+                             sanitized=s, program=None, meta=g.get("meta"), text="```python\n" + s + "\n```",
+                             old_score=g.get("score")))
     with open(out, "w") as f:
         for r in rows:
             f.write(json.dumps(r) + "\n")
