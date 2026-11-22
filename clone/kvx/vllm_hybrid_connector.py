@@ -135,8 +135,11 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
         if self.mf["src"] != self.src_name or self.mf["tgt"] not in (self.tgt_name, self.tgt_name.rstrip("/").split("/")[-1]):
             logger.warning("kvx hybrid: maps file src/tgt %s/%s vs serving %s/%s", self.mf["src"], self.mf["tgt"],
                            self.src_name, self.tgt_name)
-        self.maps = {t: dict(sel=m["sel"], W=m["W"].to(device, torch.bfloat16), b=m["b"].float().to(device))
-                     for t, m in self.maps.items()}
+        opt = lambda x: None if x is None else x.float().to(device)
+        self.maps = {t: dict(sel=m["sel"], W=m["W"].to(device, torch.bfloat16), b=m["b"].float().to(device),
+                             rc=opt(m.get("rc")), mu=opt(m.get("mu"))) for t, m in self.maps.items()}
+        self.recolor = bool(int(cfg_recolor)) if (cfg_recolor := self._kv_transfer_config.get_from_extra_config(
+            "recolor", None)) is not None else True
         self.mf["maps"] = None  # drop the mmap references
         tcfg = AutoConfig.from_pretrained(self.tgt_name)
         tcfg = getattr(tcfg, "text_config", None) or tcfg
@@ -183,7 +186,7 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
             ids = torch.tensor([r.token_ids], device=device)
             T = len(r.token_ids)
             feats = hybrid.source_features(self.Sdec, ids, drop_q=self.mf.get("drop_q", True))
-            given = taps_from_feats(self.mf, self.maps, feats, T, self.knw, sinks=self.sinks)
+            given = taps_from_feats(self.mf, self.maps, feats, T, self.knw, sinks=self.sinks, recolor=self.recolor)
             del feats
             states = caches_from_taps(self.params, self.kinds, given)
             del given

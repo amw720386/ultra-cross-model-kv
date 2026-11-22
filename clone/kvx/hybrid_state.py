@@ -161,15 +161,25 @@ def k_norm_weights(cfg, sd, prefix="model.layers."):
             for l, t in enumerate(g("layer_types")) if t == "full_attention"}
 
 
-def taps_from_feats(mf, maps, feats, T, knw, sinks=None):
+def taps_from_feats(mf, maps, feats, T, knw, sinks=None, recolor=True):
     """Source features (per source layer [T, d]) -> mapped target taps {t: {name: [T, w]}} (fp32), rms-restored keys,
-    positions < sinks from the file's sink_template (calibration-mean target taps)."""
+    positions < sinks from the file's sink_template (calibration-mean target taps).
+    recolor (kvx-pairs, kvx/hybrid.apply): per bd-channel block, Y = (Y - mu) @ rc + mu on the first nb*bd channels,
+    before the rms restore; used when the map carries rc. GEMM in the map's dtype (bf16 as saved/deployed)."""
     A = int(mf.get("sinks", 0) if sinks is None else sinks)
     tmpl = mf.get("sink_template") or {}
     out = {}
     for t, m in maps.items():
-        X = torch.cat([feats[s].float() for s in m["sel"]], 1)
-        Y = X @ m["W"].float() + m["b"].float()
+        Wm = m["W"]
+        X = torch.cat([feats[s].to(Wm.dtype) for s in m["sel"]], 1)
+        Y = (X @ Wm).float() + m["b"].float()
+        rc = m.get("rc")
+        if recolor and rc is not None:
+            nb, bd = rc.shape[0], rc.shape[1]
+            mu = m["mu"].to(Y)
+            Yc = (Y[:, :nb * bd] - mu[:nb * bd]).view(-1, nb, bd).transpose(0, 1)
+            Y = torch.cat([torch.bmm(Yc, rc.to(Y)).transpose(0, 1).reshape(-1, nb * bd) + mu[:nb * bd],
+                           Y[:, nb * bd:]], 1)
         d, o = {}, 0
         for name, wd in mf["tgt_taps"][t]["taps"]:
             d[name] = Y[:, o:o + wd]

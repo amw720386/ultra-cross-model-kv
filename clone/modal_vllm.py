@@ -14,6 +14,8 @@ image = (
     .pip_install("vllm==0.34.0", "hf_transfer")
     # flash-attn backend: predictable paged layout [2, blocks, block_size, H, D] for the connector
     .env({"HF_HOME": "/vol/hf", "HF_HUB_CACHE": "/hf/hub", "HF_HUB_OFFLINE": "1", "HF_HUB_ENABLE_HF_TRANSFER": "1", "VLLM_ATTENTION_BACKEND_UNUSED": "set via attention_backend"})
+    # resource names from the launching shell (kvx-env), so the container's module import resolves the same objects
+    .env({k: v for k, v in os.environ.items() if k.startswith("KVX_") and k.endswith(("_VOLUME", "_SECRET"))})
     .add_local_python_source("kvx", "modal_vllm")
 )
 vol = modal.Volume.from_name(os.environ.get("KVX_VOLUME", "kvx"), create_if_missing=True)

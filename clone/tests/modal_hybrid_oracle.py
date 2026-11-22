@@ -16,6 +16,8 @@ image = (
     modal.Image.from_registry("nvidia/cuda:12.8.1-devel-ubuntu22.04", add_python="3.12")
     .pip_install("vllm==0.34.0", "hf_transfer", "pyarrow")
     .env({"HF_HOME": "/vol/hf", "HF_HUB_CACHE": "/hf/hub", "HF_HUB_OFFLINE": "1"})
+    # resource names from the launching shell (kvx-env), so the container's module import resolves the same objects
+    .env({k: v for k, v in os.environ.items() if k.startswith("KVX_") and k.endswith(("_VOLUME", "_SECRET"))})
     .add_local_python_source("kvx")
 )
 vol = modal.Volume.from_name(os.environ.get("KVX_VOLUME", "kvx"))

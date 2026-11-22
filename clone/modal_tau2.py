@@ -21,6 +21,8 @@ image = (
     .run_commands("git clone https://github.com/sierra-research/tau2-bench /opt/tau2 && cd /opt/tau2 && "
                   "git checkout 989d3285 && pip install -e .")
     .env({"HF_HOME": "/vol/hf", "HF_HUB_CACHE": "/hf/hub", "HF_HUB_OFFLINE": "1", "TAU2_DATA_DIR": "/opt/tau2/data"})
+    # resource names from the launching shell (kvx-env), so the container's module import resolves the same objects
+    .env({k: v for k, v in os.environ.items() if k.startswith("KVX_") and k.endswith(("_VOLUME", "_SECRET"))})
     .add_local_python_source("kvx")
 )
 vol = modal.Volume.from_name(os.environ.get("KVX_VOLUME", "kvx"))

@@ -96,3 +96,29 @@ def test_end_to_end_into_vllm_shaped_caches(fx, dim_first):
         assert torch.allclose(back_conv, ref["conv_state"][0][:, -k1:], atol=5e-3)
         assert torch.allclose(ssm_c[slot].transpose(-1, -2), ref["recurrent_state"][0], atol=5e-3, rtol=5e-3)
         assert float(conv_c[slot - 1].abs().sum()) == 0 and float(ssm_c[slot + 1].abs().sum()) == 0
+
+
+def test_recolor_matches_kvx_pairs_apply(fx):
+    """taps_from_feats(recolor=True) == kvx.hybrid.apply(recolor=True) on GatedDeltaNet layers (no rms restore there)."""
+    from kvx import hybrid
+    d, p = fx
+    mf = d["maps_file"]
+    g = torch.Generator().manual_seed(3)
+    maps = {}
+    for t, m in _fmaps(d).items():
+        if mf["tgt_taps"][t]["kind"] != "lin":
+            continue
+        w = m["W"].shape[1]
+        bd = 32
+        nb = w // bd
+        maps[t] = dict(m, W=m["W"].to(torch.bfloat16), rc=torch.eye(bd).repeat(nb, 1, 1) + 0.1 * torch.randn(nb, bd, bd, generator=g),
+                       mu=torch.randn(w, generator=g))
+    feats = [f.float() for f in d["source_feats"]]
+    widths = {t: [tuple(x) for x in mf["tgt_taps"][t]["taps"]] for t in maps}
+    ref = hybrid.apply(maps, feats, 1, d["P"], widths, recolor=True)
+    got = hs.taps_from_feats(dict(mf, sinks=0, sink_template={}), maps, feats, d["P"], knw={}, recolor=True)
+    plain = hs.taps_from_feats(dict(mf, sinks=0, sink_template={}), maps, feats, d["P"], knw={}, recolor=False)
+    for t in maps:
+        for name, v in ref[t].items():
+            assert torch.allclose(got[t][name], v[0], atol=1e-4, rtol=1e-4), (t, name)
+        assert not torch.allclose(plain[t]["qkv"], got[t]["qkv"])
