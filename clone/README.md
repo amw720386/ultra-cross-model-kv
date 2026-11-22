@@ -27,7 +27,7 @@ This repo rebuilds, from public material only, the method that OneTriangle (YC S
 ## Scoreboard: every OneTriangle number vs ours
 
 <!-- SCOREBOARD:BEGIN -->
-**OneTriangle Tier 1: 14 / 45 beaten** (tied 5, behind 2, on quality hold 2, blocked 1, open 21): the 9 homepage peak speedups, their measured end-to-end TTFT points, and the 15 rows of their benchmark bundle. Only Tier 1 is the goal.
+**OneTriangle Tier 1: 14 / 45 beaten** (tied 6, behind 2, on quality hold 2, blocked 1, open 20): the 9 homepage peak speedups, their measured end-to-end TTFT points, and the 15 rows of their benchmark bundle. Only Tier 1 is the goal.
 
 | id | pair | metric | context / benchmark | theirs | ours | owner | status |
 |---|---|---|---|---|---|---|---|
@@ -67,7 +67,7 @@ This repo rebuilds, from public material only, the method that OneTriangle (YC S
 | bundle-cowtext-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | CowText | 0.65 | None | quality | blocked |
 | bundle-humaneval-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | HumanEval | 0.91 | 0.87 | quality | tied |
 | bundle-mbpp-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | MBPP | 0.88 | 0.75 | quality | behind |
-| bundle-bigcodebench-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | BigCodeBench | 0.55 |  | quality | open |
+| bundle-bigcodebench-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | BigCodeBench | 0.55 | 0.5 | quality | tied |
 | bundle-math-500-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | MATH-500 | 0.59 | 0.9 | quality | beaten |
 | bundle-tau2-airline-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | tau2 Airline | 0.5882352941 |  | quality | open |
 | bundle-tau2-retail-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | tau2 Retail | 0.4117647059 |  | quality | open |
@@ -79,12 +79,12 @@ This repo rebuilds, from public material only, the method that OneTriangle (YC S
 
 All rows (Tier 2 and untracked included):
 
-**Beaten 146 of 1143** published OneTriangle numbers (tied 29, behind 61, blocked 1, open 792). Full row table: [docs/SCOREBOARD.md](docs/SCOREBOARD.md). Rules: same pair, context/benchmark and N or more; TTFT on their GPU class (H100) and speedups against native vLLM/SGLang.
+**Beaten 146 of 1143** published OneTriangle numbers (tied 30, behind 61, blocked 1, open 791). Full row table: [docs/SCOREBOARD.md](docs/SCOREBOARD.md). Rules: same pair, context/benchmark and N or more; TTFT on their GPU class (H100) and speedups against native vLLM/SGLang.
 
 | pair | category | rows | beaten | tied | behind | blocked | open |
 |---|---|---|---|---|---|---|---|
 | Qwen3-1.7B -> Qwen3-8B | quality | 83 | 7 | 8 | 3 | 0 | 56 |
-| Qwen3.5-4B -> Qwen3.8-27B | quality | 46 | 4 | 4 | 1 | 1 | 36 |
+| Qwen3.5-4B -> Qwen3.8-27B | quality | 46 | 4 | 5 | 1 | 1 | 35 |
 | Qwen3-1.7B -> Qwen3-4B | quality | 39 | 4 | 0 | 0 | 0 | 31 |
 | Qwen3-4B-Instruct-2507 -> Qwen3-4B-Thinking-2507 | quality | 37 | 0 | 0 | 7 | 0 | 22 |
 | GLM-4.7-Flash -> GLM-5.3 | TTFT component | 32 | 0 | 0 | 0 | 0 | 32 |
