@@ -2,6 +2,29 @@
  {
   "src": "Qwen/Qwen3-1.7B",
   "tgt": "Qwen/Qwen3-32B",
+  "maps": "/vol/runs/pairs-q17-q32/maps_k24.pt",
+  "reps": 2,
+  "restore": "rms",
+  "backend": "FLASH_ATTN",
+  "orig_ctx": 32768,
+  "src_sdpa": "cudnn",
+  "fp8": 0,
+  "sink": "",
+  "quality_long": 130816,
+  "long_from": 200000,
+  "reps_long": 1,
+  "lens": "130816,261888,523776,1048320",
+  "yarn": 32.0,
+  "maxlen": 1048576,
+  "tp": 8,
+  "mode": "native",
+  "tail": 64,
+  "util": 0.9,
+  "tag": "-h100x8-tp8-1m"
+ },
+ {
+  "src": "Qwen/Qwen3-1.7B",
+  "tgt": "Qwen/Qwen3-32B",
   "maps": "/vol/runs/pairs-q17-q32/maps_all/maps_k8.pt",
   "reps": 2,
   "restore": "rms",
@@ -93,28 +116,5 @@
    "group": 4
   },
   "lens_quality": 0
- },
- {
-  "src": "Qwen/Qwen3-1.7B",
-  "tgt": "Qwen/Qwen3-32B",
-  "maps": "/vol/runs/pairs-q17-q32/maps_k24.pt",
-  "reps": 2,
-  "restore": "rms",
-  "backend": "FLASH_ATTN",
-  "orig_ctx": 32768,
-  "src_sdpa": "cudnn",
-  "fp8": 0,
-  "sink": "",
-  "quality_long": 130816,
-  "long_from": 200000,
-  "reps_long": 1,
-  "lens": "130816,261888,523776,1048320",
-  "yarn": 32.0,
-  "maxlen": 1048576,
-  "tp": 8,
-  "mode": "native",
-  "tail": 64,
-  "util": 0.9,
-  "tag": "-h100x8-tp8-1m"
  }
 ]
