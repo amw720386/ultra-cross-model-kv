@@ -12,18 +12,18 @@ app = modal.App(os.environ.get("KVX_APP", "kvx-unit-vllmimg-cpu"), image=image)
 
 
 @app.function(cpu=4.0, memory=8192, timeout=900)
-def run():
+def run(tests: str = ""):
     import subprocess
     v = subprocess.run(["python", "-c", "import transformers, torch, vllm; print(transformers.__version__, torch.__version__, vllm.__version__); "
                         "from vllm.distributed.parallel_state import get_tp_group, get_tensor_model_parallel_rank; print('tp api ok')"],
                        capture_output=True, text=True)
-    p = subprocess.run(["python", "-m", "pytest", "-q", "-rs", "/root/tests/test_core_cpu.py", "/root/tests/test_tp_source_cpu.py", "/root/tests/test_fa_gemma_cpu.py"], capture_output=True,
+    p = subprocess.run(["python", "-m", "pytest", "-q", "-rs", *(tests or "/root/tests/test_core_cpu.py /root/tests/test_tp_source_cpu.py /root/tests/test_fa_gemma_cpu.py").split()], capture_output=True,
                        text=True, cwd="/root")
     return p.returncode, v.stdout + v.stderr[-500:] + p.stdout[-6000:] + p.stderr[-2000:]
 
 
 @app.local_entrypoint()
-def main():
-    rc, out = run.remote()
+def main(tests: str = ""):
+    rc, out = run.remote(" ".join("/root/tests/" + t for t in tests.split(",")) if tests else "")
     print(out)
     print("rc", rc)

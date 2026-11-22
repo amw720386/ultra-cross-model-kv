@@ -304,6 +304,15 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
             _fast_gdn()
         self.S = hybrid.load(self.src_name).model.to(device)
         self.Sdec = hybrid.Dec(self.S)
+        # kvx-speed: Megatron-split source prefill (each rank 1/tp of the source FLOPs; 1M sources took 41-110 s on one
+        # GPU). xkv only: it reads the residual stream, which is whole on every rank. Opt-in until GPU-checked.
+        self.src_tp_on = False
+        if self.tp_size > 1 and self.xm is not None and int(self._kv_transfer_config.get_from_extra_config("hyb_src_tp", 0)):
+            from .tp_source_hybrid import shard_hybrid_source
+            from .vllm_connector import _tp_group
+            shard_hybrid_source(self.Sdec, self.tp_rank, self.tp_size, _tp_group())
+            torch.cuda.empty_cache()
+            self.src_tp_on = True
         from vllm.model_executor.layers.mamba.mamba_utils import is_conv_state_dim_first
         self.dim_first = bool(is_conv_state_dim_first())
         self.layer_group = {}
@@ -312,8 +321,8 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
                 self.layer_group[l] = gi
         self._layout = None
         self._ready = True
-        logger.info("kvx hybrid connector ready: %d mapped target layers, attn block %d, conv dim_first=%s, tp %d/%d",
-                    len(self.maps), self.block, self.dim_first, self.tp_rank, self.tp_size)
+        logger.info("kvx hybrid connector ready: %d mapped target layers, attn block %d, conv dim_first=%s, tp %d/%d src_tp %d",
+                    len(self.maps), self.block, self.dim_first, self.tp_rank, self.tp_size, int(self.src_tp_on))
 
     def start_load_kv(self, forward_context, **kwargs: Any) -> None:
         meta = self._get_connector_metadata()
