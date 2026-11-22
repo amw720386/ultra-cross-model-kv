@@ -34,15 +34,15 @@
 | home-qwen3-1-7b-qwen3-32b-512K-ttft | Qwen3-1.7B -> Qwen3-32B | TTFT s (mapped) | 512K | 85.98 | est. |  | open |
 | home-qwen3-1-7b-qwen3-32b-512K-speedup | Qwen3-1.7B -> Qwen3-32B | speedup x vs their native | 512K | 10.849 | est. |  | open |
 | home-qwen3-1-7b-qwen3-32b-peak | Qwen3-1.7B -> Qwen3-32B | peak speedup x (headline) | 1M | 11.0 | est. |  | open |
-| home-qwen2-5-3b-qwen2-5-72b-32K-ttft | Qwen2.5-3B -> Qwen2.5-72B | TTFT s (mapped) | 32K | 1.46 | yes | 0.316 | beaten |
+| home-qwen2-5-3b-qwen2-5-72b-32K-ttft | Qwen2.5-3B -> Qwen2.5-72B | TTFT s (mapped) | 32K | 1.46 | yes | 0.316 | hold(quality) |
 | home-qwen2-5-3b-qwen2-5-72b-32K-speedup | Qwen2.5-3B -> Qwen2.5-72B | speedup x vs their native | 32K | 8.514 | yes | 5.1862 | behind |
-| home-qwen2-5-3b-qwen2-5-72b-64K-ttft | Qwen2.5-3B -> Qwen2.5-72B | TTFT s (mapped) | 64K | 3.46 | yes | 0.5897 | beaten |
+| home-qwen2-5-3b-qwen2-5-72b-64K-ttft | Qwen2.5-3B -> Qwen2.5-72B | TTFT s (mapped) | 64K | 3.46 | yes | 0.5897 | hold(quality) |
 | home-qwen2-5-3b-qwen2-5-72b-64K-speedup | Qwen2.5-3B -> Qwen2.5-72B | speedup x vs their native | 64K | 9.312 | yes | 6.5659 | behind |
-| home-qwen2-5-3b-qwen2-5-72b-127K-ttft | Qwen2.5-3B -> Qwen2.5-72B | TTFT s (mapped) | 127K | 9.74 | yes | 1.0908 | beaten |
+| home-qwen2-5-3b-qwen2-5-72b-127K-ttft | Qwen2.5-3B -> Qwen2.5-72B | TTFT s (mapped) | 127K | 9.74 | yes | 1.0908 | hold(quality) |
 | home-qwen2-5-3b-qwen2-5-72b-127K-speedup | Qwen2.5-3B -> Qwen2.5-72B | speedup x vs their native | 127K | 9.634 | yes | 9.3934 | behind |
-| home-qwen2-5-3b-qwen2-5-72b-262K-ttft | Qwen2.5-3B -> Qwen2.5-72B | TTFT s (mapped) | 262K | 36.45 | yes | 2.1554 | beaten |
+| home-qwen2-5-3b-qwen2-5-72b-262K-ttft | Qwen2.5-3B -> Qwen2.5-72B | TTFT s (mapped) | 262K | 36.45 | yes | 2.1554 | hold(quality) |
 | home-qwen2-5-3b-qwen2-5-72b-262K-speedup | Qwen2.5-3B -> Qwen2.5-72B | speedup x vs their native | 262K | 9.147 | yes | 14.0457 | beaten |
-| home-qwen2-5-3b-qwen2-5-72b-524K-ttft | Qwen2.5-3B -> Qwen2.5-72B | TTFT s (mapped) | 524K | 136.7 | yes | 4.2536 | beaten |
+| home-qwen2-5-3b-qwen2-5-72b-524K-ttft | Qwen2.5-3B -> Qwen2.5-72B | TTFT s (mapped) | 524K | 136.7 | yes | 4.2536 | hold(quality) |
 | home-qwen2-5-3b-qwen2-5-72b-524K-speedup | Qwen2.5-3B -> Qwen2.5-72B | speedup x vs their native | 524K | 8.843 | yes | 23.8782 | beaten |
 | home-qwen2-5-3b-qwen2-5-72b-peak | Qwen2.5-3B -> Qwen2.5-72B | peak speedup x (headline) | 127K | 9.6 | yes | 9.3934 | behind |
 | home-gemma-4-e2b-gemma-4-31b-8K-ttft | Gemma-4-E2B -> Gemma-4-31B | TTFT s (mapped) | 8K | 0.23 | est. |  | open |

@@ -90,6 +90,8 @@ def status(row, ours):
         return row.get("status_default", "open")
     if o.get("blocked"):
         return f"blocked({o['blocked']})"
+    if o.get("quality_ok") is False:  # timing measured, but the same config failed its quality check: not a win
+        return "hold(quality)"
     if o.get("value") is None:
         return "open"
     if row.get("n") and o.get("n") and o["n"] < row["n"]:
@@ -227,7 +229,7 @@ def write_readme(path, sb):
     t1 = sb.get("tier1", {"total": 0, "counts": {}})
     t1c = t1["counts"]
     tier1_lines = [f"**OneTriangle Tier 1: {t1c.get('beaten', 0)} / {t1['total']} beaten** (tied {t1c.get('tied', 0)}, behind "
-                   f"{t1c.get('behind', 0)}, blocked {t1c.get('blocked', 0)}, open {t1c.get('open', 0)}): the 9 homepage peak "
+                   f"{t1c.get('behind', 0)}, on quality hold {t1c.get('hold', 0)}, blocked {t1c.get('blocked', 0)}, open {t1c.get('open', 0)}): the 9 homepage peak "
                    "speedups, their measured end-to-end TTFT points, and the 15 rows of their benchmark bundle. Only Tier 1 is the goal.", "",
                    "| id | pair | metric | context / benchmark | theirs | ours | owner | status |", "|---|---|---|---|---|---|---|---|"]
     for r in [x for x in rows if x.get("tier") == 1]:
