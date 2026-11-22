@@ -42,7 +42,7 @@ def main(paths):
                 row["needle_acc"] = (round(r["needle_acc"], 3), round(nat["needle_acc"], 3), len(r["needle"]))
             out[r["tag"]] = row
             print(tgt, r["tag"], {k: (f"top1 {v[0]}/{v[1]} KL~{v[2]:.3f}" if k != "needle_acc" else f"mapped {v[0]} native {v[1]} n={v[2]}")
-                                  for k, v in row.items()})
+                                  for k, v in row.items() if k != "prompt_files"})
     return out
 
 
