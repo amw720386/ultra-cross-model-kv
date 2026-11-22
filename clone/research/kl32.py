@@ -55,7 +55,7 @@ def kl32(P, wins, prefix, steps=32, ks=(), recipes=(), restore="rms", forced="gr
     for i in range(len(wins)):
         ids = wins[i:i + 1, :prefix].to(P.dev)
         if forced == "greedy":  # native target greedy continuation = the oracle-forced tokens
-            g = P.T.generate(ids, attention_mask=torch.ones_like(ids), max_new_tokens=steps, do_sample=False,
+            g = P.T.generate(ids, attention_mask=torch.ones_like(ids), max_new_tokens=steps, min_new_tokens=steps, do_sample=False,
                              pad_token_id=P.tok.pad_token_id or 0)
             cont = g[:, prefix:prefix + steps]
         else:
