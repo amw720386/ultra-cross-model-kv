@@ -25,7 +25,7 @@ def fit_cpu(kw):
 
 
 @app.function(cpu=4.0, memory=16384, timeout=3300, volumes=mounts)
-def prime(tok_name, n_calib=4000, n_eval=64, L=1024):
+def prime(tok_name, n_calib=4000, n_eval=64, L=1024, eval_l=0):
     import modal_fit_hybrid as M
     from transformers import AutoTokenizer
     hf_shared.reload()
@@ -35,7 +35,8 @@ def prime(tok_name, n_calib=4000, n_eval=64, L=1024):
     half = n_calib // 2
     a = M.cached(tok, f"calib_{half}x{L}_bos{bos}", lambda: M.load_texts(tok, half, L, exclude=M.EVAL_DOCS))
     b = M.cached(tok, f"pg19train_{half}x{L}_bos{bos}", lambda: M.load_pg19_train(tok, half, L))
-    e = M.cached(tok, f"eval_{n_eval}x{L}_bos{bos}", lambda: M.load_texts(tok, n_eval, L, skip_docs=20000))
+    EL = eval_l or L
+    e = M.cached(tok, f"eval_{n_eval}x{EL}_bos{bos}", lambda: M.load_texts(tok, n_eval, EL, skip_docs=20000))
     return f"{tok_name}: calib {len(a)}+{len(b)} eval {len(e)} bos {bos}"
 
 
@@ -50,6 +51,6 @@ def smoke(src: str = "Qwen/Qwen3.5-0.8B", tgt: str = "Qwen/Qwen3.5-2B", run_id: 
 
 
 @app.local_entrypoint()
-def prime_main(toks: str = "Qwen/Qwen3.8-27B", n_calib: int = 4000):
-    for r in prime.starmap([(t, n_calib) for t in toks.split(",")]):
+def prime_main(toks: str = "Qwen/Qwen3.8-27B", n_calib: int = 4000, n_eval: int = 64, eval_l: int = 0):
+    for r in prime.starmap([(t, n_calib, n_eval, 1024, eval_l) for t in toks.split(",")]):
         print(r)

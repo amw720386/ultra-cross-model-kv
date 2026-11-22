@@ -98,7 +98,7 @@ def snapshot(name):
 def fit_impl(src: str, tgt: str, run_id: str, n_calib: int = 4000, L: int = 1024, w: int = 3, drop_q: int = 1,
              lam_rels: str = "1e-3", n_eval: int = 64, P: int = 960, sinks: str = "4", tails: str = "64,256",
              bs: int = 4, mem_frac: float = 0.80, save: int = 1, oracle: int = 1, stride: int = 4, tf32: int = 0,
-             split_kv: int = 0, maps_from: str = "", ebs: int = 2):
+             split_kv: int = 0, maps_from: str = "", ebs: int = 2, eval_l: int = 0):
     import torch
     from transformers import AutoTokenizer
     from kvx import hybrid
@@ -118,8 +118,9 @@ def fit_impl(src: str, tgt: str, run_id: str, n_calib: int = 4000, L: int = 1024
     half = n_calib // 2
     calib = torch.cat([torch.tensor(cached(tok, f"calib_{half}x{L}_bos{bos}", lambda: load_texts(tok, half, L, exclude=EVAL_DOCS))),
                        torch.tensor(cached(tok, f"pg19train_{half}x{L}_bos{bos}", lambda: load_pg19_train(tok, half, L)))])
-    evals = torch.tensor(cached(tok, f"eval_{n_eval}x{L}_bos{bos}", lambda: load_texts(tok, n_eval, L, skip_docs=20000)))
-    res = dict(src=src, tgt=tgt, run_id=run_id, n_calib=len(calib), L=L, w=w, drop_q=drop_q, P=P, n_eval=len(evals), stride=stride, tf32=tf32,
+    EL = eval_l or L  # eval length (prefix P + continuation); calibration stays at L
+    evals = torch.tensor(cached(tok, f"eval_{n_eval}x{EL}_bos{bos}", lambda: load_texts(tok, n_eval, EL, skip_docs=20000)))
+    res = dict(src=src, tgt=tgt, run_id=run_id, n_calib=len(calib), L=L, eval_l=EL, w=w, drop_q=drop_q, P=P, n_eval=len(evals), stride=stride, tf32=tf32,
                gpu=torch.cuda.get_device_name() if dev == "cuda" else "cpu", t_load=time.time() - t0)
     print(f"[{time.time()-t0:.0f}s] loaded; calib {tuple(calib.shape)}", flush=True)
 
@@ -237,7 +238,7 @@ def fit_impl(src: str, tgt: str, run_id: str, n_calib: int = 4000, L: int = 1024
 
     tail_list = [int(x) for x in tails.split(",")] if tails else []
     sink_list = [int(x) for x in sinks.split(",")] if sinks else []
-    C = L - P
+    C = EL - P
     for i in range(0, len(evals), ebs):  # small eval batches: mapped taps for all target layers are ~2 GB/doc
         ids = evals[i:i + ebs].to(dev)
         B = ids.shape[0]
@@ -326,11 +327,11 @@ fit = app.function(gpu=GPU_SPEC, volumes={"/vol": vol, "/hf": hf_shared.read_onl
 def main(src: str = "Qwen/Qwen3.5-4B", tgt: str = "Qwen/Qwen3.8-27B", run_id: str = "", n_calib: int = 4000,
          w: int = 3, drop_q: int = 1, lam_rels: str = "1e-3", n_eval: int = 64, sinks: str = "4", tails: str = "64,256",
          bs: int = 4, oracle: int = 1, save: int = 1, stride: int = 4, tf32: int = 0, split_kv: int = 0,
-         maps_from: str = ""):
+         maps_from: str = "", prefix: int = 960, eval_l: int = 0, ebs: int = 2):
     run_id = run_id or time.strftime("pairs-%Y%m%dT%H%M%SZ", time.gmtime())
     r = fit.remote(src=src, tgt=tgt, run_id=run_id, n_calib=n_calib, w=w, drop_q=drop_q, lam_rels=lam_rels,
                    n_eval=n_eval, sinks=sinks, tails=tails, bs=bs, oracle=oracle, save=save, stride=stride, tf32=tf32, split_kv=split_kv,
-                   maps_from=maps_from)
+                   maps_from=maps_from, P=prefix, eval_l=eval_l, ebs=ebs)
     os.makedirs(f"out/{run_id}", exist_ok=True)
     json.dump(r, open(f"out/{run_id}/result.json", "w"), indent=1)
     print(json.dumps(r.get("eval", r), indent=1))
