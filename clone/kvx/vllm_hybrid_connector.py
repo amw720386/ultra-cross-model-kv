@@ -12,6 +12,7 @@ format), and writes what the target's own forward would have cached (kvx/hybrid_
 The target then prefills only the last n - m tokens natively, starting from those states.
 Needs vLLM's hybrid memory allocator (SupportsHMA) and prefix caching OFF (one mamba state slot per request).
 """
+import os
 import re
 from dataclasses import dataclass, field
 from typing import Any
@@ -147,8 +148,9 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
         if rope_ov:  # e.g. YaRN x4 for 1M: must match the hf_overrides vLLM got, or mapped keys get the wrong RoPE
             tcfg.rope_parameters = dict(rope_ov)
         # small target params straight from the checkpoint: conv1d, A_log, dt_bias, k_norm
-        path = snapshot_download(self.tgt_name, local_files_only=True)
-        import glob, os
+        # vLLM may hand us an already resolved local snapshot dir instead of a repo id
+        path = self.tgt_name if os.path.isdir(self.tgt_name) else snapshot_download(self.tgt_name, local_files_only=True)
+        import glob
         want = re.compile(r"layers\.\d+\.(linear_attn\.(conv1d\.(weight|bias)|A_log|dt_bias)|self_attn\.k_norm\.weight)$")
         sd = {}
         for f in sorted(glob.glob(os.path.join(path, "*.safetensors"))):
