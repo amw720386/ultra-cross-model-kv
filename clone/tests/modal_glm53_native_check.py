@@ -8,14 +8,14 @@ import sys
 import modal
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from modal_vllm import image, vol, hf_shared
+from modal_vllm import glm_image as image, vol, hf_shared
 
 app = modal.App(os.environ.get("KVX_APP", "kvx-speed-glm53-check"), image=image)
 TGT = "zai-org/GLM-5.3"
 MAXLEN = 1048576
 
 
-@app.function(cpu=4.0, memory=32768, timeout=1800, volumes={"/vol": vol, "/hf": hf_shared.read_only()})
+@app.function(cpu=4.0, memory=32768, timeout=2400, volumes={"/vol": vol, "/hf": hf_shared.read_only()})
 def dry(gate_cmd: str = ""):
     """vLLM resolves GLM-5.3's config at 1M with the probe's settings; the gate command at least starts (--help)."""
     import traceback
@@ -34,11 +34,13 @@ def dry(gate_cmd: str = ""):
                    kv_lora_rank=getattr(tc, "kv_lora_rank", None), quant=str(getattr(tc, "quantization_config", None))[:200])
     except Exception:
         out["config_error"] = traceback.format_exc()[-2000:]
+    import importlib.util
+    out["pkgs"] = {m: importlib.util.find_spec(m) is not None for m in ("accelerate", "kernels")}
     if gate_cmd:
         argv = json.loads(gate_cmd)
         p = subprocess.run(argv + ["--help"], capture_output=True, text=True)
         out.update(gate_help_rc=p.returncode, gate_help=(p.stdout + p.stderr)[-1500:])
-        p = subprocess.run(argv + ["--selfcheck"], capture_output=True, text=True, timeout=1200)  # tiny random GLMs, CPU
+        p = subprocess.run(["python", "-m", "kvx.glm_gate", "--selfcheck", "1"], capture_output=True, text=True, timeout=1500)  # tiny random GLMs, CPU
         out.update(gate_selfcheck_rc=p.returncode, gate_selfcheck=(p.stdout + p.stderr)[-2500:])
     return out
 

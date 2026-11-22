@@ -18,6 +18,17 @@ image = (
     .env({k: v for k, v in os.environ.items() if k.startswith("KVX_") and k.endswith(("_VOLUME", "_SECRET"))})
     .add_local_python_source("kvx", "modal_vllm")
 )
+# GLM-5.3 probe + kvx-pairs' glm_gate only: HF big-model loading (accelerate device_map) and the kernels hub package
+# baked in (no pip at boot). Kept out of the serving image: with `kernels` importable, HF may route ops (e.g. the GDN
+# chunk rule that kvx/fast_gdn.py patches) through hub kernels, which would change other runs.
+glm_image = (
+    modal.Image.from_registry("nvidia/cuda:12.8.1-devel-ubuntu22.04", add_python="3.12")
+    .pip_install("vllm==0.34.0", "hf_transfer")
+    .pip_install("accelerate", "kernels")
+    .env({"HF_HOME": "/vol/hf", "HF_HUB_CACHE": "/hf/hub", "HF_HUB_OFFLINE": "1", "HF_HUB_ENABLE_HF_TRANSFER": "1"})
+    .env({k: v for k, v in os.environ.items() if k.startswith("KVX_") and k.endswith(("_VOLUME", "_SECRET"))})
+    .add_local_python_source("kvx", "modal_vllm")
+)
 vol = modal.Volume.from_name(os.environ.get("KVX_VOLUME", "kvx"), create_if_missing=True)
 hf_shared = modal.Volume.from_name(os.environ.get("KVX_WEIGHTS_VOLUME", "kvx-hf"))  # shared weights volume (KVX_WEIGHTS_VOLUME), read-only
 app = modal.App(os.environ.get("KVX_APP", "kvx-vllm"), image=image)

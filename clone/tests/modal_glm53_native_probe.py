@@ -17,7 +17,7 @@ import time
 import modal
 
 GPU = os.environ.get("KVX_GPU", "H200:8")
-from modal_vllm import image, vol, hf_shared
+from modal_vllm import glm_image as image, vol, hf_shared
 
 app = modal.App(os.environ.get("KVX_APP", "kvx-speed-glm53-native"), image=image)
 TGT = "zai-org/GLM-5.3"
@@ -55,7 +55,7 @@ def _save(out):
     vol.commit()  # visible to the laptop poller before the container ends (lead rule 4)
 
 
-@app.function(gpu=GPU, timeout=7200, memory=900_000, volumes={"/vol": vol, "/hf": hf_shared.read_only()})
+@app.function(gpu=GPU, timeout=7200, memory=900_000, ephemeral_disk=307200, volumes={"/vol": vol, "/hf": hf_shared.read_only()})
 def probe(gate_cmd: str = ""):
     t0 = time.time()
     hf_shared.reload()
