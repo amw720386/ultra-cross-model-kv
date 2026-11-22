@@ -55,6 +55,9 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
         self.min_len = int(cfg.get_from_extra_config("min_len", 512))
         self.src_name = cfg.get_from_extra_config("src", None)
         self.maps_path = cfg.get_from_extra_config("maps", None)
+        # xkv maps (amw's recipe; kvx-pairs' kvx/xkv_adapter.py): source = input_layernorm outputs, same target taps
+        self.xkv_mapper = cfg.get_from_extra_config("xkv_mapper", None)
+        self.xkv_attn = cfg.get_from_extra_config("xkv_attn", None)
         self.sinks = cfg.get_from_extra_config("sinks", None)  # override the file's sink count (template rows)
         self.tgt_name = vllm_config.model_config.model
         if vllm_config.cache_config.enable_prefix_caching:
@@ -136,16 +139,27 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
         from . import hybrid
         from .vllm_connector import kv_layout
         self.kv_layout = kv_layout
+        self.xm = None
+        if self.xkv_mapper:
+            from .xkv_adapter import load_xkv
+            self.xm = load_xkv(self.xkv_mapper, self.xkv_attn, device=device)
+            self.mf = dict(format="kvx-hybrid-v1", maps={}, tgt_taps=None, src=self.src_name, tgt=self.tgt_name)
+            self.maps_path = None
+        if self.maps_path is None and self.xm is None:
+            raise ValueError("kvx hybrid connector: set extra_config 'maps' (kvx-hybrid-v1) or 'xkv_mapper' (+ 'xkv_attn')")
         # mmap load, then straight to the GPU in bf16 (load_maps_file's fp32 copy would need ~2x the 18 GB file in RAM)
-        self.mf = torch.load(self.maps_path, map_location="cpu", mmap=True, weights_only=False)
-        assert self.mf.get("format") == "kvx-hybrid-v1", self.mf.get("format")
-        self.maps = {int(t): m for t, m in self.mf["maps"].items()}
-        if self.mf["src"] != self.src_name or self.mf["tgt"] not in (self.tgt_name, self.tgt_name.rstrip("/").split("/")[-1]):
-            logger.warning("kvx hybrid: maps file src/tgt %s/%s vs serving %s/%s", self.mf["src"], self.mf["tgt"],
-                           self.src_name, self.tgt_name)
-        opt = lambda x: None if x is None else x.float().to(device)
-        self.maps = {t: dict(sel=m["sel"], W=m["W"].to(device, torch.bfloat16), b=m["b"].float().to(device),
-                             rc=opt(m.get("rc")), mu=opt(m.get("mu"))) for t, m in self.maps.items()}
+        if self.maps_path:
+            self.mf = torch.load(self.maps_path, map_location="cpu", mmap=True, weights_only=False)
+            assert self.mf.get("format") == "kvx-hybrid-v1", self.mf.get("format")
+            self.maps = {int(t): m for t, m in self.mf["maps"].items()}
+            if self.mf["src"] != self.src_name or self.mf["tgt"] not in (self.tgt_name, self.tgt_name.rstrip("/").split("/")[-1]):
+                logger.warning("kvx hybrid: maps file src/tgt %s/%s vs serving %s/%s", self.mf["src"], self.mf["tgt"],
+                               self.src_name, self.tgt_name)
+            opt = lambda x: None if x is None else x.float().to(device)
+            self.maps = {t: dict(sel=m["sel"], W=m["W"].to(device, torch.bfloat16), b=m["b"].float().to(device),
+                                 rc=opt(m.get("rc")), mu=opt(m.get("mu"))) for t, m in self.maps.items()}
+        else:
+            self.maps = {}
         self.recolor = bool(int(cfg_recolor)) if (cfg_recolor := self._kv_transfer_config.get_from_extra_config(
             "recolor", None)) is not None else True
         self.mf["maps"] = None  # drop the mmap references
@@ -167,7 +181,11 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
                         sd[re.sub(r"^.*?(layers\.)", "model.layers.", k)] = h.get_tensor(k)
         self.params = hs.TargetParams.from_state_dict(tcfg, sd).to(device)
         self.knw = {l: w.to(device) for l, w in k_norm_weights(tcfg, sd).items()}
-        self.kinds = {t: x["kind"] for t, x in enumerate(self.mf["tgt_taps"])}
+        if self.xm is not None:
+            self.kinds = {t: ("lin" if lt == "linear_attention" else "attn") for t, lt in enumerate(tcfg.layer_types)}
+            self.tcfg = tcfg
+        else:
+            self.kinds = {t: x["kind"] for t, x in enumerate(self.mf["tgt_taps"])}
         self.S = hybrid.load(self.src_name).model.to(device)
         self.Sdec = hybrid.Dec(self.S)
         from vllm.model_executor.layers.mamba.mamba_utils import is_conv_state_dim_first
@@ -208,12 +226,22 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
         for r in meta.requests:
             ids = torch.tensor([r.token_ids], device=device)
             T = len(r.token_ids)
-            feats = hybrid.source_features(self.Sdec, ids, drop_q=self.mf.get("drop_q", True))
+            if self.xm is not None:
+                from .xkv_adapter import needed_layers, source_inputs
+                xf, emb, emb_prev = source_inputs(self.Sdec, ids, needed_layers(self.xm))
+                layers = sorted(self.kinds)
+            else:
+                feats = hybrid.source_features(self.Sdec, ids, drop_q=self.mf.get("drop_q", True))
+                layers = sorted(self.maps)
             # one target layer at a time: taps -> state -> write -> free (all 64 layers' fp32 taps of a 27K-token
             # prompt at once ran an H200 out of memory)
-            for t in sorted(self.maps):
-                given = taps_from_feats(self.mf, {t: self.maps[t]}, feats, T, self.knw, sinks=self.sinks,
-                                        recolor=self.recolor)
+            for t in layers:
+                if self.xm is not None:
+                    tp = hs.xkv_layer_taps(self.xm, xf, emb, emb_prev, t, self.kinds[t], self.tcfg)
+                    given = {t: {k: v[0] for k, v in tp.items()}}
+                else:
+                    given = taps_from_feats(self.mf, {t: self.maps[t]}, feats, T, self.knw, sinks=self.sinks,
+                                            recolor=self.recolor)
                 st = caches_from_taps(self.params, self.kinds, given)[t]
                 del given
                 st = slice_for_rank(self.params, st, self.tp_rank, self.tp_size)

@@ -280,3 +280,58 @@ def slice_for_rank(p, st, rank, tp):
                       conv[2 * kd + rank * vv:2 * kd + (rank + 1) * vv]], 0)
     a, b = _rank_heads(S.shape[0], rank, tp)
     return ("lin", rows, S[a:b])
+
+
+# ---------------------------------------------------------------- xkv maps (kvx-pairs' kvx/xkv_adapter.py), per layer
+
+def tgt_shim(cfg):
+    """Stand-in for a target decoder (kvx.hybrid.layer_taps / xkv_adapter only read layer kinds and cfg dims), so the
+    vLLM connector needs no second HF copy of the target."""
+    from types import SimpleNamespace as NS
+    g = (lambda k, d=None: cfg.get(k, d)) if isinstance(cfg, dict) else (lambda k, d=None: getattr(cfg, k, d))
+    layers = []
+    for t in g("layer_types"):
+        if t == "linear_attention":
+            layers.append(NS(linear_attn=NS(in_proj_qkv=None, in_proj_a=None, in_proj_b=None)))
+        else:
+            layers.append(NS(linear_attn=None, self_attn=NS(is_kv_shared_layer=False, k_norm=NS(), v_norm=None,
+                                                             k_proj=None, v_proj=None)))
+    return NS(cfg=cfg if not isinstance(cfg, dict) else NS(**cfg), layers=layers)
+
+
+def xkv_layer_taps(xm, feats, emb, emb_prev, j, kind, c, out_dtype=torch.float32):
+    """One target layer's kvx-hybrid-v1 taps from xkv maps ([B, T, w] each) == xkv_adapter.mapped_taps(...)[j], computing
+    only this layer's GEMM slice (the connector streams layer by layer)."""
+    from .xkv_adapter import _mm
+    g = (lambda k: c[k]) if isinstance(c, dict) else (lambda k: getattr(c, k))
+    attn = xm.get("attn")
+    if kind == "attn" and attn is not None and j in attn["layers"]:
+        d = attn["parts"][j]
+        dt = emb.dtype
+        y = d["b"].to(device=emb.device, dtype=dt).expand(*emb.shape[:-1], -1).clone()
+        for i in attn["layers"][j]:
+            y = y + feats[i].to(dt) @ d[i].to(device=emb.device, dtype=dt)
+        if attn["embed"]:
+            y = y + emb @ d["e"].to(device=emb.device, dtype=dt) + emb_prev @ d["p"].to(device=emb.device, dtype=dt)
+        mlp = attn.get("mlp")
+        if mlp and j in mlp:
+            m = mlp[j]
+            f = torch.cat([feats[i].to(dt) for i in attn["layers"][j]] + ([emb, emb_prev] if attn["embed"] else []), -1)
+            y = y + torch.nn.functional.gelu(f @ m["w1"].to(f) + m["b1"].to(f)) @ m["w2"].to(f)
+        h = y.shape[-1] // 2
+        return {"k": y[..., :h].to(out_dtype), "v": y[..., h:].to(out_dtype)}
+    i = xm["src_of"][j]
+    sl = xm["slices"][i] if i in xm["slices"] else xm["slices"][str(i)]
+    a0, a1 = sl[j] if j in sl else sl[str(j)]
+    W = xm["W"][i]
+    Wj = torch.cat([W[:-1, a0:a1], W[-1:, a0:a1]], 0)  # keep the bias row last
+    y = _mm(feats[i], Wj)
+    if kind == "lin":
+        kd = g("linear_key_head_dim") * g("linear_num_key_heads")
+        vd = g("linear_value_head_dim") * g("linear_num_value_heads")
+        nv = g("linear_num_value_heads")
+        q = _mm(feats[i], xm["Wq"][j])
+        return {"qkv": torch.cat([q, y[..., :kd + vd]], -1).to(out_dtype),
+                "a": y[..., kd + vd:kd + vd + nv].to(out_dtype), "b": y[..., kd + vd + nv:kd + vd + 2 * nv].to(out_dtype)}
+    h = y.shape[-1] // 2
+    return {"k": y[..., :h].to(out_dtype), "v": y[..., h:].to(out_dtype)}

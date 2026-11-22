@@ -168,3 +168,43 @@ def test_yarn_matches_transformers():
     f = torch.outer(pos, inv.float())
     emb = torch.cat([f, f], -1)
     assert torch.allclose(cos, emb.cos() * af, atol=1e-5) and torch.allclose(sin, emb.sin() * af, atol=1e-5)
+
+
+def test_xkv_layer_taps_equal_adapter(fx):
+    """Per-layer xkv taps (connector streaming path) == kvx-pairs' xkv_adapter.mapped_taps on random xkv-format maps."""
+    from kvx import xkv_adapter
+    d, p = fx
+    cfg = d["tgt_config"]
+    kinds = ["lin" if t == "linear_attention" else "attn" for t in cfg["layer_types"]]
+    g = torch.Generator().manual_seed(5)
+    h_src, B, T = 24, 1, 7
+    kd = cfg["linear_key_head_dim"] * cfg["linear_num_key_heads"]
+    vd = cfg["linear_value_head_dim"] * cfg["linear_num_value_heads"]
+    nv = cfg["linear_num_value_heads"]
+    kvw = cfg["num_key_value_heads"] * cfg["head_dim"]
+    slices, W, Wq, src_of, off = {}, {}, {}, {}, {}
+    for j, k in enumerate(kinds):
+        i = j % 3
+        src_of[j] = i
+        w = (kd + vd + 2 * nv) if k == "lin" else 2 * kvw
+        a0 = off.get(i, 0)
+        slices.setdefault(i, {})[j] = (a0, a0 + w)
+        off[i] = a0 + w
+        if k == "lin":
+            Wq[j] = torch.randn(h_src + 1, kd, generator=g)
+    for i, n in off.items():
+        W[i] = torch.randn(h_src + 1, n, generator=g)
+    attn_layers = [j for j, k in enumerate(kinds) if k == "attn"]
+    xm = dict(W=W, Wq=Wq, slices=slices, src_of=src_of,
+              attn=dict(layers={j: [0, 2] for j in attn_layers}, embed=True, mlp=None,
+                        parts={j: {0: torch.randn(h_src, 2 * kvw, generator=g), 2: torch.randn(h_src, 2 * kvw, generator=g),
+                                   "e": torch.randn(h_src, 2 * kvw, generator=g), "p": torch.randn(h_src, 2 * kvw, generator=g),
+                                   "b": torch.randn(2 * kvw, generator=g)} for j in attn_layers}))
+    feats = {i: torch.randn(B, T, h_src, generator=g) for i in range(3)}
+    emb = torch.randn(B, T, h_src, generator=g)
+    emb_prev = torch.cat([torch.zeros_like(emb[:, :1]), emb[:, :-1]], 1)
+    ref = xkv_adapter.mapped_taps(xm, feats, emb, emb_prev, hs.tgt_shim(cfg), out_dtype=torch.float32)
+    for j, k in enumerate(kinds):
+        got = hs.xkv_layer_taps(xm, feats, emb, emb_prev, j, k, cfg)
+        for name, v in ref[j].items():
+            assert torch.allclose(got[name], v, atol=1e-4, rtol=1e-4), (j, name)
