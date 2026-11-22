@@ -98,7 +98,8 @@ def snapshot(name):
 def fit_impl(src: str, tgt: str, run_id: str, n_calib: int = 4000, L: int = 1024, w: int = 3, drop_q: int = 1,
              lam_rels: str = "1e-3", n_eval: int = 64, P: int = 960, sinks: str = "4", tails: str = "64,256",
              bs: int = 4, mem_frac: float = 0.80, save: int = 1, oracle: int = 1, stride: int = 4, tf32: int = 0,
-             split_kv: int = 0, maps_from: str = "", ebs: int = 2, eval_l: int = 0):
+             split_kv: int = 0, maps_from: str = "", ebs: int = 2, eval_l: int = 0, tgt_device_map: str = "",
+             gpu0_gib: int = 60, per_gpu_gib: int = 130):
     import torch
     from transformers import AutoTokenizer
     from kvx import hybrid
@@ -111,9 +112,15 @@ def fit_impl(src: str, tgt: str, run_id: str, n_calib: int = 4000, L: int = 1024
     tok = AutoTokenizer.from_pretrained(snapshot(tgt))
     tok.name_or_path = tgt
     S = hybrid.load(src, path=snapshot(src))
-    T = hybrid.load(tgt, path=snapshot(tgt))
+    if tgt_device_map:  # target too big for one GPU (GLM-5.3): shard it; GPU 0 keeps room for the source + stats
+        n = torch.cuda.device_count()
+        mm = {i: f"{gpu0_gib if i == 0 else per_gpu_gib}GiB" for i in range(n)}
+        T = hybrid.load(tgt, path=snapshot(tgt), device_map=tgt_device_map, max_memory=mm)
+        T.model.requires_grad_(False)
+    else:
+        T = hybrid.load(tgt, path=snapshot(tgt))
+        T.model.to(dev).requires_grad_(False)
     S.model.to(dev).requires_grad_(False)
-    T.model.to(dev).requires_grad_(False)
     bos = int(_bos(tok))
     half = n_calib // 2
     calib = torch.cat([torch.tensor(cached(tok, f"calib_{half}x{L}_bos{bos}", lambda: load_texts(tok, half, L, exclude=EVAL_DOCS))),
@@ -230,6 +237,7 @@ def fit_impl(src: str, tgt: str, run_id: str, n_calib: int = 4000, L: int = 1024
     acc = {}
 
     def add(name, logits, lp, top):
+        logits = logits.to(lp.device)
         lq = torch.log_softmax(logits.float(), -1)
         kl = (lp.exp() * (lp - lq)).sum(-1)
         a = acc.setdefault(name, dict(kl=0.0, kl_first=0.0, agree=0.0, n=0))
@@ -327,11 +335,13 @@ fit = app.function(gpu=GPU_SPEC, volumes={"/vol": vol, "/hf": hf_shared.read_onl
 def main(src: str = "Qwen/Qwen3.5-4B", tgt: str = "Qwen/Qwen3.8-27B", run_id: str = "", n_calib: int = 4000,
          w: int = 3, drop_q: int = 1, lam_rels: str = "1e-3", n_eval: int = 64, sinks: str = "4", tails: str = "64,256",
          bs: int = 4, oracle: int = 1, save: int = 1, stride: int = 4, tf32: int = 0, split_kv: int = 0,
-         maps_from: str = "", prefix: int = 960, eval_l: int = 0, ebs: int = 2):
+         maps_from: str = "", prefix: int = 960, eval_l: int = 0, ebs: int = 2, tgt_device_map: str = "",
+         gpu0_gib: int = 60, per_gpu_gib: int = 130):
     run_id = run_id or time.strftime("pairs-%Y%m%dT%H%M%SZ", time.gmtime())
     r = fit.remote(src=src, tgt=tgt, run_id=run_id, n_calib=n_calib, w=w, drop_q=drop_q, lam_rels=lam_rels,
                    n_eval=n_eval, sinks=sinks, tails=tails, bs=bs, oracle=oracle, save=save, stride=stride, tf32=tf32, split_kv=split_kv,
-                   maps_from=maps_from, P=prefix, eval_l=eval_l, ebs=ebs)
+                   maps_from=maps_from, P=prefix, eval_l=eval_l, ebs=ebs, tgt_device_map=tgt_device_map,
+                   gpu0_gib=gpu0_gib, per_gpu_gib=per_gpu_gib)
     os.makedirs(f"out/{run_id}", exist_ok=True)
     json.dump(r, open(f"out/{run_id}/result.json", "w"), indent=1)
     print(json.dumps(r.get("eval", r), indent=1))
