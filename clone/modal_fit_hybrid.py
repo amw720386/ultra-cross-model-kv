@@ -19,6 +19,12 @@ image = (
           "KVX_TF": os.environ.get("KVX_TF", "5.24.0"), **{k: os.environ[k] for k in ("KVX_VOLUME", "KVX_WEIGHTS_VOLUME") if k in os.environ}})  # datasets cache writable on the seat volume; weights via snapshot(cache_dir=/hf/hub)
     .add_local_python_source("kvx")
 )
+try:  # src/xkv (PYTHONPATH=../src) for --eval-docs xkv; optional
+    import importlib.util as _ilu
+    if _ilu.find_spec("xkv") is not None:
+        image = image.add_local_python_source("xkv")
+except Exception:
+    pass
 vol = modal.Volume.from_name(os.environ.get("KVX_VOLUME", "kvx"), create_if_missing=True)
 hf_shared = modal.Volume.from_name(os.environ.get("KVX_WEIGHTS_VOLUME", "kvx-hf"))
 app = modal.App(APP, image=image)
@@ -102,7 +108,7 @@ def fit_impl(src: str, tgt: str, run_id: str, n_calib: int = 4000, L: int = 1024
              bs: int = 4, mem_frac: float = 0.80, save: int = 1, oracle: int = 1, stride: int = 4, tf32: int = 0,
              split_kv: int = 0, maps_from: str = "", ebs: int = 2, eval_l: int = 0, tgt_device_map: str = "",
              gpu0_gib: int = 60, per_gpu_gib: int = 130, xkv_maps: str = "", emb_feats: int = 0, niah: int = 0,
-             niah_len: int = 4096, niah_native: str = ""):
+             niah_len: int = 4096, niah_native: str = "", eval_docs: str = ""):
     import torch
     from transformers import AutoTokenizer
     from kvx import hybrid
@@ -129,8 +135,13 @@ def fit_impl(src: str, tgt: str, run_id: str, n_calib: int = 4000, L: int = 1024
     calib = torch.cat([torch.tensor(cached(tok, f"calib_{half}x{L}_bos{bos}", lambda: load_texts(tok, half, L, exclude=EVAL_DOCS))),
                        torch.tensor(cached(tok, f"pg19train_{half}x{L}_bos{bos}", lambda: load_pg19_train(tok, half, L)))])
     EL = eval_l or L  # eval length (prefix P + continuation); calibration stays at L
-    evals = torch.tensor(cached(tok, f"eval_{n_eval}x{EL}_bos{bos}", lambda: load_texts(tok, n_eval, EL, skip_docs=20000)))
-    res = dict(src=src, tgt=tgt, run_id=run_id, n_calib=len(calib), L=L, eval_l=EL, w=w, drop_q=drop_q, P=P, n_eval=len(evals), stride=stride, tf32=tf32,
+    if eval_docs == "xkv":  # src/xkv's held-out FineWeb sequences (EOS-packed docs, hash split, seed 7) = its quality gate
+        from xkv import evals as xev
+        evals = torch.tensor(cached(tok, f"xkveval_{n_eval}x{EL}_s7",
+                                    lambda: xev.load_heldout_text(tok, n_eval, EL, seed=7, split="eval", source="fineweb")))
+    else:
+        evals = torch.tensor(cached(tok, f"eval_{n_eval}x{EL}_bos{bos}", lambda: load_texts(tok, n_eval, EL, skip_docs=20000)))
+    res = dict(src=src, tgt=tgt, run_id=run_id, n_calib=len(calib), L=L, eval_l=EL, eval_docs=eval_docs or "kvx", w=w, drop_q=drop_q, P=P, n_eval=len(evals), stride=stride, tf32=tf32,
                gpu=torch.cuda.get_device_name() if dev == "cuda" else "cpu", t_load=time.time() - t0)
     print(f"[{time.time()-t0:.0f}s] loaded; calib {tuple(calib.shape)}", flush=True)
 
@@ -410,13 +421,13 @@ def main(src: str = "Qwen/Qwen3.5-4B", tgt: str = "Qwen/Qwen3.8-27B", run_id: st
          bs: int = 4, oracle: int = 1, save: int = 1, stride: int = 4, tf32: int = 0, split_kv: int = 0,
          maps_from: str = "", prefix: int = 960, eval_l: int = 0, ebs: int = 2, tgt_device_map: str = "",
          gpu0_gib: int = 60, per_gpu_gib: int = 130, xkv_maps: str = "", emb_feats: int = 0, niah: int = 0,
-         niah_len: int = 4096, niah_native: str = ""):
+         niah_len: int = 4096, niah_native: str = "", eval_docs: str = ""):
     run_id = run_id or time.strftime("pairs-%Y%m%dT%H%M%SZ", time.gmtime())
     r = fit.remote(src=src, tgt=tgt, run_id=run_id, n_calib=n_calib, w=w, drop_q=drop_q, lam_rels=lam_rels,
                    n_eval=n_eval, sinks=sinks, tails=tails, bs=bs, oracle=oracle, save=save, stride=stride, tf32=tf32, split_kv=split_kv,
                    maps_from=maps_from, P=prefix, eval_l=eval_l, ebs=ebs, tgt_device_map=tgt_device_map,
                    gpu0_gib=gpu0_gib, per_gpu_gib=per_gpu_gib, xkv_maps=xkv_maps, emb_feats=emb_feats, niah=niah,
-                   niah_len=niah_len, niah_native=niah_native)
+                   niah_len=niah_len, niah_native=niah_native, eval_docs=eval_docs)
     os.makedirs(f"out/{run_id}", exist_ok=True)
     json.dump(r, open(f"out/{run_id}/result.json", "w"), indent=1)
     print(json.dumps(r.get("eval", r), indent=1))
