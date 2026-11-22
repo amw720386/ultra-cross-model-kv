@@ -167,7 +167,7 @@ def delta_rule_state(k, v, beta, g):
             _, S = chunk_gated_delta_rule(q=kb, k=kb, v=vb, g=g[None].float().contiguous(),
                                           beta=beta[None].to(torch.bfloat16).contiguous(), initial_state=None,
                                           output_final_state=True, use_qk_l2norm_in_kernel=False)
-            S = S[0].float()  # fla returns [B, H, dk, dv]
+            S = S[0].float()  # fla returns [B, H, ., .]; orientation decided by the check below
             if _FLA_OK.get("ok") is None:  # one-time check of the bf16 kernel against the fp32 recurrence
                 n = min(k.shape[0], 256)
                 _, Sn = chunk_gated_delta_rule(q=kb[:, -n:], k=kb[:, -n:], v=vb[:, -n:],
@@ -176,12 +176,17 @@ def delta_rule_state(k, v, beta, g):
                                                initial_state=None, output_final_state=True,
                                                use_qk_l2norm_in_kernel=False)
                 ref = delta_rule_state_ref(k[-n:].float(), v[-n:].float(), beta[-n:].float(), g[-n:].float())
-                rel = ((Sn[0].float() - ref).norm() / ref.norm().clamp_min(1e-12)).item()
-                _FLA_OK.update(ok=rel < 0.05, rel=rel)
-                print(f"[kvx] fla chunk_gated_delta_rule check: rel err {rel:.4g} over {n} tokens -> "
-                      f"{'fast path' if rel < 0.05 else 'FALLBACK to the reference loop'}", flush=True)
+                # vLLM's FLA keeps the state as [H, dv, dk] (its ssm cache layout); the reference is [H, dk, dv]
+                err = lambda x: ((x - ref).norm() / ref.norm().clamp_min(1e-12)).item()
+                got = Sn[0].float()
+                rel = err(got) if got.shape == ref.shape else float("inf")
+                rel_t = err(got.transpose(-1, -2)) if got.transpose(-1, -2).shape == ref.shape else float("inf")
+                _FLA_OK.update(ok=min(rel, rel_t) < 0.05, transpose=rel_t < rel, rel=min(rel, rel_t))
+                print(f"[kvx] fla chunk_gated_delta_rule check over {n} tokens: rel err {rel:.4g} as [H,dk,dv], "
+                      f"{rel_t:.4g} transposed -> {'fast path' if _FLA_OK['ok'] else 'FALLBACK to the reference loop'}"
+                      f"{' (transposed)' if _FLA_OK['ok'] and _FLA_OK['transpose'] else ''}", flush=True)
             if _FLA_OK["ok"]:
-                return S
+                return S.transpose(-1, -2).contiguous() if _FLA_OK["transpose"] else S
     return delta_rule_state_ref(k.float(), v.float(), beta.float(), g.float())
 
 
