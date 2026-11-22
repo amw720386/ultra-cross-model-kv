@@ -135,7 +135,7 @@
 | home-qwen3-1-7b-qwen3-8b-512K-ttft | Qwen3-1.7B -> Qwen3-8B | TTFT s (mapped) | 512K | 86.62 | est. | 8.3396 | hold(rig) |
 | home-qwen3-1-7b-qwen3-8b-512K-speedup | Qwen3-1.7B -> Qwen3-8B | speedup x vs their native | 512K | 3.012 | est. | 2.4981 | hold(rig) |
 | home-qwen3-1-7b-qwen3-8b-peak | Qwen3-1.7B -> Qwen3-8B | peak speedup x (headline) | 1M | 3.0 | est. | 2.7794 | hold(rig) |
-| bundle-arc-chat-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | ARC-Chat | 0.97 | yes | 0.96 | tied |
+| bundle-arc-chat-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | ARC-Chat | 0.97 | yes | 0.9249 | behind |
 | bundle-contractnli-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | ContractNLI | 0.61 | yes | 0.77 | beaten |
 | bundle-bamboo-paperqa-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | BAMBOO PaperQA | 0.893 | yes | 0.881 | tied |
 | bundle-longhealth-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | LongHealth | 0.76 | yes | 0.88 | beaten |
