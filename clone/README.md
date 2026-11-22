@@ -49,9 +49,9 @@ This repo rebuilds, from public material only, the method that OneTriangle (YC S
 | home-gemma-4-e2b-gemma-4-31b-peak | Gemma-4-E2B -> Gemma-4-31B | peak speedup x (headline) | 1M | 9.4 |  | speed | open |
 | home-qwen3-5-2b-qwen3-8-27b-peak | Qwen3.5-2B -> Qwen3.8-27B | peak speedup x (headline) | 1M | 7.7 |  | speed | open |
 | home-gemma-4-e4b-gemma-4-31b-peak | Gemma-4-E4B -> Gemma-4-31B | peak speedup x (headline) | 1M | 4.7 |  | speed | open |
-| home-qwen3-5-4b-qwen3-8-27b-8K-ttft | Qwen3.5-4B -> Qwen3.8-27B | TTFT s (mapped) | 8K | 0.63 | 0.4002 | speed | beaten |
+| home-qwen3-5-4b-qwen3-8-27b-8K-ttft | Qwen3.5-4B -> Qwen3.8-27B | TTFT s (mapped) | 8K | 0.63 | 0.3351 | speed | beaten |
 | home-qwen3-5-4b-qwen3-8-27b-16K-ttft | Qwen3.5-4B -> Qwen3.8-27B | TTFT s (mapped) | 16K | 1.25 | 0.8017 | speed | beaten |
-| home-qwen3-5-4b-qwen3-8-27b-32K-ttft | Qwen3.5-4B -> Qwen3.8-27B | TTFT s (mapped) | 32K | 2.81 | 1.66 | speed | beaten |
+| home-qwen3-5-4b-qwen3-8-27b-32K-ttft | Qwen3.5-4B -> Qwen3.8-27B | TTFT s (mapped) | 32K | 2.81 | 1.2244 | speed | beaten |
 | home-qwen3-5-4b-qwen3-8-27b-64K-ttft | Qwen3.5-4B -> Qwen3.8-27B | TTFT s (mapped) | 64K | 6.33 | 3.8213 | speed | beaten |
 | home-qwen3-5-4b-qwen3-8-27b-peak | Qwen3.5-4B -> Qwen3.8-27B | peak speedup x (headline) | 1M | 3.9 |  | speed | open |
 | home-glm-4-7-flash-glm-5-3-peak | GLM-4.7-Flash -> GLM-5.3 | peak speedup x (headline) | 1M | 3.9 |  | speed | open |
