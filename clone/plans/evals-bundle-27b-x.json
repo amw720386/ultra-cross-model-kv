@@ -1,0 +1,60 @@
+[
+ {
+  "arm": "xmap27-long-t256",
+  "model": "Qwen/Qwen3.8-27B",
+  "benches": "contract_nli,bamboo_paperqa,longhealth,qmsum",
+  "n": 100,
+  "connector": {
+   "_class": "HybridCrossModelConnector",
+   "_module": "kvx.vllm_hybrid_connector",
+   "src": "Qwen/Qwen3.5-4B",
+   "xkv_mapper": "/vol/xkv/maps/4b-27b-r2.pt",
+   "xkv_attn": "/vol/xkv/maps/4b-27b-r2-attn.pt",
+   "tail": 256,
+   "min_len": 16,
+   "align": 1,
+   "tail_frac": 0.25
+  },
+  "gpu_util": 0.72,
+  "max_num_seqs": 32
+ },
+ {
+  "arm": "xmap27-short-cap",
+  "model": "Qwen/Qwen3.8-27B",
+  "benches": "arc_chat,humaneval,mbpp,math500,bigcodebench",
+  "n": 100,
+  "connector": {
+   "_class": "HybridCrossModelConnector",
+   "_module": "kvx.vllm_hybrid_connector",
+   "src": "Qwen/Qwen3.5-4B",
+   "xkv_mapper": "/vol/xkv/maps/4b-27b-r2.pt",
+   "xkv_attn": "/vol/xkv/maps/4b-27b-r2-attn.pt",
+   "tail": 256,
+   "min_len": 16,
+   "align": 1,
+   "tail_frac": 0.25
+  },
+  "gpu_util": 0.72,
+  "max_num_seqs": 32
+ },
+ {
+  "arm": "xmap27-long-qtail",
+  "model": "Qwen/Qwen3.8-27B",
+  "benches": "contract_nli,bamboo_paperqa,longhealth,qmsum",
+  "n": 100,
+  "connector": {
+   "_class": "HybridCrossModelConnector",
+   "_module": "kvx.vllm_hybrid_connector",
+   "src": "Qwen/Qwen3.5-4B",
+   "xkv_mapper": "/vol/xkv/maps/4b-27b-r2.pt",
+   "xkv_attn": "/vol/xkv/maps/4b-27b-r2-attn.pt",
+   "tail": 256,
+   "min_len": 16,
+   "align": 1,
+   "tail_frac": 0.25
+  },
+  "question_tail": true,
+  "gpu_util": 0.72,
+  "max_num_seqs": 32
+ }
+]
