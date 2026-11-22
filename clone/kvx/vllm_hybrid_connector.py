@@ -45,6 +45,11 @@ class HybridMeta(KVConnectorMetadata):
     requests: list = field(default_factory=list)
 
 
+def _lcp(a, b):
+    n = min(len(a), len(b))
+    return next((i for i in range(n) if a[i] != b[i]), n)
+
+
 class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
     def __init__(self, vllm_config, role, kv_cache_config=None):
         super().__init__(vllm_config=vllm_config, role=role, kv_cache_config=kv_cache_config)
@@ -69,6 +74,7 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
         self.map_once = bool(int(cfg.get_from_extra_config("map_once", 0)))
         self._prefixes = {}  # key length K -> {hash(first prompt[:K]): its mapped prefix length}
         self._mstats = dict(first_n=0, first_prompt=0, first_mapped=0, later_n=0, later_prompt=0, later_mapped=0)
+        self._recent = []  # last 32 first prompts (diagnostic log only)
         self.tgt_name = vllm_config.model_config.model
         if vllm_config.cache_config.enable_prefix_caching:
             raise ValueError("kvx hybrid connector: start vLLM with enable_prefix_caching=False (one state slot per request)")
@@ -120,10 +126,14 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
                     st["later_n"] += 1
                     st["later_prompt"] += n
                     st["later_mapped"] += L
-                    if st["later_n"] % 10 == 0:
-                        self._log_mstats()
+                    self._log_mstats()  # every request: the row guard needs the exact final counters
                     return L
         m = self._n_mapped(n, tail)
+        if self._recent:  # diagnose a "first" request that may be a missed later turn: best LCP with stored ones
+            best = max(self._recent, key=lambda q: _lcp(q, ids))
+            logger.info("kvx map_once: new first request n=%d; best common prefix with a stored first prompt %d "
+                        "(that prompt n=%d)", n, _lcp(best, ids), len(best))
+        self._recent = (self._recent + [tuple(ids)])[-32:]
         if m > 0:
             K = n - min(16, n - m)
             self._prefixes.setdefault(K, {})[hash(tuple(ids[:K]))] = m
@@ -137,7 +147,7 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
         return m
 
     def _log_mstats(self):
-        """Cumulative map_once counters (every first request, every 10th later one); the multi-turn row guard
+        """Cumulative map_once counters (logged on every request); the multi-turn row guard
         (tools/agentic_rows.py) reads the last line."""
         st = self._mstats
         logger.info("kvx map_once: first requests %d mapped %.4f of their prompts; later requests %d mapped "

@@ -33,6 +33,7 @@ def _fresh():
     c.tail, c.align, c.tail_frac, c.min_len, c.map_once = 256, 1, 0.25, 16, True
     c._prefixes = {}
     c._mstats = dict(first_n=0, first_prompt=0, first_mapped=0, later_n=0, later_prompt=0, later_mapped=0)
+    c._recent = []
     return c
 
 
