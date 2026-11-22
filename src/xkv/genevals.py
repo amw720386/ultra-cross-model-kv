@@ -372,11 +372,17 @@ def _aggregate(task: str, metric: str, items: Sequence[Item], outputs: Sequence[
     for g, d in groups.items():
         res[f"by_{g}"] = {v: {"n": len(xs), "score": sum(xs) / len(xs)} for v, xs in sorted(d.items())}
     res["prompt_tokens"] = _len_stats([len(it.ids) for it in items])
-    res["outputs"] = [
-        {"prompt_tail": it.prompt[-400:], "output": out[:2000], "gold": str(it.gold)[:500],
-         "score": s.get("score")}
-        for it, out, s in list(zip(items, outputs, scores))[:n_show]
-    ]
+    full = os.environ.get("XKV_SAVE_OUTPUTS") == "1"  # full outputs + code docs: re-scorable offline (lead 2026-11-22)
+
+    def _rec(it: Item, out: str, s: dict) -> dict:
+        r = {"prompt_tail": it.prompt[-400:], "output": out if full else out[:2000],
+             "gold": str(it.gold) if full else str(it.gold)[:500], "score": s.get("score")}
+        doc = it.meta.get("doc") if full else None
+        if isinstance(doc, dict):  # code benches: the item's own fields (task id, entry point, tests)
+            r["doc"] = {k: v for k, v in doc.items() if isinstance(v, (str, int, float, list)) and k != "canonical_solution"}
+        return r
+
+    res["outputs"] = [_rec(it, out, s) for it, out, s in list(zip(items, outputs, scores))[:n_show]]
     res.update(extra)
     return res
 
