@@ -76,7 +76,9 @@ def serve(key: str, model: str, connector: str, max_len: int, run_dir: str):
 
 @app.local_entrypoint()
 def main(arm: str, run_id: str, model: str = "Qwen/Qwen3.8-27B", connector: str = "", tasks_file: str = "",
-         concurrency: int = 6, max_len: int = 65536, harbor: str = "harbor", out_dir: str = "out/tb2"):
+         concurrency: int = 6, max_len: int = 65536, harbor: str = "harbor", out_dir: str = "out/tb2",
+         harbor_budget_s: int = 2950):
+    t_start = time.time()
     key = f"{run_id}/{arm}/{int(time.time())}"
     ctl = modal.Dict.from_name(CTL, create_if_missing=True)
     call = serve.spawn(key, model, connector, max_len, f"/vol/runs/{run_id}/{arm}")
@@ -103,8 +105,13 @@ def main(arm: str, run_id: str, model: str = "Qwen/Qwen3.8-27B", connector: str 
         cmd += ["-i", t]
     t0 = time.time()
     try:
-        p = subprocess.run(cmd, env=dict(os.environ, HOSTED_VLLM_API_BASE=f"{url}/v1", HOSTED_VLLM_API_KEY="none"))
+        # bounded HERE, inside the 55-min serve budget: an outer `timeout` killing this client skipped the finally,
+        # so the serve container stayed up idle (b2/b4 at 22-11-2026); finished trials are kept either way
+        p = subprocess.run(cmd, env=dict(os.environ, HOSTED_VLLM_API_BASE=f"{url}/v1", HOSTED_VLLM_API_KEY="none"),
+                           timeout=max(120, harbor_budget_s - (time.time() - t_start)))
         rc = p.returncode
+    except subprocess.TimeoutExpired:
+        rc = "timeout"
     finally:
         ctl[key + ":stop"] = True
     call.get(timeout=600)
