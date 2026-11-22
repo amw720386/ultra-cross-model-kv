@@ -1,0 +1,54 @@
+[
+ {
+  "arm": "map27-long-t256",
+  "model": "Qwen/Qwen3.8-27B",
+  "benches": "contract_nli,bamboo_paperqa,longhealth,qmsum",
+  "n": 100,
+  "connector": {
+   "_class": "HybridCrossModelConnector",
+   "_module": "kvx.vllm_hybrid_connector",
+   "src": "Qwen/Qwen3.5-4B",
+   "maps": "/vol/runs/pairs-q35-4b-q38-27b/hybrid_maps.pt",
+   "tail": 256,
+   "min_len": 64,
+   "recolor": 1
+  },
+  "gpu_util": 0.7,
+  "max_num_seqs": 64
+ },
+ {
+  "arm": "map27-short-t16",
+  "model": "Qwen/Qwen3.8-27B",
+  "benches": "arc_chat,humaneval,mbpp,math500",
+  "n": 100,
+  "connector": {
+   "_class": "HybridCrossModelConnector",
+   "_module": "kvx.vllm_hybrid_connector",
+   "src": "Qwen/Qwen3.5-4B",
+   "maps": "/vol/runs/pairs-q35-4b-q38-27b/hybrid_maps.pt",
+   "tail": 16,
+   "min_len": 64,
+   "recolor": 1
+  },
+  "gpu_util": 0.7,
+  "max_num_seqs": 64
+ },
+ {
+  "arm": "map27-long-qtail",
+  "model": "Qwen/Qwen3.8-27B",
+  "benches": "contract_nli,bamboo_paperqa,longhealth,qmsum",
+  "n": 100,
+  "connector": {
+   "_class": "HybridCrossModelConnector",
+   "_module": "kvx.vllm_hybrid_connector",
+   "src": "Qwen/Qwen3.5-4B",
+   "maps": "/vol/runs/pairs-q35-4b-q38-27b/hybrid_maps.pt",
+   "tail": 64,
+   "min_len": 64,
+   "recolor": 1
+  },
+  "question_tail": true,
+  "gpu_util": 0.7,
+  "max_num_seqs": 64
+ }
+]
