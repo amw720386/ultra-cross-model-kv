@@ -246,6 +246,9 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
         self._sharded = False
         if self.maps and self.xm is None:
             if self.tp_size > 1:  # each rank keeps only its heads' map columns (1/tp of the 18 GB of maps)
+                # the sink template needs the same per-rank columns (it was full width: size mismatch at sinks)
+                self.mf["sink_template"] = hs.shard_template(self.mf, self.params, self.tp_rank, self.tp_size,
+                                                             int(tcfg.num_key_value_heads))
                 self.maps, taps_r, self.params = hs.shard_for_rank(
                     self.mf, self.maps, self.params, self.tp_rank, self.tp_size, int(tcfg.num_key_value_heads))
                 self.mf["tgt_taps"] = taps_r

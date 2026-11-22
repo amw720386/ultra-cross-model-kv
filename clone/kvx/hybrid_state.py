@@ -437,6 +437,26 @@ def _rank_cols(kind, taps, p, rank, tp, kv_heads, head_dim):
     return q + k + v + a + bb, [("qkv", len(q) + len(k) + len(v)), ("a", nv), ("b", nv)]
 
 
+def shard_template(mf, p, rank, tp, kv_heads):
+    """This rank's columns of the sink template {t: {tap name: [sinks, width]}} (the same _rank_cols slice as W/b/mu in
+    shard_for_rank, per tap name). Call with the FULL mf["tgt_taps"]."""
+    tmpl = mf.get("sink_template") or {}
+    if tp == 1 or not tmpl:
+        return tmpl
+    out = {}
+    for t, td in tmpl.items():
+        taps = mf["tgt_taps"][t]["taps"]
+        cols, _ = _rank_cols(mf["tgt_taps"][t]["kind"], taps, p, rank, tp, kv_heads, p.head_dim)
+        o, r = 0, {}
+        for name, wd in taps:
+            loc = [c - o for c in cols if o <= c < o + wd]
+            x = td[name]
+            r[name] = x.index_select(1, torch.tensor(loc, device=x.device))
+            o += wd
+        out[t] = r
+    return out
+
+
 def shard_for_rank(mf, maps, p, rank, tp, kv_heads):
     """(maps, tgt_taps, params) holding only this rank's output columns (W, b, mu, recolor blocks) and its share of
     the GatedDeltaNet params, so taps_from_feats + caches_from_taps directly yield the rank's slice (== slice_for_rank

@@ -253,3 +253,27 @@ def test_tp_sharded_maps_equal_sliced_full(fx, with_rc):
             ref = hs.slice_for_rank(p, full[t], rank, 2)
             for a_, b_ in zip(got[t][1:], ref[1:]):
                 assert torch.allclose(a_, b_, atol=1e-4, rtol=1e-4), (rank, t, (a_ - b_).abs().max())
+
+
+def test_tp_sharded_maps_with_sink_template(fx):
+    """With sinks, each rank's sharded template (shard_template) gives exactly slice_for_rank of the unsharded states."""
+    d, p = fx
+    mf = d["maps_file"]
+    knw = hs.k_norm_weights(d["tgt_config"], d["tgt_state"])
+    maps = _fmaps(d)
+    g = torch.Generator().manual_seed(5)
+    tmpl = {t: {name: torch.randn(2, wd, generator=g) for name, wd in mf["tgt_taps"][t]["taps"]} for t in maps}
+    mf2 = dict(mf, sinks=2, sink_template=tmpl)
+    feats = [f.float() for f in d["source_feats"]]
+    kinds = {t: x["kind"] for t, x in enumerate(mf["tgt_taps"])}
+    full = hs.caches_from_taps(p, kinds, hs.taps_from_feats(mf2, maps, feats, d["P"], knw, recolor=False))
+    kvh = d["tgt_config"]["num_key_value_heads"]
+    for rank in range(2):
+        tr = hs.shard_template(mf2, p, rank, 2, kvh)
+        mr, taps_r, pr = hs.shard_for_rank(mf2, maps, p, rank, 2, kvh)
+        got = hs.caches_from_taps(pr, kinds, hs.taps_from_feats(dict(mf2, tgt_taps=taps_r, sink_template=tr), mr, feats,
+                                                               d["P"], knw, recolor=False))
+        for t in full:
+            ref = hs.slice_for_rank(p, full[t], rank, 2)
+            for a_, b_ in zip(got[t][1:], ref[1:]):
+                assert torch.allclose(a_, b_, atol=1e-4, rtol=1e-4), (rank, t, (a_ - b_).abs().max())
