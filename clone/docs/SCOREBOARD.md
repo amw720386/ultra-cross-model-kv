@@ -119,7 +119,7 @@
 | home-glm-4-7-flash-glm-5-3-198K-speedup | GLM-4.7-Flash -> GLM-5.3 | speedup x vs their native | 198K | 3.41 | est. |  | open |
 | home-glm-4-7-flash-glm-5-3-512K-ttft | GLM-4.7-Flash -> GLM-5.3 | TTFT s (mapped) | 512K | 157.4 | est. |  | open |
 | home-glm-4-7-flash-glm-5-3-512K-speedup | GLM-4.7-Flash -> GLM-5.3 | speedup x vs their native | 512K | 3.744 | est. |  | open |
-| home-glm-4-7-flash-glm-5-3-peak | GLM-4.7-Flash -> GLM-5.3 | peak speedup x (headline) | 1M | 3.9 | est. |  | open |
+| home-glm-4-7-flash-glm-5-3-peak | GLM-4.7-Flash -> GLM-5.3 | peak speedup x (headline) | 1M | 3.9 | est. | None | blocked(closed on cost 2026-11-22: GLM-5.3 at 1M does not fit one 8-GPU node under plain TP (MLA latent KV replicated per rank: 90.46 GiB needed vs 31.98 free on 8xH200, max ~370K); the DCP=8 run reached prefill and failed in vLLM's sparse indexer (deep_jit needs NVCC >= 12.9); the mapped side would also need a DCP-sharded sparse-MLA connector + windowed split source (est. > $100-120, unbuilt, quality unproven: needles 3/8 at 4K). Their 3.9x is an unmeasured H100 projection; no single-node H100 run of GLM-5.3 (755 GB FP8) is possible. Probes ~$16. Re-open only with a cheap path.) |
 | home-qwen3-1-7b-qwen3-8b-8K-ttft | Qwen3-1.7B -> Qwen3-8B | TTFT s (mapped) | 8K | 0.17 | yes | 0.1044 | beaten |
 | home-qwen3-1-7b-qwen3-8b-8K-speedup | Qwen3-1.7B -> Qwen3-8B | speedup x vs their native | 8K | 1.941 | yes | 1.2948 | behind |
 | home-qwen3-1-7b-qwen3-8b-16K-ttft | Qwen3-1.7B -> Qwen3-8B | TTFT s (mapped) | 16K | 0.34 | yes | 0.1847 | beaten |
@@ -149,7 +149,7 @@
 | bundle-tau2-retail-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | tau2 Retail | 0.4117647059 | yes |  | open |
 | bundle-tau2-telecom-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | tau2 Telecom | 0.4705882353 | yes |  | open |
 | bundle-tau2-overall-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | tau2 Overall | 0.4901960784 | yes |  | open |
-| bundle-terminal-bench-2-0-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | Terminal-Bench 2.0 | 0.1 | yes | 0.2535 | beaten |
+| bundle-terminal-bench-2-0-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | Terminal-Bench 2.0 | 0.1 | yes | 0.2603 | beaten |
 | x-ct-posttrain-heldout-before | Qwen-3.5-4b -> fine-tuned-Qwen-3.8-27b | accuracy [mapped_generic] | held-out accuracy, generic mapper before post-training | 65.6 | yes |  | open |
 | x-ct-posttrain-heldout-after | Qwen-3.5-4b -> fine-tuned-Qwen-3.8-27b | accuracy [mapped_posttrained] | held-out accuracy, post-trained (rank-16 residual) mapper | 78.1 | yes |  | open |
 | x-ct-zebralogic-generic | unstated-(target-described-as-8b) | accuracy [mapped_generic] | ZebraLogic, generic mapper | 0.185 | yes |  | open |

@@ -27,7 +27,7 @@ This repo rebuilds, from public material only, the method that OneTriangle (YC S
 ## Scoreboard: every OneTriangle number vs ours
 
 <!-- SCOREBOARD:BEGIN -->
-**OneTriangle Tier 1: 24 / 45 beaten** (tied 3, behind 4, on quality hold 5, blocked 1, open 8): the 9 homepage peak speedups, their measured end-to-end TTFT points, and the 15 rows of their benchmark bundle. Only Tier 1 is the goal.
+**OneTriangle Tier 1: 24 / 45 beaten** (tied 3, behind 4, on quality hold 5, blocked 2, open 7): the 9 homepage peak speedups, their measured end-to-end TTFT points, and the 15 rows of their benchmark bundle. Only Tier 1 is the goal.
 
 | id | pair | metric | context / benchmark | theirs | ours | owner | status |
 |---|---|---|---|---|---|---|---|
@@ -54,7 +54,7 @@ This repo rebuilds, from public material only, the method that OneTriangle (YC S
 | home-qwen3-5-4b-qwen3-8-27b-32K-ttft | Qwen3.5-4B -> Qwen3.8-27B | TTFT s (mapped) | 32K | 2.81 | 1.2244 | speed | beaten |
 | home-qwen3-5-4b-qwen3-8-27b-64K-ttft | Qwen3.5-4B -> Qwen3.8-27B | TTFT s (mapped) | 64K | 6.33 | 3.8213 | speed | beaten |
 | home-qwen3-5-4b-qwen3-8-27b-peak | Qwen3.5-4B -> Qwen3.8-27B | peak speedup x (headline) | 1M | 3.9 |  | speed | open |
-| home-glm-4-7-flash-glm-5-3-peak | GLM-4.7-Flash -> GLM-5.3 | peak speedup x (headline) | 1M | 3.9 |  | speed | open |
+| home-glm-4-7-flash-glm-5-3-peak | GLM-4.7-Flash -> GLM-5.3 | peak speedup x (headline) | 1M | 3.9 | None | speed | blocked |
 | home-qwen3-1-7b-qwen3-8b-8K-ttft | Qwen3-1.7B -> Qwen3-8B | TTFT s (mapped) | 8K | 0.17 | 0.1044 | speed | beaten |
 | home-qwen3-1-7b-qwen3-8b-16K-ttft | Qwen3-1.7B -> Qwen3-8B | TTFT s (mapped) | 16K | 0.34 | 0.1847 | speed | beaten |
 | home-qwen3-1-7b-qwen3-8b-32K-ttft | Qwen3-1.7B -> Qwen3-8B | TTFT s (mapped) | 32K | 0.79 | 0.3769 | speed | beaten |
@@ -73,13 +73,13 @@ This repo rebuilds, from public material only, the method that OneTriangle (YC S
 | bundle-tau2-retail-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | tau2 Retail | 0.4117647059 |  | quality | open |
 | bundle-tau2-telecom-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | tau2 Telecom | 0.4705882353 |  | quality | open |
 | bundle-tau2-overall-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | tau2 Overall | 0.4901960784 |  | quality | open |
-| bundle-terminal-bench-2-0-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | Terminal-Bench 2.0 | 0.1 | 0.2535 | quality | beaten |
+| bundle-terminal-bench-2-0-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | Terminal-Bench 2.0 | 0.1 | 0.2603 | quality | beaten |
 | x-ml-ttft-8k-speedup | Llama-3.1-Minitron-4B-Width-Base -> Llama-3.1-8B | TTFT speedup x [mapped_direct+rank8_residual] | 8K, resident source cache | 7.91 | 12.31646246586625 | speed | beaten |
 | x-tb-qwen-72-sq-3b-72b-cache-transfer-x | Qwen2.5-3B -> Qwen2.5-72B | TTFT speedup relative to native 72B @32K [mapped] | quality vs TTFT @32K; pooled QuALITY + ContractNLI slice | 8.69 | 5.4135 | speed | behind |
 
 All rows (Tier 2 and untracked included):
 
-**Beaten 155 of 1143** published OneTriangle numbers (tied 26, behind 59, blocked 1, open 732). Full row table: [docs/SCOREBOARD.md](docs/SCOREBOARD.md). Rules: same pair, context/benchmark and N or more; TTFT on their GPU class (H100) and speedups against native vLLM/SGLang.
+**Beaten 155 of 1143** published OneTriangle numbers (tied 26, behind 59, blocked 2, open 731). Full row table: [docs/SCOREBOARD.md](docs/SCOREBOARD.md). Rules: same pair, context/benchmark and N or more; TTFT on their GPU class (H100) and speedups against native vLLM/SGLang.
 
 | pair | category | rows | beaten | tied | behind | blocked | open |
 |---|---|---|---|---|---|---|---|
@@ -104,7 +104,7 @@ All rows (Tier 2 and untracked included):
 | Qwen3-0.6B -> Qwen3-1.7B | quality | 18 | 3 | 1 | 0 | 0 | 0 |
 | Gemma-4-E2B -> Gemma-4-31B | quality | 17 | 0 | 0 | 0 | 0 | 17 |
 | Ultravox-8B -> Ultravox-1B-(ridge-+-rank-16-residual) | quality | 16 | 0 | 0 | 0 | 0 | 16 |
-| GLM-4.7-Flash -> GLM-5.3 | TTFT table | 15 | 0 | 0 | 0 | 0 | 15 |
+| GLM-4.7-Flash -> GLM-5.3 | TTFT table | 15 | 0 | 0 | 0 | 1 | 14 |
 | Gemma-4-E2B -> Gemma-4-31B | TTFT table | 15 | 0 | 0 | 0 | 0 | 15 |
 | Gemma-4-E4B -> Gemma-4-31B | TTFT table | 15 | 1 | 0 | 1 | 0 | 13 |
 | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT table | 15 | 4 | 0 | 5 | 0 | 6 |
