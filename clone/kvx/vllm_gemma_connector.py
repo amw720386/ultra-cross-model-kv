@@ -238,9 +238,13 @@ class GemmaCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
             if mm is None or kvc is None:
                 continue
             views[int(mm.group(1))] = kvc[0] if isinstance(kvc, (list, tuple)) else kvc
-            if not getattr(self, "_backend", ""):  # FA vs split4 is ambiguous by shape when H == 2 (31B global, TP2)
-                be = getattr(l, "attn_backend", None)
-                self._backend = str(be.get_name() if hasattr(be, "get_name") else type(getattr(l, "impl", None)).__name__)
+            # backend PER LAYER: FlashAttention takes head_dim <= 256, so the 31B's 512-dim global layers run on another
+            # backend with another paged layout (one name for all layers wrote the global layers in the wrong layout)
+            be = getattr(l, "attn_backend", None)
+            self.__dict__.setdefault("_backends", {})[int(mm.group(1))] = str(
+                be.get_name() if hasattr(be, "get_name") else type(getattr(l, "impl", None)).__name__)
+            if not getattr(self, "_backend", ""):
+                self._backend = self._backends[int(mm.group(1))]
         device = next(iter(views.values())).device
         if not self._ready:
             self._init_worker(device)
@@ -273,9 +277,12 @@ class GemmaCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
                     continue
                 off = pos % bs
                 kv = views[t]
-                key = (tuple(kv.shape), K.shape[1], K.shape[2])
+                be = getattr(self, "_backends", {}).get(t, getattr(self, "_backend", ""))
+                key = (tuple(kv.shape), K.shape[1], K.shape[2], be)
                 if key not in self._layouts:
-                    self._layouts[key] = kv_layout(kv, K.shape[1], K.shape[2], getattr(self, "_backend", ""))
+                    self._layouts[key] = kv_layout(kv, K.shape[1], K.shape[2], be)
+                    logger.info("kvx gemma: layer %d (%s, H=%d D=%d) backend %s layout %s kv %s", t, self.types[t],
+                                K.shape[1], K.shape[2], be, self._layouts[key], tuple(kv.shape))
                 pd = pos.to(device)
                 write_kv(kv, bi.to(device), off.to(device), K[pd].to(torch.bfloat16), V[pd].to(torch.bfloat16), bs,
                          self._layouts[key])
