@@ -56,8 +56,9 @@ def load(name, dtype=torch.bfloat16, attn="sdpa", path=None, device_map=None, ma
     cfg = AutoConfig.from_pretrained(p)
     mt = getattr(getattr(cfg, "text_config", cfg), "model_type", "")
     if mt.startswith("gemma4") and attn == "sdpa":
-        # HF's sdpa path does not reproduce Gemma 4's eager attention (CPU, fp32: 0.07-0.09 logit error, one-shot and
-        # cached two-step differ from each other too); eager is self-consistent (two-step == one-shot exactly)
+        # eager: in bf16 its prefill and cached-decode paths are bit-identical (two-step == one-shot), so the native
+        # two-step floor measures only the mapping; sdpa's kernels differ between the two paths by bf16 noise
+        # (fp32: sdpa == eager to 1e-6, so this is consistency, not correctness)
         attn = "eager"
     if cfg.architectures and "ConditionalGeneration" in cfg.architectures[0]:
         from transformers import AutoModelForImageTextToText
