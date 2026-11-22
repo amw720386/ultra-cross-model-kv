@@ -1,0 +1,26 @@
+{
+ "target": 0.4933,
+ "judge_model": "gpt-5.5",
+ "reasoning_effort": "low",
+ "variants": {
+  "v1strict": {
+   "n": 100,
+   "scored": 100,
+   "mean": 0.45299999999999996,
+   "ci_half": 0.04452569177770097,
+   "cost_usd": 0.747035
+  },
+  "v2frac": {
+   "n": 100,
+   "scored": 100,
+   "mean": 0.479,
+   "ci_half": 0.06360558504160503,
+   "cost_usd": 1.085335
+  }
+ },
+ "prompts": {
+  "v0": "You grade answers to queries about a meeting transcript. You see the query, a reference answer written by\nan annotator who read the transcript, and a candidate answer. Score the candidate from 0 to 10:\n10 = covers all key points of the reference and states nothing that contradicts it;\n5 = covers about half of the key points, or mixes correct points with clear errors;\n0 = wrong, empty, or unrelated.\nDo not reward length or style. Judge only content against the reference.\n\nQuery: {query}\n\nReference answer: {ref}\n\nCandidate answer: {cand}\n\nReply with the integer score only.",
+  "v1strict": "You grade answers to queries about a meeting transcript. You see the query, a reference answer written by\nan annotator who read the transcript, and a candidate answer.\nScore the candidate from 0 to 10 by strict anchors:\n10 = states every key point of the reference, nothing contradicts it, no unsupported claims;\n8 = all main points, minor omissions;\n6 = most key points but at least one important omission or one unsupported claim;\n4 = about half of the key points;\n2 = few key points or several errors;\n0 = wrong, empty, or unrelated.\nUnsupported or invented details lower the score. Do not reward length or style.\n\nQuery: {query}\n\nReference answer: {ref}\n\nCandidate answer: {cand}\n\nReply with the integer score only.",
+  "v2frac": "You grade answers to queries about a meeting transcript. You see the query, a reference answer written by\nan annotator who read the transcript, and a candidate answer.\nSilently list the distinct key points of the reference answer. For each, decide whether the candidate states it\n(1), states it partly (0.5) or not (0). Score = round(10 x covered / number of key points), then subtract 2 for\neach statement that contradicts the reference (minimum 0). Do not reward length or style.\n\nQuery: {query}\n\nReference answer: {ref}\n\nCandidate answer: {cand}\n\nReply with the integer score only."
+ }
+}
