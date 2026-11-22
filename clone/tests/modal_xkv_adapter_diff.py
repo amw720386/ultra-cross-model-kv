@@ -61,6 +61,7 @@ def run(src_key: str, tgt_key: str, n_seqs: int, seq_len: int, P: int):
     xm = XA.load_xkv("/artifacts/maps/dbg.pt", "/artifacts/maps/dbg-attn.pt", device="cuda")
     g = XA.xkv_given(S, T, xm, ids[:, :P])
     hc = hybrid.mapped_cache(T, ids[:, :P], g)
+    T.forward(ids[:, P:P + 1], cache=hc)  # xkv's tail=1 already ran this token natively on its cache
     out = {"transformers": transformers.__version__, "layers": {}}
     rel = lambda a, b: float((a.float() - b.float()).norm() / b.float().norm().clamp(min=1e-12))
     for j, (kind, _) in enumerate(hybrid.layer_taps(T)):
@@ -72,7 +73,7 @@ def run(src_key: str, tgt_key: str, n_seqs: int, seq_len: int, P: int):
         else:
             conv = lay.conv_states[0]  # HF [B, conv_dim, kernel]
             S_hf = lay.recurrent_states[0]
-            out["layers"][j] = {"kind": kind, "S_rel": rel(S_hf, xc.S[j]),
+            out["layers"][j] = {"kind": kind, "S_rel": rel(S_hf.float(), xc.S[j].float()),
                                 "S_rel_T": rel(S_hf.transpose(-1, -2), xc.S[j]),
                                 "conv_rel_last3": rel(conv[..., -3:].transpose(1, 2), xc.conv[j])}
     return out
