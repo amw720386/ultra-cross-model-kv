@@ -3,7 +3,8 @@ mapped fractions from the connector's "kvx map_once" log lines (first requests, 
 
 python tools/agentic_rows.py tau2 <dir with <domain>-<half>/{summary.json,vllm.log}>
 python tools/agentic_rows.py tb2 <harbor jobs root with xkvdistill27mo2-b*/> <dir with b*/vllm.log>
-Prints JSON per row (value, n, ci, passed, mapped fractions); the caller writes ours.json.
+Prints JSON per row (value, n, ci, passed, mapped fractions, quality_ok); the caller writes ours.json and must not
+write a row with quality_ok false (it carries "invalid").
 """
 import glob
 import json
@@ -44,9 +45,17 @@ def fracs(logs):
                 mapped_frac_all_approx=w(tot["all"]))
 
 
-def row(k, n, extra):
+def row(k, n, extra, conversations):
+    """Guard (lead): a silent map_once fallback (later turns re-mapped as new prompts) must never become a row. Later
+    requests expected = all requests - conversations; quality_ok only if >= 90% of them reused the stored prefix."""
     lo, hi = wilson(k, n)
+    total = extra.get("first_requests", 0) + extra.get("later_requests", 0)
+    expected = max(0, total - conversations)
+    ok = expected > 0 and extra.get("later_requests", 0) >= 0.9 * expected
     return dict(passed=k, n=n, value=round(k / n, 4), ci=round((hi - lo) / 2, 4), lo=round(lo, 4), hi=round(hi, 4),
+                conversations=conversations, later_expected=expected, quality_ok=ok,
+                **({} if ok else {"invalid": f"map_once reused the stored prefix on {extra.get('later_requests', 0)} "
+                                             f"of {expected} later requests (< 90%): silent re-map fallback"}),
                 **extra)
 
 
@@ -61,9 +70,13 @@ def tau2(d):
             k += s["passed"]
             n += s["scored"]
             logs += glob.glob(f"{d}/{dom}-{half}/vllm.log")
-        out[dom] = row(k, n, fracs(logs))
+        out[dom] = row(k, n, fracs(logs), n)  # one conversation per tau2 simulation
         K, N = K + k, N + n
-    out["overall"] = row(K, N, fracs(glob.glob(f"{d}/*/vllm.log")))
+    out["overall"] = row(K, N, fracs(glob.glob(f"{d}/*/vllm.log")), N)
+    bad = [dom for dom in ("airline", "retail", "telecom") if not out[dom]["quality_ok"]]
+    if bad:  # one silently re-mapped domain invalidates the pooled row too
+        out["overall"]["quality_ok"] = False
+        out["overall"]["invalid"] = f"domain(s) {', '.join(bad)} failed the map_once guard"
     return out
 
 
@@ -79,7 +92,7 @@ def tb2(jobs, logdir):
         k += rew >= 1.0
         if rew >= 1.0:
             names.append(r.get("task_name"))
-    return dict(tb2=row(k, n, dict(fracs(glob.glob(f"{logdir}/*/vllm.log")), solved=sorted(names))))
+    return dict(tb2=row(k, n, dict(fracs(glob.glob(f"{logdir}/*/vllm.log")), solved=sorted(names)), n))
 
 
 if __name__ == "__main__":
