@@ -108,7 +108,7 @@ def fit_impl(src: str, tgt: str, run_id: str, n_calib: int = 4000, L: int = 1024
              bs: int = 4, mem_frac: float = 0.80, save: int = 1, oracle: int = 1, stride: int = 4, tf32: int = 0,
              split_kv: int = 0, maps_from: str = "", ebs: int = 2, eval_l: int = 0, tgt_device_map: str = "",
              gpu0_gib: int = 60, per_gpu_gib: int = 130, xkv_maps: str = "", emb_feats: int = 0, niah: int = 0,
-             niah_len: int = 4096, niah_native: str = "", eval_docs: str = ""):
+             niah_len: int = 4096, niah_native: str = "", eval_docs: str = "", xkv_engine: int = 0):
     import torch
     from transformers import AutoTokenizer
     from kvx import hybrid
@@ -289,6 +289,38 @@ def fit_impl(src: str, tgt: str, run_id: str, n_calib: int = 4000, L: int = 1024
         sc("ref_native_twostep", T.forward(ids[:, P:], cache=c_nat)[0])
         del c_nat
         sc("ref_source_model", S.forward(ids, keep=C, use_cache=False)[0])
+        if xm is not None and xkv_engine:  # apples-to-apples: xkv's own engine vs the adapter, same docs/models/KL code
+            from xkv.qwen35 import Hybrid as XH
+            from xkv.mapper import Mapper as XM, transfer_prefill as XT
+            from xkv.attnmap import AttnMap as XAM
+            from xkv.experiments import teacher_forced as XTF
+            if "_xe" not in res:
+                import xkv.mapper as _XMM
+                _XMM.GRAPH_TAIL_MAX = None  # plain (ungraphed) tail: this is a quality measurement
+                Hs, Ht = XH(S.model), XH(T.model)
+                d_, _, nm = xkv_maps.rpartition("/")
+                base, _, att = nm.partition("+")
+                xmap = XM.load(f"/vol/{d_}/{base}.pt", Hs.spec, Ht.spec, dev)
+                if att:
+                    xmap.attn = XAM.load(f"/vol/{d_}/{att}.pt", Hs.spec, Ht.spec, dev)
+                    xmap.max_src = max(xmap.max_src, max(xmap.attn.need))
+                res["_xe"] = (Hs, Ht, xmap)
+            Hs, Ht, xmap = res["_xe"]
+            lgx, _ = T.forward(ids, keep=C + 1, use_cache=False)  # native, aligned as xkv: predicts cont[0..C-1]
+            lpx = torch.log_softmax(lgx[:, :C].float(), -1)
+            topx = lgx[:, :C].argmax(-1)
+            cont = ids[0, P:].tolist()
+            gx = XA.xkv_given(S, T, xm, ids[:, :P])
+            for N in (1, 128):
+                tc, fl = XT(Hs, Ht, xmap, ids[:, :P], tail=N)
+                add(f"xa_engine_tail{N}", XTF(Ht, tc, fl, cont)[None], lpx, topx)
+                del tc
+                c = hybrid.mapped_cache(T, ids[:, :P - N], gx)
+                lg_a = T.forward(ids[:, P - N:-1], cache=c)[0][:, N - 1:]
+                add(f"xa_adapter_tail{N}", lg_a, lpx, topx)
+                del c
+            del gx
+            continue
         if xm is not None:
             gx = XA.xkv_given(S, T, xm, ids[:, :P])
             sc("map_xkv", T.forward(ids[:, P:], cache=hybrid.mapped_cache(T, ids[:, :P], gx))[0])
@@ -349,6 +381,7 @@ def fit_impl(src: str, tgt: str, run_id: str, n_calib: int = 4000, L: int = 1024
                     del exact, mix_a, mix_l
             del given
         del feats
+    res.pop("_xe", None)
     res["eval"] = {k: {m: v[m] / v["n"] for m in ("kl", "kl_first", "agree")} for k, v in acc.items()}
 
     # ---- needle recall (gate on recall, not KL: a map can have fine KL and lose exact recall)
@@ -421,13 +454,13 @@ def main(src: str = "Qwen/Qwen3.5-4B", tgt: str = "Qwen/Qwen3.8-27B", run_id: st
          bs: int = 4, oracle: int = 1, save: int = 1, stride: int = 4, tf32: int = 0, split_kv: int = 0,
          maps_from: str = "", prefix: int = 960, eval_l: int = 0, ebs: int = 2, tgt_device_map: str = "",
          gpu0_gib: int = 60, per_gpu_gib: int = 130, xkv_maps: str = "", emb_feats: int = 0, niah: int = 0,
-         niah_len: int = 4096, niah_native: str = "", eval_docs: str = ""):
+         niah_len: int = 4096, niah_native: str = "", eval_docs: str = "", xkv_engine: int = 0):
     run_id = run_id or time.strftime("pairs-%Y%m%dT%H%M%SZ", time.gmtime())
     r = fit.remote(src=src, tgt=tgt, run_id=run_id, n_calib=n_calib, w=w, drop_q=drop_q, lam_rels=lam_rels,
                    n_eval=n_eval, sinks=sinks, tails=tails, bs=bs, oracle=oracle, save=save, stride=stride, tf32=tf32, split_kv=split_kv,
                    maps_from=maps_from, P=prefix, eval_l=eval_l, ebs=ebs, tgt_device_map=tgt_device_map,
                    gpu0_gib=gpu0_gib, per_gpu_gib=per_gpu_gib, xkv_maps=xkv_maps, emb_feats=emb_feats, niah=niah,
-                   niah_len=niah_len, niah_native=niah_native, eval_docs=eval_docs)
+                   niah_len=niah_len, niah_native=niah_native, eval_docs=eval_docs, xkv_engine=xkv_engine)
     os.makedirs(f"out/{run_id}", exist_ok=True)
     json.dump(r, open(f"out/{run_id}/result.json", "w"), indent=1)
     print(json.dumps(r.get("eval", r), indent=1))
