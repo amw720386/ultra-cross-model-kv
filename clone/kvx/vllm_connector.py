@@ -293,7 +293,9 @@ class CrossModelConnector(KVConnectorBase_V1):
             logger.info("kvx connector: lean source forward (compile=%s)", int(self.src_lean) >= 2)
         mp = torch.load(self.maps_path, map_location="cpu")
         for m in mp["k"] + mp["v"]:
-            m["W16"], m["b16"] = m.pop("W").to(device, torch.bfloat16), m.pop("b").to(device, torch.bfloat16)
+            # maps stay on the host until the dense weights are built and sliced to this TP rank's columns (the
+            # full 26 x 88-layer Mistral-Medium mapper, 4.5 GB, OOMed next to vLLM's share when built on the GPU)
+            m["W16"], m["b16"] = m.pop("W").to(torch.bfloat16), m.pop("b").to(torch.bfloat16)
             for key in ("mu", "r2", "vnat"):
                 m.pop(key, None)
         self.maps_k, self.maps_v = mp["k"], mp["v"]
@@ -308,8 +310,8 @@ class CrossModelConnector(KVConnectorBase_V1):
         # dense mapper: unselected source blocks are zero; at k=24 of 28 source layers only 14% of FLOPs are wasted,
         # and one large GEMM per K/V runs near peak (grouped scatter-add was memory-bound: 1.2 s at 16K)
         Ls = self.S.config.num_hidden_layers
-        self.Wk, self.bk = ttft.dense_weights(self.maps_k, Ls, self.ds, device)
-        self.Wv, self.bv = ttft.dense_weights(self.maps_v, Ls, self.ds, device)
+        self.Wk, self.bk = ttft.dense_weights(self.maps_k, Ls, self.ds, "cpu")
+        self.Wv, self.bv = ttft.dense_weights(self.maps_v, Ls, self.ds, "cpu")
         for m in self.maps_k + self.maps_v:
             m.pop("W16", None)
         # tensor parallel: this rank owns KV heads [r*H/tp, (r+1)*H/tp) of every target layer -> keep only those columns
@@ -325,6 +327,7 @@ class CrossModelConnector(KVConnectorBase_V1):
             self.Wv, self.bv = self.Wv[:, cols].contiguous(), self.bv[cols].contiguous()
             logger.info("kvx connector: TP rank %d/%d maps KV heads %d..%d", self.tp_rank, self.tp_size,
                         self.tp_rank * Hl, (self.tp_rank + 1) * Hl - 1)
+        self.Wk, self.bk, self.Wv, self.bv = (x.to(device) for x in (self.Wk, self.bk, self.Wv, self.bv))
         if self.fp8:
             def q(W):  # per output column scale, column-major e4m3 for torch._scaled_mm; chunked (no fp32 copy of W)
                 sw = W.abs().amax(0, keepdim=True).float().clamp(min=1e-12) / 448.0

@@ -80,7 +80,25 @@ def serve_impl(mode: str, src: str, tgt: str, maps: str, lens: str, tail: int, r
         # quality: first-token top-20 logprobs on 16 real FineWeb-Edu prefixes (eval token cache), compared offline
         import glob
         out = {}
-        fs = sorted(glob.glob("/vol/data/eval_64x1024_bos0_*.pt"))
+        def tok_files(pattern):
+            """Token caches made with THIS tokenizer: modal_fit_eval names them by sha1(first name part + vocab size)
+            (target or source name); else any cache whose ids fit the vocabulary (a Qwen cache crashed Mistral)."""
+            import hashlib
+            V = len(tok)
+            hs = {hashlib.sha1((n.split("/")[-1].split("-")[0] + str(V)).encode()).hexdigest()[:8] for n in (tgt, src)}
+            allf = sorted(glob.glob(pattern))
+            pref = [f for f in allf if any(f.endswith(f"_{h}.pt") for h in hs)]
+            if pref:
+                return pref
+            ok = []
+            for f in allf:
+                try:
+                    if int(torch.load(f).max()) < V:
+                        ok.append(f)
+                except Exception:
+                    pass
+            return ok
+        fs = tok_files("/vol/data/eval_64x1024_bos0_*.pt") or tok_files("/vol/data/eval_64x1024_bos1_*.pt")
         if fs and lens_quality:
             ev = torch.load(fs[0])[:16]
             spq = SamplingParams(max_tokens=1, temperature=0.0, logprobs=20)
@@ -89,13 +107,15 @@ def serve_impl(mode: str, src: str, tgt: str, maps: str, lens: str, tail: int, r
             g = llm.generate([{"prompt_token_ids": list(x[:961])} for x in ev[:8]], sp32, use_tqdm=False)
             out["greedy32_ids"] = [list(o.outputs[0].token_ids) for o in g]
         if quality_long > 0:  # 4 real long prompts: consecutive 4096-token PG19 chunks, first-token top-20
-            fl = sorted(glob.glob("/vol/data/pg19train_*x4096_bos0_*.pt"))
+            fl = tok_files("/vol/data/pg19train_*x4096_bos0_*.pt") or sorted(
+                tok_files("/vol/data/pg19train_*_bos*_*.pt"), key=lambda f: -os.path.getsize(f))
             if fl:
                 pg = torch.load(fl[0])
-                per = -(-quality_long // 4096)
+                per = -(-quality_long // len(pg[0]))  # rows of 4096 (Qwen caches) or 1024 tokens (Mistral)
                 n_pg = min(long_n, 16) if long_n > 4 else long_n  # beyond 4: half PG19 books, half concatenated FineWeb docs
                 prompts = [sum((list(pg[j]) for j in range(i * per, (i + 1) * per)), [])[:quality_long] for i in range(n_pg)]
-                fc = sorted(glob.glob("/vol/data/calib_4000x1024_bos0_*.pt"))
+                fc = tok_files("/vol/data/calib_4000x1024_bos0_*.pt") or sorted(
+                    tok_files("/vol/data/calib_*x1024_bos*_*.pt"), key=lambda f: -os.path.getsize(f))
                 if long_n > n_pg and fc:
                     fw = torch.load(fc[0])
                     dper = -(-quality_long // len(fw[0]))  # token caches are tensors or lists of lists
