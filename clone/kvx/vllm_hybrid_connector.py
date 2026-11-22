@@ -143,6 +143,9 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
         self.mf["maps"] = None  # drop the mmap references
         tcfg = AutoConfig.from_pretrained(self.tgt_name)
         tcfg = getattr(tcfg, "text_config", None) or tcfg
+        rope_ov = self._kv_transfer_config.get_from_extra_config("rope_parameters", None)
+        if rope_ov:  # e.g. YaRN x4 for 1M: must match the hf_overrides vLLM got, or mapped keys get the wrong RoPE
+            tcfg.rope_parameters = dict(rope_ov)
         # small target params straight from the checkpoint: conv1d, A_log, dt_bias, k_norm
         path = snapshot_download(self.tgt_name, local_files_only=True)
         import glob, os

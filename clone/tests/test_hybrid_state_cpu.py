@@ -145,3 +145,26 @@ def test_tp_slices_reassemble(fx):
     t_attn = next(t for t, s in states.items() if s[0] == "attn")
     got = [hs.slice_for_rank(p, states[t_attn], r, 4)[1] for r in range(4)]
     assert torch.equal(got[0], got[1]) and torch.equal(got[2], states[t_attn][1][:, 1:2])
+
+
+def test_yarn_matches_transformers():
+    """Mapped-key RoPE with YaRN (Qwen3.8 to 1M: factor 4 over 262144) == transformers' yarn init (partial rotary)."""
+    from transformers import PretrainedConfig
+    from transformers.modeling_rope_utils import ROPE_INIT_FUNCTIONS
+    rp = {"rope_type": "yarn", "factor": 4.0, "original_max_position_embeddings": 262144, "rope_theta": 1e7,
+          "partial_rotary_factor": 0.25}
+    cfg = dict(rope_parameters=rp, head_dim=256, linear_num_key_heads=2, linear_num_value_heads=4, linear_key_head_dim=16,
+               linear_value_head_dim=16, linear_conv_kernel_dim=4, layer_types=["full_attention"])
+    p = hs.TargetParams(cfg, {}, 256)
+    cos, sin, rd = hs.rope_cos_sin(p, 64, "cpu", offset=300000)
+    hc = PretrainedConfig(rope_theta=1e7, head_dim=256, partial_rotary_factor=0.25, rope_scaling=dict(rp),
+                          max_position_embeddings=1048576, hidden_size=256 * 8, num_attention_heads=8)
+    try:
+        inv, af = ROPE_INIT_FUNCTIONS["yarn"](hc, "cpu")
+    except Exception as e:  # transformers API differences across versions
+        pytest.skip(f"transformers yarn init unavailable: {e!r}")
+    assert inv.shape[0] == rd // 2
+    pos = torch.arange(300000, 300064, dtype=torch.float32)
+    f = torch.outer(pos, inv.float())
+    emb = torch.cat([f, f], -1)
+    assert torch.allclose(cos, emb.cos() * af, atol=1e-5) and torch.allclose(sin, emb.sin() * af, atol=1e-5)

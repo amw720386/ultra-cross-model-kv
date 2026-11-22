@@ -70,7 +70,8 @@ def run(domain: str, arm: str, run_id: str, model: str, connector: str, num_task
     aa = json.loads(agent_args)
     aa.update(api_base="http://127.0.0.1:8000/v1", api_key="none")
     cmd = ["tau2", "run", "--domain", domain, "--agent-llm", "hosted_vllm/agent", "--agent-llm-args", json.dumps(aa),
-           "--user-llm", "gpt-5.5", "--num-trials", "1", "--seed", "300",
+           "--user-llm", "gpt-5.5", "--user-llm-args", "{}",  # gpt-5.5 rejects tau2's default temperature=0
+           "--num-trials", "1", "--seed", "300",
            "--max-concurrency", str(concurrency), "--save-to", f"{out}/tau2.json"]
     # explicit ids (e.g. OneTriangle's 51-task mapped slice) or the first num_tasks of the base split
     cmd += (["--task-ids"] + task_ids.split(",")) if task_ids else ["--num-tasks", str(num_tasks)]
@@ -80,7 +81,8 @@ def run(domain: str, arm: str, run_id: str, model: str, connector: str, num_task
     srv.terminate()
     res = dict(domain=domain, arm=arm, rc=p.returncode, t_ready_s=round(t_ready), wall_s=round(time.time() - t0))
     try:
-        d = json.load(open(f"{out}/tau2.json"))
+        rp = f"{out}/tau2.json"
+        d = json.load(open(os.path.join(rp, "results.json") if os.path.isdir(rp) else rp))  # --save-to makes a dir
         sims = d.get("simulations", [])
         rw = [s.get("reward_info", {}).get("reward") for s in sims]
         ok = [r for r in rw if r is not None]

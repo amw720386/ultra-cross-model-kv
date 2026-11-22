@@ -26,8 +26,13 @@ class TargetParams:
         self.theta = float(rp.get("rope_theta") or g("rope_theta") or 10000.0)
         self.partial = float(rp.get("partial_rotary_factor") or g("partial_rotary_factor") or 1.0)
         self.rope_type = rp.get("rope_type", rp.get("type", "default")) or "default"
-        if self.rope_type not in ("default", "mrope"):
-            raise NotImplementedError(f"rope_type {self.rope_type}: only plain RoPE (text mrope == RoPE) here")
+        if self.rope_type not in ("default", "mrope", "yarn"):
+            raise NotImplementedError(f"rope_type {self.rope_type}: plain RoPE (text mrope == RoPE) or yarn only")
+        self.yarn = None
+        if self.rope_type == "yarn":
+            self.yarn = dict(factor=float(rp["factor"]), orig=int(rp["original_max_position_embeddings"]),
+                             beta_fast=float(rp.get("beta_fast") or 32), beta_slow=float(rp.get("beta_slow") or 1),
+                             attention_factor=rp.get("attention_factor"), truncate=rp.get("truncate", True))
         self.head_dim = int(attn_head_dim)
         self.Hk, self.Hv = int(g("linear_num_key_heads")), int(g("linear_num_value_heads"))
         self.dk, self.dv = int(g("linear_key_head_dim")), int(g("linear_value_head_dim"))
@@ -60,13 +65,41 @@ class TargetParams:
 
 # ---------------------------------------------------------------- attention layers
 
+def _yarn_inv_freq(rd, base, y, device):
+    """HF transformers _compute_yarn_parameters: blend interpolated / extrapolated frequencies with a linear ramp
+    between the beta_fast / beta_slow correction dims; returns (inv_freq, attention_factor)."""
+    pos_freqs = base ** (torch.arange(0, rd, 2, device=device, dtype=torch.float32) / rd)
+    inv_extra, inv_inter = 1.0 / pos_freqs, 1.0 / (y["factor"] * pos_freqs)
+
+    def corr_dim(n_rot):
+        return (rd * math.log(y["orig"] / (n_rot * 2 * math.pi))) / (2 * math.log(base))
+
+    low, high = corr_dim(y["beta_fast"]), corr_dim(y["beta_slow"])
+    if y["truncate"]:
+        low, high = math.floor(low), math.ceil(high)
+    low, high = max(low, 0), min(high, rd - 1)
+    if low == high:
+        high += 0.001
+    ramp = ((torch.arange(rd // 2, device=device, dtype=torch.float32) - low) / (high - low)).clamp(0, 1)
+    extra_w = 1 - ramp
+    inv = inv_inter * (1 - extra_w) + inv_extra * extra_w
+    af = y["attention_factor"]
+    if af is None:
+        af = 0.1 * math.log(y["factor"]) + 1.0 if y["factor"] > 1 else 1.0
+    return inv, float(af)
+
+
 def rope_cos_sin(p, T, device, dtype=torch.float32, offset=0):
     rd = int(p.head_dim * p.partial)
-    inv = 1.0 / (p.theta ** (torch.arange(0, rd, 2, device=device, dtype=torch.float32) / rd))
+    scale = 1.0
+    if getattr(p, "yarn", None):
+        inv, scale = _yarn_inv_freq(rd, p.theta, p.yarn, device)
+    else:
+        inv = 1.0 / (p.theta ** (torch.arange(0, rd, 2, device=device, dtype=torch.float32) / rd))
     pos = torch.arange(offset, offset + T, device=device, dtype=torch.float32)
     f = torch.outer(pos, inv)
     emb = torch.cat([f, f], -1)
-    return emb.cos().to(dtype), emb.sin().to(dtype), rd
+    return (emb.cos() * scale).to(dtype), (emb.sin() * scale).to(dtype), rd
 
 
 def apply_partial_rope(k, cos, sin, rd):
