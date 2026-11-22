@@ -152,6 +152,7 @@ def serve_impl(mode: str, src: str, tgt: str, maps: str, lens: str, tail: int, r
                 pg = torch.load(fl[0])
                 per = -(-quality_long // len(pg[0]))  # rows of 4096 (Qwen caches) or 1024 tokens (Mistral)
                 n_pg = min(long_n, 16) if long_n > 4 else long_n  # beyond 4: half PG19 books, half concatenated FineWeb docs
+                n_pg = min(n_pg, len(pg) // per)  # the cache's length cap (256K: 1000 x 4096 rows -> 15 prompts of 64)
                 prompts = [sum((list(pg[j]) for j in range(i * per, (i + 1) * per)), [])[:quality_long] for i in range(n_pg)]
                 fc = tok_files("/vol/data/calib_4000x1024_bos0_*.pt") or sorted(
                     tok_files("/vol/data/calib_*x1024_bos*_*.pt"), key=lambda f: -os.path.getsize(f))
@@ -159,8 +160,11 @@ def serve_impl(mode: str, src: str, tgt: str, maps: str, lens: str, tail: int, r
                     out["quality_files"]["long_fw"] = (os.path.basename(fc[0]), sha(fc[0]))
                     fw = torch.load(fc[0])
                     dper = -(-quality_long // len(fw[0]))  # token caches are tensors or lists of lists
+                    n_fw = min(long_n - n_pg, len(fw) // dper)  # same cap (256K: 4000 x 1024 -> 15 prompts of 256)
                     prompts += [sum((list(fw[j]) for j in range(i * dper, (i + 1) * dper)), [])[:quality_long]
-                                for i in range(long_n - n_pg)]
+                                for i in range(n_fw)]
+                    out["long_n_fw"] = n_fw
+                out["long_n_pg"] = n_pg
                 spq = SamplingParams(max_tokens=1, temperature=0.0, logprobs=20)
                 outs = llm.generate([{"prompt_token_ids": p} for p in prompts], spq, use_tqdm=False)
                 out["long_len"] = quality_long
