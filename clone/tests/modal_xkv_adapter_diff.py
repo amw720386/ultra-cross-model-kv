@@ -47,7 +47,8 @@ def run(src_key: str, tgt_key: str, n_seqs: int, seq_len: int, P: int):
         st.add(sm, tm, E.T(s))
         at.add(sm, tm, E.T(s))
     mapper, _ = st.solve(lam=1e-3)
-    mapper.attn = at.solve(lam=1e-3)
+    am = at.solve(lam=1e-3)
+    mapper.attn = am[0] if isinstance(am, tuple) else am
     mapper.max_src = max(mapper.max_src, max(mapper.attn.need))
     os.makedirs("/artifacts/maps", exist_ok=True)
     mapper.save("/artifacts/maps/dbg.pt")
