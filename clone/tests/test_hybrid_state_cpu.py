@@ -277,3 +277,21 @@ def test_tp_sharded_maps_with_sink_template(fx):
             ref = hs.slice_for_rank(p, full[t], rank, 2)
             for a_, b_ in zip(got[t][1:], ref[1:]):
                 assert torch.allclose(a_, b_, atol=1e-4, rtol=1e-4), (rank, t, (a_ - b_).abs().max())
+
+
+def test_feat_stream_runs_each_target_once_with_its_inputs_and_frees():
+    """Streaming source features: every target runs once, after all its source layers, with them present; source
+    layers are freed after their last reader (peak = the live window, not all layers)."""
+    sels = {t: sorted({max(0, t // 2 - 1), t // 2}) for t in range(16)}  # 16 target layers over 8 source layers
+    feats, ran = {}, []
+
+    def run(t):
+        assert all(s in feats for s in sels[t]), (t, sorted(feats))
+        ran.append(t)
+
+    fs = hs.FeatStream(sels, run, feats)
+    for l in range(8):
+        fs.on_feat(l, torch.zeros(1))
+    fs.finish()
+    assert sorted(ran) == list(range(16)) and len(ran) == 16
+    assert fs.peak <= 2 and not feats

@@ -315,12 +315,13 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
                 xf, emb, emb_prev = source_inputs(self.Sdec, ids, needed_layers(self.xm))
                 layers = sorted(self.kinds)
             else:
-                feats = hybrid.source_features(self.Sdec, ids, drop_q=self.mf.get("drop_q", True))
                 layers = sorted(self.maps)
+            feats = {}
             # one target layer at a time: taps -> state -> write -> free (all 64 layers' fp32 taps of a 27K-token
             # prompt at once ran an H200 out of memory)
             ntaps = hs.native_prefix_taps(self.prefix, ids) if self.prefix is not None else {}
-            for t in layers:
+
+            def do_target(t):
                 if t in ntaps:  # native first layers override the map
                     given = {t: ntaps[t]}
                 elif self.xm is not None:
@@ -367,6 +368,16 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
                         raise RuntimeError(f"kvx hybrid: unexpected GDN cache object for layer {t}: see the log line above")
                     conv_c, ssm_c = cache[0], cache[1]
                     write_lin_state(conv_c, ssm_c, int(blocks[0]), conv, S, self.dim_first)
+
+            if self.xm is not None:
+                for t in layers:
+                    do_target(t)
+            else:
+                # stream the source (kvx-speed: all-layer bf16 feats OOMed at 32K): each target layer runs as soon as
+                # its last source layer is done; a source layer's features are freed after its last target
+                fs = hs.FeatStream({t: self.maps[t]["sel"] for t in layers}, do_target, feats)
+                hybrid.source_features(self.Sdec, ids, drop_q=self.mf.get("drop_q", True), on_feat=fs.on_feat)
+                fs.finish()
             self.stats["requests"] += 1
             self.stats["mapped_tokens"] += T
 

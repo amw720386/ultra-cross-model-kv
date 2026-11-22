@@ -192,10 +192,12 @@ class Taps:
 
 # ---------------------------------------------------------------- features
 
-def source_features(src, ids, drop_q=True, emb=False):
+def source_features(src, ids, drop_q=True, emb=False, on_feat=None):
     """Per source layer: [B*T, d_l] float32 features (concatenated taps; GatedDeltaNet q dropped by default).
     emb: append one extra entry (index = number of layers): [token embedding | previous token's embedding]
-    (token identity as a map input: amw's attention map, Kvedaras & Rasymas 2611.12062)."""
+    (token identity as a map input: amw's attention map, Kvedaras & Rasymas 2611.12062).
+    on_feat(l, x): streaming; called as each source layer finishes, nothing is kept (returns None): the caller
+    consumes and frees, so long prompts never hold every layer's features at once."""
     feats = {}
     qw = lin_q_width(src) if any(k == "lin" for k, _ in layer_taps(src)) else 0
     taps_s = layer_taps(src)
@@ -207,10 +209,16 @@ def source_features(src, ids, drop_q=True, emb=False):
             x = torch.cat([qkv, d["a"], d["b"]], -1)
         else:
             x = torch.cat([d[n] for n, _, _ in taps_s[l][1]], -1)
-        feats[l] = x.reshape(-1, x.shape[-1]).to(device=src.device0, dtype=torch.bfloat16)
+        x = x.reshape(-1, x.shape[-1]).to(device=src.device0, dtype=torch.bfloat16)
+        if on_feat is not None:
+            on_feat(l, x)
+        else:
+            feats[l] = x
 
     with Taps(src).record(on_layer):
         src.forward(ids, keep=1, use_cache=False)
+    if on_feat is not None:
+        return None
     out = [feats.get(l) for l in range(len(kinds))]  # None for KV-shared layers
     if emb:
         with torch.no_grad():

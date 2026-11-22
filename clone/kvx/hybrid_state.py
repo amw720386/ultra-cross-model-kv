@@ -496,3 +496,31 @@ def shard_for_rank(mf, maps, p, rank, tp, kv_heads):
         pr.lin[l] = dict(conv_w=d["conv_w"].index_select(0, ci), conv_b=None if d["conv_b"] is None else d["conv_b"].index_select(0, ci),
                          A_log=d["A_log"].index_select(0, hi), dt_bias=d["dt_bias"].index_select(0, hi))
     return out, taps_r, pr
+
+
+class FeatStream:
+    """Streaming source features -> target layers. sels {target layer: source layers it reads}; run(t) consumes
+    feats[s] for s in sels[t]. on_feat(l, x) stores source layer l, runs every target whose last source layer is
+    done, and frees each source layer after its last reader, so peak memory is the live window, not every layer."""
+
+    def __init__(self, sels, run, feats):
+        self.run, self.feats = run, feats
+        self.need = {t: max(s) for t, s in sels.items()}
+        self.last = {}
+        for t, s in sels.items():
+            for s_ in s:
+                self.last[s_] = max(self.last.get(s_, -1), self.need[t])
+        self.pend = sorted(sels, key=lambda t: (self.need[t], t))
+        self.peak = 0
+
+    def on_feat(self, l, x):
+        self.feats[l] = x
+        self.peak = max(self.peak, len(self.feats))
+        while self.pend and self.need[self.pend[0]] <= l:
+            self.run(self.pend.pop(0))
+        for s_ in [s_ for s_ in self.feats if self.last.get(s_, -1) <= l]:
+            del self.feats[s_]
+
+    def finish(self):
+        if self.pend:
+            raise RuntimeError(f"kvx hybrid: target layers {self.pend[:4]} never got their source features")
