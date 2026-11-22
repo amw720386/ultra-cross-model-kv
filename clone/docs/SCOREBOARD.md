@@ -149,7 +149,7 @@
 | bundle-tau2-retail-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | tau2 Retail | 0.4117647059 | yes |  | open |
 | bundle-tau2-telecom-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | tau2 Telecom | 0.4705882353 | yes |  | open |
 | bundle-tau2-overall-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | tau2 Overall | 0.4901960784 | yes |  | open |
-| bundle-terminal-bench-2-0-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | Terminal-Bench 2.0 | 0.1 | yes | 0.1667 | tied |
+| bundle-terminal-bench-2-0-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | Terminal-Bench 2.0 | 0.1 | yes | 0.2535 | beaten |
 | x-ct-posttrain-heldout-before | Qwen-3.5-4b -> fine-tuned-Qwen-3.8-27b | accuracy [mapped_generic] | held-out accuracy, generic mapper before post-training | 65.6 | yes |  | open |
 | x-ct-posttrain-heldout-after | Qwen-3.5-4b -> fine-tuned-Qwen-3.8-27b | accuracy [mapped_posttrained] | held-out accuracy, post-trained (rank-16 residual) mapper | 78.1 | yes |  | open |
 | x-ct-zebralogic-generic | unstated-(target-described-as-8b) | accuracy [mapped_generic] | ZebraLogic, generic mapper | 0.185 | yes |  | open |
