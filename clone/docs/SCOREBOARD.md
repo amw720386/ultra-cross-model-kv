@@ -4,21 +4,21 @@
 
 | id | pair | metric | context / benchmark | theirs | their measured? | ours | status |
 |---|---|---|---|---|---|---|---|
-| home-ministral-3-3b-mistral-medium-3-5-128b-8K-ttft | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT s (mapped) | 8K | 0.36 | yes | 0.1519 | beaten |
-| home-ministral-3-3b-mistral-medium-3-5-128b-8K-speedup | Ministral-3-3B -> Mistral-Medium-3.5-128B | speedup x vs their native | 8K | 9.167 | yes | 4.5964 | behind |
-| home-ministral-3-3b-mistral-medium-3-5-128b-16K-ttft | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT s (mapped) | 16K | 0.64 | yes | 0.2467 | beaten |
-| home-ministral-3-3b-mistral-medium-3-5-128b-16K-speedup | Ministral-3-3B -> Mistral-Medium-3.5-128B | speedup x vs their native | 16K | 11.656 | yes | 6.4838 | behind |
-| home-ministral-3-3b-mistral-medium-3-5-128b-32K-ttft | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT s (mapped) | 32K | 1.45 | yes | 0.471 | beaten |
-| home-ministral-3-3b-mistral-medium-3-5-128b-32K-speedup | Ministral-3-3B -> Mistral-Medium-3.5-128B | speedup x vs their native | 32K | 12.566 | yes | 7.8877 | behind |
-| home-ministral-3-3b-mistral-medium-3-5-128b-64K-ttft | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT s (mapped) | 64K | 4.01 | yes | 1.0833 | beaten |
-| home-ministral-3-3b-mistral-medium-3-5-128b-64K-speedup | Ministral-3-3B -> Mistral-Medium-3.5-128B | speedup x vs their native | 64K | 12.424 | yes | 8.7975 | behind |
+| home-ministral-3-3b-mistral-medium-3-5-128b-8K-ttft | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT s (mapped) | 8K | 0.36 | yes | 0.1519 | hold(rig) |
+| home-ministral-3-3b-mistral-medium-3-5-128b-8K-speedup | Ministral-3-3B -> Mistral-Medium-3.5-128B | speedup x vs their native | 8K | 9.167 | yes | 4.5964 | hold(rig) |
+| home-ministral-3-3b-mistral-medium-3-5-128b-16K-ttft | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT s (mapped) | 16K | 0.64 | yes | 0.2467 | hold(rig) |
+| home-ministral-3-3b-mistral-medium-3-5-128b-16K-speedup | Ministral-3-3B -> Mistral-Medium-3.5-128B | speedup x vs their native | 16K | 11.656 | yes | 6.4838 | hold(rig) |
+| home-ministral-3-3b-mistral-medium-3-5-128b-32K-ttft | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT s (mapped) | 32K | 1.45 | yes | 0.471 | hold(rig) |
+| home-ministral-3-3b-mistral-medium-3-5-128b-32K-speedup | Ministral-3-3B -> Mistral-Medium-3.5-128B | speedup x vs their native | 32K | 12.566 | yes | 7.8877 | hold(rig) |
+| home-ministral-3-3b-mistral-medium-3-5-128b-64K-ttft | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT s (mapped) | 64K | 4.01 | yes | 1.0833 | hold(rig) |
+| home-ministral-3-3b-mistral-medium-3-5-128b-64K-speedup | Ministral-3-3B -> Mistral-Medium-3.5-128B | speedup x vs their native | 64K | 12.424 | yes | 8.7975 | hold(rig) |
 | home-ministral-3-3b-mistral-medium-3-5-128b-128K-ttft | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT s (mapped) | 128K | 12.9 | est. |  | open |
 | home-ministral-3-3b-mistral-medium-3-5-128b-128K-speedup | Ministral-3-3B -> Mistral-Medium-3.5-128B | speedup x vs their native | 128K | 11.83 | est. |  | open |
 | home-ministral-3-3b-mistral-medium-3-5-128b-256K-ttft | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT s (mapped) | 256K | 45.76 | est. |  | open |
 | home-ministral-3-3b-mistral-medium-3-5-128b-256K-speedup | Ministral-3-3B -> Mistral-Medium-3.5-128B | speedup x vs their native | 256K | 11.315 | est. |  | open |
 | home-ministral-3-3b-mistral-medium-3-5-128b-512K-ttft | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT s (mapped) | 512K | 171.76 | est. |  | open |
 | home-ministral-3-3b-mistral-medium-3-5-128b-512K-speedup | Ministral-3-3B -> Mistral-Medium-3.5-128B | speedup x vs their native | 512K | 10.979 | est. |  | open |
-| home-ministral-3-3b-mistral-medium-3-5-128b-peak | Ministral-3-3B -> Mistral-Medium-3.5-128B | peak speedup x (headline) | 32K | 12.6 | yes | 7.8877 | behind |
+| home-ministral-3-3b-mistral-medium-3-5-128b-peak | Ministral-3-3B -> Mistral-Medium-3.5-128B | peak speedup x (headline) | 32K | 12.6 | yes | 7.8877 | hold(rig) |
 | home-qwen3-1-7b-qwen3-32b-8K-ttft | Qwen3-1.7B -> Qwen3-32B | TTFT s (mapped) | 8K | 0.21 | yes | 0.1077 | beaten |
 | home-qwen3-1-7b-qwen3-32b-8K-speedup | Qwen3-1.7B -> Qwen3-32B | speedup x vs their native | 8K | 5.667 | yes | 3.5916 | behind |
 | home-qwen3-1-7b-qwen3-32b-16K-ttft | Qwen3-1.7B -> Qwen3-32B | TTFT s (mapped) | 16K | 0.4 | yes | 0.154 | beaten |
@@ -27,13 +27,13 @@
 | home-qwen3-1-7b-qwen3-32b-32K-speedup | Qwen3-1.7B -> Qwen3-32B | speedup x vs their native | 32K | 8.437 | yes | 5.294 | behind |
 | home-qwen3-1-7b-qwen3-32b-64K-ttft | Qwen3-1.7B -> Qwen3-32B | TTFT s (mapped) | 64K | 2.29 | est. | 0.659 | beaten |
 | home-qwen3-1-7b-qwen3-32b-64K-speedup | Qwen3-1.7B -> Qwen3-32B | speedup x vs their native | 64K | 9.376 | est. | 6.1439 | behind |
-| home-qwen3-1-7b-qwen3-32b-128K-ttft | Qwen3-1.7B -> Qwen3-32B | TTFT s (mapped) | 128K | 6.96 | est. | 1.1724 | beaten |
-| home-qwen3-1-7b-qwen3-32b-128K-speedup | Qwen3-1.7B -> Qwen3-32B | speedup x vs their native | 128K | 10.075 | est. | 5.4765 | behind |
-| home-qwen3-1-7b-qwen3-32b-256K-ttft | Qwen3-1.7B -> Qwen3-32B | TTFT s (mapped) | 256K | 23.57 | est. | 3.1433 | beaten |
+| home-qwen3-1-7b-qwen3-32b-128K-ttft | Qwen3-1.7B -> Qwen3-32B | TTFT s (mapped) | 128K | 6.96 | est. | 1.1724 | hold(rig) |
+| home-qwen3-1-7b-qwen3-32b-128K-speedup | Qwen3-1.7B -> Qwen3-32B | speedup x vs their native | 128K | 10.075 | est. | 5.4765 | hold(rig) |
+| home-qwen3-1-7b-qwen3-32b-256K-ttft | Qwen3-1.7B -> Qwen3-32B | TTFT s (mapped) | 256K | 23.57 | est. | 3.1433 | hold(rig) |
 | home-qwen3-1-7b-qwen3-32b-256K-speedup | Qwen3-1.7B -> Qwen3-32B | speedup x vs their native | 256K | 10.563 | est. | 8.8576 | behind |
-| home-qwen3-1-7b-qwen3-32b-512K-ttft | Qwen3-1.7B -> Qwen3-32B | TTFT s (mapped) | 512K | 85.98 | est. | 9.2555 | beaten |
-| home-qwen3-1-7b-qwen3-32b-512K-speedup | Qwen3-1.7B -> Qwen3-32B | speedup x vs their native | 512K | 10.849 | est. | 7.8661 | behind |
-| home-qwen3-1-7b-qwen3-32b-peak | Qwen3-1.7B -> Qwen3-32B | peak speedup x (headline) | 1M | 11.0 | est. | 8.913 | behind |
+| home-qwen3-1-7b-qwen3-32b-512K-ttft | Qwen3-1.7B -> Qwen3-32B | TTFT s (mapped) | 512K | 85.98 | est. | 9.2555 | hold(rig) |
+| home-qwen3-1-7b-qwen3-32b-512K-speedup | Qwen3-1.7B -> Qwen3-32B | speedup x vs their native | 512K | 10.849 | est. | 7.8661 | hold(rig) |
+| home-qwen3-1-7b-qwen3-32b-peak | Qwen3-1.7B -> Qwen3-32B | peak speedup x (headline) | 1M | 11.0 | est. | 8.913 | hold(rig) |
 | home-qwen2-5-3b-qwen2-5-72b-32K-ttft | Qwen2.5-3B -> Qwen2.5-72B | TTFT s (mapped) | 32K | 1.46 | yes | 0.3041 | beaten |
 | home-qwen2-5-3b-qwen2-5-72b-32K-speedup | Qwen2.5-3B -> Qwen2.5-72B | speedup x vs their native | 32K | 8.514 | yes | 5.4135 | behind |
 | home-qwen2-5-3b-qwen2-5-72b-64K-ttft | Qwen2.5-3B -> Qwen2.5-72B | TTFT s (mapped) | 64K | 3.46 | yes | 0.569 | beaten |
@@ -44,7 +44,7 @@
 | home-qwen2-5-3b-qwen2-5-72b-262K-speedup | Qwen2.5-3B -> Qwen2.5-72B | speedup x vs their native | 262K | 9.147 | yes | 14.0457 | hold(quality) |
 | home-qwen2-5-3b-qwen2-5-72b-524K-ttft | Qwen2.5-3B -> Qwen2.5-72B | TTFT s (mapped) | 524K | 136.7 | yes | 4.2536 | hold(quality) |
 | home-qwen2-5-3b-qwen2-5-72b-524K-speedup | Qwen2.5-3B -> Qwen2.5-72B | speedup x vs their native | 524K | 8.843 | yes | 23.8782 | hold(quality) |
-| home-qwen2-5-3b-qwen2-5-72b-peak | Qwen2.5-3B -> Qwen2.5-72B | peak speedup x (headline) | 127K | 9.6 | yes | 10.2285 | beaten |
+| home-qwen2-5-3b-qwen2-5-72b-peak | Qwen2.5-3B -> Qwen2.5-72B | peak speedup x (headline) | 127K | 9.6 | yes | 10.2285 | hold(rig) |
 | home-gemma-4-e2b-gemma-4-31b-8K-ttft | Gemma-4-E2B -> Gemma-4-31B | TTFT s (mapped) | 8K | 0.23 | est. |  | open |
 | home-gemma-4-e2b-gemma-4-31b-8K-speedup | Gemma-4-E2B -> Gemma-4-31B | speedup x vs their native | 8K | 5.174 | est. |  | open |
 | home-gemma-4-e2b-gemma-4-31b-16K-ttft | Gemma-4-E2B -> Gemma-4-31B | TTFT s (mapped) | 16K | 0.44 | est. |  | open |
@@ -132,9 +132,9 @@
 | home-qwen3-1-7b-qwen3-8b-128K-speedup | Qwen3-1.7B -> Qwen3-8B | speedup x vs their native | 128K | 2.872 | est. | 2.4973 | behind |
 | home-qwen3-1-7b-qwen3-8b-256K-ttft | Qwen3-1.7B -> Qwen3-8B | TTFT s (mapped) | 256K | 23.46 | est. |  | open |
 | home-qwen3-1-7b-qwen3-8b-256K-speedup | Qwen3-1.7B -> Qwen3-8B | speedup x vs their native | 256K | 2.962 | est. |  | open |
-| home-qwen3-1-7b-qwen3-8b-512K-ttft | Qwen3-1.7B -> Qwen3-8B | TTFT s (mapped) | 512K | 86.62 | est. | 8.3396 | beaten |
-| home-qwen3-1-7b-qwen3-8b-512K-speedup | Qwen3-1.7B -> Qwen3-8B | speedup x vs their native | 512K | 3.012 | est. | 2.4981 | behind |
-| home-qwen3-1-7b-qwen3-8b-peak | Qwen3-1.7B -> Qwen3-8B | peak speedup x (headline) | 1M | 3.0 | est. | 2.7794 | tied |
+| home-qwen3-1-7b-qwen3-8b-512K-ttft | Qwen3-1.7B -> Qwen3-8B | TTFT s (mapped) | 512K | 86.62 | est. | 8.3396 | hold(rig) |
+| home-qwen3-1-7b-qwen3-8b-512K-speedup | Qwen3-1.7B -> Qwen3-8B | speedup x vs their native | 512K | 3.012 | est. | 2.4981 | hold(rig) |
+| home-qwen3-1-7b-qwen3-8b-peak | Qwen3-1.7B -> Qwen3-8B | peak speedup x (headline) | 1M | 3.0 | est. | 2.7794 | hold(rig) |
 | bundle-arc-chat-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | ARC-Chat | 0.97 | yes | 0.96 | tied |
 | bundle-contractnli-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | ContractNLI | 0.61 | yes | 0.77 | beaten |
 | bundle-bamboo-paperqa-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | BAMBOO PaperQA | 0.893 | yes | 0.881 | tied |
@@ -648,7 +648,7 @@
 | x-tb-qwen-72-v0-contractnli-5-mapped-routed | Qwen2.5-3B -> Qwen2.5-72B | accuracy (0-1) [mapped_routed] | ContractNLI (transfer route; section: transfer route) | 0.69 | yes | 0.4137 | behind |
 | x-tb-qwen-72-v0-bamboo-paperqa-6-mapped-routed | Qwen2.5-3B -> Qwen2.5-72B | accuracy (0-1) [mapped_routed] | BAMBOO PaperQA (transfer route; section: transfer route) | 0.81 | yes | 0.631 | behind |
 | x-tb-qwen-72-v0-longbench-v2-7-mapped-routed | Qwen2.5-3B -> Qwen2.5-72B | accuracy (0-1) [mapped_routed] | LongBench v2 (transfer route; section: transfer route) | 0.39 | yes | 0.3814 | tied |
-| x-tb-qwen-72-ttft-prefill-32k | Qwen2.5-3B -> Qwen2.5-72B | TTFT component: source-model prefill (ms) [mapped] | context 32K; p50 | 885 | yes | 205.4 | beaten |
+| x-tb-qwen-72-ttft-prefill-32k | Qwen2.5-3B -> Qwen2.5-72B | TTFT component: source-model prefill (ms) [mapped] | context 32K; p50 | 885 | yes | 205.4 | hold(rig) |
 | x-tb-qwen-72-ttft-map-32k | Qwen2.5-3B -> Qwen2.5-72B | TTFT component: KV map (ms) [mapped] | context 32K; p50 | 357 | yes | 40.4 | beaten |
 | x-tb-qwen-72-ttft-move-32k | Qwen2.5-3B -> Qwen2.5-72B | TTFT component: cache move (ms) [mapped] | context 32K; p50 | 0 | yes | 10.4 | behind |
 | x-tb-qwen-72-ttft-decode-32k | Qwen2.5-3B -> Qwen2.5-72B | TTFT component: first target token (ms) [mapped] | context 32K; p50 | 215 | yes | 45.7 | beaten |
@@ -680,22 +680,22 @@
 | x-tb-ministral-v0-quality-3-mapped | Ministral-3-3B -> Mistral-Medium-3.5-128B | accuracy (0-1) [mapped] | QuALITY (100 questions (screen of 500); section: long context) | 0.69 | yes |  | open |
 | x-tb-ministral-v0-longbench-v2-4-mapped | Ministral-3-3B -> Mistral-Medium-3.5-128B | accuracy (0-1) [mapped] | LongBench v2 (97 questions; section: long context) | 0.37 | yes |  | open |
 | x-tb-ministral-v0-deveval-code-5-mapped | Ministral-3-3B -> Mistral-Medium-3.5-128B | pass@1 (0-1) [mapped] | DevEval (code) (100 items · pass@1; section: long context) | 0.45 | yes |  | open |
-| x-tb-ministral-ttft-prefill-8k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: source-model prefill (ms) [mapped] | context 8K; p50 | 169 | yes | 66.7 | beaten |
-| x-tb-ministral-ttft-map-8k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: KV map (ms) [mapped] | context 8K; p50 | 13 | yes | 29.5 | behind |
-| x-tb-ministral-ttft-move-8k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: cache move (ms) [mapped] | context 8K; p50 | 20 | yes | 10.1 | beaten |
-| x-tb-ministral-ttft-decode-8k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: first target token (ms) [mapped] | context 8K; p50 | 160 | yes | 45.1 | beaten |
-| x-tb-ministral-ttft-prefill-16k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: source-model prefill (ms) [mapped] | context 16K; p50 | 406 | yes | 133.1 | beaten |
-| x-tb-ministral-ttft-map-16k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: KV map (ms) [mapped] | context 16K; p50 | 21 | yes | 47.6 | behind |
-| x-tb-ministral-ttft-move-16k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: cache move (ms) [mapped] | context 16K; p50 | 34 | yes | 10.9 | beaten |
-| x-tb-ministral-ttft-decode-16k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: first target token (ms) [mapped] | context 16K; p50 | 177 | yes | 55.0 | beaten |
-| x-tb-ministral-ttft-prefill-32k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: source-model prefill (ms) [mapped] | context 32K; p50 | 1131 | yes | 295.5 | beaten |
-| x-tb-ministral-ttft-map-32k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: KV map (ms) [mapped] | context 32K; p50 | 39 | yes | 83.7 | behind |
-| x-tb-ministral-ttft-move-32k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: cache move (ms) [mapped] | context 32K; p50 | 62 | yes | 17.4 | beaten |
-| x-tb-ministral-ttft-decode-32k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: first target token (ms) [mapped] | context 32K; p50 | 213 | yes | 74.3 | beaten |
-| x-tb-ministral-ttft-prefill-64k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: source-model prefill (ms) [mapped] | context 64K; p50 | 3518 | est. | 770.6 | beaten |
-| x-tb-ministral-ttft-map-64k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: KV map (ms) [mapped] | context 64K; p50 | 80 | est. | 172.6 | behind |
-| x-tb-ministral-ttft-move-64k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: cache move (ms) [mapped] | context 64K; p50 | 129 | est. | 37.3 | beaten |
-| x-tb-ministral-ttft-decode-64k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: first target token (ms) [mapped] | context 64K; p50 | 283 | est. | 103.0 | beaten |
+| x-tb-ministral-ttft-prefill-8k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: source-model prefill (ms) [mapped] | context 8K; p50 | 169 | yes | 66.7 | hold(rig) |
+| x-tb-ministral-ttft-map-8k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: KV map (ms) [mapped] | context 8K; p50 | 13 | yes | 29.5 | hold(rig) |
+| x-tb-ministral-ttft-move-8k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: cache move (ms) [mapped] | context 8K; p50 | 20 | yes | 10.1 | hold(rig) |
+| x-tb-ministral-ttft-decode-8k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: first target token (ms) [mapped] | context 8K; p50 | 160 | yes | 45.1 | hold(rig) |
+| x-tb-ministral-ttft-prefill-16k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: source-model prefill (ms) [mapped] | context 16K; p50 | 406 | yes | 133.1 | hold(rig) |
+| x-tb-ministral-ttft-map-16k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: KV map (ms) [mapped] | context 16K; p50 | 21 | yes | 47.6 | hold(rig) |
+| x-tb-ministral-ttft-move-16k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: cache move (ms) [mapped] | context 16K; p50 | 34 | yes | 10.9 | hold(rig) |
+| x-tb-ministral-ttft-decode-16k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: first target token (ms) [mapped] | context 16K; p50 | 177 | yes | 55.0 | hold(rig) |
+| x-tb-ministral-ttft-prefill-32k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: source-model prefill (ms) [mapped] | context 32K; p50 | 1131 | yes | 295.5 | hold(rig) |
+| x-tb-ministral-ttft-map-32k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: KV map (ms) [mapped] | context 32K; p50 | 39 | yes | 83.7 | hold(rig) |
+| x-tb-ministral-ttft-move-32k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: cache move (ms) [mapped] | context 32K; p50 | 62 | yes | 17.4 | hold(rig) |
+| x-tb-ministral-ttft-decode-32k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: first target token (ms) [mapped] | context 32K; p50 | 213 | yes | 74.3 | hold(rig) |
+| x-tb-ministral-ttft-prefill-64k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: source-model prefill (ms) [mapped] | context 64K; p50 | 3518 | est. | 770.6 | hold(rig) |
+| x-tb-ministral-ttft-map-64k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: KV map (ms) [mapped] | context 64K; p50 | 80 | est. | 172.6 | hold(rig) |
+| x-tb-ministral-ttft-move-64k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: cache move (ms) [mapped] | context 64K; p50 | 129 | est. | 37.3 | hold(rig) |
+| x-tb-ministral-ttft-decode-64k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: first target token (ms) [mapped] | context 64K; p50 | 283 | est. | 103.0 | hold(rig) |
 | x-tb-ministral-ttft-prefill-128k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: source-model prefill (ms) [mapped] | context 128K; p50 | 12061 | est. |  | open |
 | x-tb-ministral-ttft-map-128k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: KV map (ms) [mapped] | context 128K; p50 | 161 | est. |  | open |
 | x-tb-ministral-ttft-move-128k | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT component: cache move (ms) [mapped] | context 128K; p50 | 257 | est. |  | open |
@@ -744,18 +744,18 @@
 | x-tb-qwen-hybrid-ttft-map-128k | Qwen3-1.7B -> Qwen3-8B | TTFT component: KV map (ms) [mapped] | context 128K; p50 | 61 | est. | 170.1 | behind |
 | x-tb-qwen-hybrid-ttft-move-128k | Qwen3-1.7B -> Qwen3-8B | TTFT component: cache move (ms) [mapped] | context 128K; p50 | 102 | est. | 35.1 | beaten |
 | x-tb-qwen-hybrid-ttft-decode-128k | Qwen3-1.7B -> Qwen3-8B | TTFT component: first target token (ms) [mapped] | context 128K; p50 | 170 | est. | 93.3 | beaten |
-| x-tb-qwen-hybrid-ttft-prefill-256k | Qwen3-1.7B -> Qwen3-8B | TTFT component: source-model prefill (ms) [mapped] | context 256K; p50 | 22836 | est. | 2903.0 | beaten |
-| x-tb-qwen-hybrid-ttft-map-256k | Qwen3-1.7B -> Qwen3-8B | TTFT component: KV map (ms) [mapped] | context 256K; p50 | 121 | est. | 1191.8 | behind |
-| x-tb-qwen-hybrid-ttft-move-256k | Qwen3-1.7B -> Qwen3-8B | TTFT component: cache move (ms) [mapped] | context 256K; p50 | 203 | est. | 80.3 | beaten |
-| x-tb-qwen-hybrid-ttft-decode-256k | Qwen3-1.7B -> Qwen3-8B | TTFT component: first target token (ms) [mapped] | context 256K; p50 | 304 | est. | 6013.3 | behind |
-| x-tb-qwen-hybrid-ttft-prefill-512k | Qwen3-1.7B -> Qwen3-8B | TTFT component: source-model prefill (ms) [mapped] | context 512K; p50 | 85400 | est. | 7339.1 | beaten |
-| x-tb-qwen-hybrid-ttft-map-512k | Qwen3-1.7B -> Qwen3-8B | TTFT component: KV map (ms) [mapped] | context 512K; p50 | 243 | est. | 535.2 | behind |
-| x-tb-qwen-hybrid-ttft-move-512k | Qwen3-1.7B -> Qwen3-8B | TTFT component: cache move (ms) [mapped] | context 512K; p50 | 406 | est. | 132.8 | beaten |
-| x-tb-qwen-hybrid-ttft-decode-512k | Qwen3-1.7B -> Qwen3-8B | TTFT component: first target token (ms) [mapped] | context 512K; p50 | 572 | est. | 332.4 | beaten |
-| x-tb-qwen-hybrid-ttft-prefill-1m | Qwen3-1.7B -> Qwen3-8B | TTFT component: source-model prefill (ms) [mapped] | context 1M; p50 | 329710 | est. | 26017.8 | beaten |
-| x-tb-qwen-hybrid-ttft-map-1m | Qwen3-1.7B -> Qwen3-8B | TTFT component: KV map (ms) [mapped] | context 1M; p50 | 485 | est. | 1052.0 | behind |
-| x-tb-qwen-hybrid-ttft-move-1m | Qwen3-1.7B -> Qwen3-8B | TTFT component: cache move (ms) [mapped] | context 1M; p50 | 813 | est. | 267.6 | beaten |
-| x-tb-qwen-hybrid-ttft-decode-1m | Qwen3-1.7B -> Qwen3-8B | TTFT component: first target token (ms) [mapped] | context 1M; p50 | 1107 | est. | 632.1 | beaten |
+| x-tb-qwen-hybrid-ttft-prefill-256k | Qwen3-1.7B -> Qwen3-8B | TTFT component: source-model prefill (ms) [mapped] | context 256K; p50 | 22836 | est. | 2903.0 | hold(rig) |
+| x-tb-qwen-hybrid-ttft-map-256k | Qwen3-1.7B -> Qwen3-8B | TTFT component: KV map (ms) [mapped] | context 256K; p50 | 121 | est. | 1191.8 | hold(rig) |
+| x-tb-qwen-hybrid-ttft-move-256k | Qwen3-1.7B -> Qwen3-8B | TTFT component: cache move (ms) [mapped] | context 256K; p50 | 203 | est. | 80.3 | hold(rig) |
+| x-tb-qwen-hybrid-ttft-decode-256k | Qwen3-1.7B -> Qwen3-8B | TTFT component: first target token (ms) [mapped] | context 256K; p50 | 304 | est. | 6013.3 | hold(rig) |
+| x-tb-qwen-hybrid-ttft-prefill-512k | Qwen3-1.7B -> Qwen3-8B | TTFT component: source-model prefill (ms) [mapped] | context 512K; p50 | 85400 | est. | 7339.1 | hold(rig) |
+| x-tb-qwen-hybrid-ttft-map-512k | Qwen3-1.7B -> Qwen3-8B | TTFT component: KV map (ms) [mapped] | context 512K; p50 | 243 | est. | 535.2 | hold(rig) |
+| x-tb-qwen-hybrid-ttft-move-512k | Qwen3-1.7B -> Qwen3-8B | TTFT component: cache move (ms) [mapped] | context 512K; p50 | 406 | est. | 132.8 | hold(rig) |
+| x-tb-qwen-hybrid-ttft-decode-512k | Qwen3-1.7B -> Qwen3-8B | TTFT component: first target token (ms) [mapped] | context 512K; p50 | 572 | est. | 332.4 | hold(rig) |
+| x-tb-qwen-hybrid-ttft-prefill-1m | Qwen3-1.7B -> Qwen3-8B | TTFT component: source-model prefill (ms) [mapped] | context 1M; p50 | 329710 | est. | 26017.8 | hold(rig) |
+| x-tb-qwen-hybrid-ttft-map-1m | Qwen3-1.7B -> Qwen3-8B | TTFT component: KV map (ms) [mapped] | context 1M; p50 | 485 | est. | 1052.0 | hold(rig) |
+| x-tb-qwen-hybrid-ttft-move-1m | Qwen3-1.7B -> Qwen3-8B | TTFT component: cache move (ms) [mapped] | context 1M; p50 | 813 | est. | 267.6 | hold(rig) |
+| x-tb-qwen-hybrid-ttft-decode-1m | Qwen3-1.7B -> Qwen3-8B | TTFT component: first target token (ms) [mapped] | context 1M; p50 | 1107 | est. | 632.1 | hold(rig) |
 | x-tb-qwen-hybrid-v1-zebralogic-0-mapped-task-specific | Qwen3-1.7B -> Qwen3-8B | accuracy (0-1) [mapped_task_specific] | ZebraLogic (n=200 · task train 465 docs; section: short · reasoning on); tab: Task-specifi | 0.79 | yes |  | open |
 | x-tb-qwen-hybrid-v1-quality-1-mapped-task-specific | Qwen3-1.7B -> Qwen3-8B | accuracy (0-1) [mapped_task_specific] | QuALITY (n=500 · 209 docs; section: long · reasoning on); tab: Task-specific mapper | 0.72 | yes |  | open |
 | x-tb-qwen-hybrid-v1-contractnli-2-mapped-task-specific | Qwen3-1.7B -> Qwen3-8B | accuracy (0-1) [mapped_task_specific] | ContractNLI (n=500 · 478 docs; section: long · reasoning on); tab: Task-specific mapper | 0.74 | yes |  | open |
@@ -1084,22 +1084,22 @@
 | x-tb-qwen-ladder-ttft-map-64k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: KV map (ms) [mapped] | context 64K; p50 | 55 | est. | 96.8 | behind |
 | x-tb-qwen-ladder-ttft-move-64k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: cache move (ms) [mapped] | context 64K; p50 | 97 | est. | 24.0 | beaten |
 | x-tb-qwen-ladder-ttft-decode-64k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: first target token (ms) [mapped] | context 64K; p50 | 171 | est. | 63.6 | beaten |
-| x-tb-qwen-ladder-ttft-prefill-128k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: source-model prefill (ms) [mapped] | context 128K; p50 | 6372 | est. | 803.2 | beaten |
-| x-tb-qwen-ladder-ttft-map-128k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: KV map (ms) [mapped] | context 128K; p50 | 110 | est. | 190.0 | behind |
+| x-tb-qwen-ladder-ttft-prefill-128k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: source-model prefill (ms) [mapped] | context 128K; p50 | 6372 | est. | 803.2 | hold(rig) |
+| x-tb-qwen-ladder-ttft-map-128k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: KV map (ms) [mapped] | context 128K; p50 | 110 | est. | 190.0 | hold(rig) |
 | x-tb-qwen-ladder-ttft-move-128k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: cache move (ms) [mapped] | context 128K; p50 | 193 | est. | 48.4 | beaten |
-| x-tb-qwen-ladder-ttft-decode-128k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: first target token (ms) [mapped] | context 128K; p50 | 281 | est. | 100.6 | beaten |
-| x-tb-qwen-ladder-ttft-prefill-256k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: source-model prefill (ms) [mapped] | context 256K; p50 | 22468 | est. | 2433.8 | beaten |
-| x-tb-qwen-ladder-ttft-map-256k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: KV map (ms) [mapped] | context 256K; p50 | 220 | est. | 378.2 | behind |
+| x-tb-qwen-ladder-ttft-decode-128k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: first target token (ms) [mapped] | context 128K; p50 | 281 | est. | 100.6 | hold(rig) |
+| x-tb-qwen-ladder-ttft-prefill-256k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: source-model prefill (ms) [mapped] | context 256K; p50 | 22468 | est. | 2433.8 | hold(rig) |
+| x-tb-qwen-ladder-ttft-map-256k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: KV map (ms) [mapped] | context 256K; p50 | 220 | est. | 378.2 | hold(rig) |
 | x-tb-qwen-ladder-ttft-move-256k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: cache move (ms) [mapped] | context 256K; p50 | 386 | est. | 97.2 | beaten |
-| x-tb-qwen-ladder-ttft-decode-256k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: first target token (ms) [mapped] | context 256K; p50 | 500 | est. | 174.5 | beaten |
-| x-tb-qwen-ladder-ttft-prefill-512k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: source-model prefill (ms) [mapped] | context 512K; p50 | 83829 | est. | 7851.5 | beaten |
-| x-tb-qwen-ladder-ttft-map-512k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: KV map (ms) [mapped] | context 512K; p50 | 441 | est. | 752.0 | behind |
-| x-tb-qwen-ladder-ttft-move-512k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: cache move (ms) [mapped] | context 512K; p50 | 773 | est. | 313.8 | beaten |
-| x-tb-qwen-ladder-ttft-decode-512k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: first target token (ms) [mapped] | context 512K; p50 | 939 | est. | 337.6 | beaten |
-| x-tb-qwen-ladder-ttft-prefill-1m | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: source-model prefill (ms) [mapped] | context 1M; p50 | 323231 | est. | 28127.4 | beaten |
-| x-tb-qwen-ladder-ttft-map-1m | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: KV map (ms) [mapped] | context 1M; p50 | 882 | est. | 1492.6 | behind |
-| x-tb-qwen-ladder-ttft-move-1m | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: cache move (ms) [mapped] | context 1M; p50 | 1545 | est. | 618.7 | beaten |
-| x-tb-qwen-ladder-ttft-decode-1m | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: first target token (ms) [mapped] | context 1M; p50 | 1817 | est. | 646.4 | beaten |
+| x-tb-qwen-ladder-ttft-decode-256k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: first target token (ms) [mapped] | context 256K; p50 | 500 | est. | 174.5 | hold(rig) |
+| x-tb-qwen-ladder-ttft-prefill-512k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: source-model prefill (ms) [mapped] | context 512K; p50 | 83829 | est. | 7851.5 | hold(rig) |
+| x-tb-qwen-ladder-ttft-map-512k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: KV map (ms) [mapped] | context 512K; p50 | 441 | est. | 752.0 | hold(rig) |
+| x-tb-qwen-ladder-ttft-move-512k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: cache move (ms) [mapped] | context 512K; p50 | 773 | est. | 313.8 | hold(rig) |
+| x-tb-qwen-ladder-ttft-decode-512k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: first target token (ms) [mapped] | context 512K; p50 | 939 | est. | 337.6 | hold(rig) |
+| x-tb-qwen-ladder-ttft-prefill-1m | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: source-model prefill (ms) [mapped] | context 1M; p50 | 323231 | est. | 28127.4 | hold(rig) |
+| x-tb-qwen-ladder-ttft-map-1m | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: KV map (ms) [mapped] | context 1M; p50 | 882 | est. | 1492.6 | hold(rig) |
+| x-tb-qwen-ladder-ttft-move-1m | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: cache move (ms) [mapped] | context 1M; p50 | 1545 | est. | 618.7 | hold(rig) |
+| x-tb-qwen-ladder-ttft-decode-1m | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: first target token (ms) [mapped] | context 1M; p50 | 1817 | est. | 646.4 | hold(rig) |
 | x-tb-qwen-72-mean-map | Qwen2.5-3B -> Qwen2.5-72B | mean accuracy (0-1) [mapped_routed] | mean of 8 benchmarks (routed system chart) | 0.725 | yes |  | open |
 | x-tb-qwen-72-gap | Qwen2.5-3B -> Qwen2.5-72B | quality gap closed % [mapped_routed] | mean of 8 benchmarks | 68 | yes |  | open |
 | x-tb-qwen-72-ttft-frac | Qwen2.5-3B -> Qwen2.5-72B | TTFT as % of native target [mapped_routed] | 32K context | 12 | yes |  | open |
