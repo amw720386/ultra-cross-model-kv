@@ -327,13 +327,19 @@ class WindowRidge:
         dev = device or self.dev
         n = self.n
         maps = {}
+        base_dev = dev
         for w in self.wins:
+            dev = base_dev
             din = self.xx[w].shape[0]
             sdt = torch.float64
             if torch.device(dev).type == "cuda":  # fp64 solve needs ~3 din^2 doubles (A, factor, temporaries)
+                torch.cuda.empty_cache()
                 free_b = torch.cuda.mem_get_info(torch.device(dev))[0]
-                if free_b < 3.5 * 8 * din * din + 8 * din * max(self.dt[t] for t in self.targets if self.win[t] == w):
+                bw = 8 * din * max(self.dt[t] for t in self.targets if self.win[t] == w)
+                if free_b < 3.5 * 8 * din * din + bw:
                     sdt = torch.float32  # fp32 Cholesky with the ridge (as modal_fit_eval for big systems)
+                    if free_b < 3.5 * 4 * din * din + bw / 2:  # GPU full (e.g. a 128B target): solve on the host
+                        dev = "cpu"
             mx = (self.sx[w] / n).to(dev, sdt)
             A = self.xx[w].to(dev).to(sdt)
             A.addr_(mx, mx, alpha=-n)  # centered in place (no din x din temporary)

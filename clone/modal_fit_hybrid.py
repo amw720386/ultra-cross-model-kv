@@ -181,7 +181,11 @@ def fit_impl(src: str, tgt: str, run_id: str, n_calib: int = 4000, L: int = 1024
         batches = (calib[i:i + bs].to(dev) for i in range(0, len(calib), bs))
         rr = hybrid.calibrate(S, T, batches, w=w, targets=grp, drop_q=bool(drop_q), device=dev, stride=stride,
                               split_kv=bool(split_kv))
+        m0 = torch.cuda.memory_allocated() / 1e9 if dev == "cuda" else 0
         rr.offload()  # stats to host RAM; solve streams one window at a time (the in-GPU solve OOMed on 4B->27B)
+        if dev == "cuda":
+            print(f"[mem] before offload {m0:.1f} GB, after {torch.cuda.memory_allocated() / 1e9:.1f} GB, "
+                  f"free {torch.cuda.mem_get_info()[0] / 1e9:.1f} GB", flush=True)
         for i_l, lam in enumerate(lams):
             maps_by_lam[lam].update(rr.solve(lam_rel=lam, groups=ugroups, recolor=True, device=dev,
                                              free=(i_l == len(lams) - 1)))
@@ -328,7 +332,8 @@ def fit_safe(**kw):
         raise RuntimeError(traceback.format_exc()[-3000:]) from None
 
 
-fit = app.function(gpu=GPU_SPEC, volumes={"/vol": vol, "/hf": hf_shared.read_only()}, timeout=3300, memory=131072)(fit_safe)
+fit = app.function(gpu=GPU_SPEC, volumes={"/vol": vol, "/hf": hf_shared.read_only()}, timeout=3300, memory=131072,
+                   cpu=32.0)(fit_safe)
 
 
 @app.local_entrypoint()
