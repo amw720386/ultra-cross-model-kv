@@ -51,17 +51,20 @@ def model_path(name):
 
 
 def apply_yarn(cfg, factor, orig_ctx=32768):
-    """Set YaRN on an HF config for both transformers 4 (rope_scaling) and 5 (rope_parameters); keeps rope_theta."""
-    rp = dict(getattr(cfg, "rope_parameters", None) or {})
-    theta = rp.get("rope_theta") or getattr(cfg, "rope_theta", None) or 10000.0
-    y = {"rope_type": "yarn", "factor": float(factor), "original_max_position_embeddings": int(orig_ctx),
-         "rope_theta": float(theta)}
-    cfg.rope_scaling = dict(y)
+    """Set YaRN on an HF config for both transformers 4 (rope_scaling) and 5 (rope_parameters); keeps rope_theta and the
+    other rope keys (partial_rotary_factor, mrope_section: Qwen3.5/3.8). Multimodal checkpoints: on text_config."""
+    tc = getattr(cfg, "text_config", None) or cfg
+    rp = dict(getattr(tc, "rope_parameters", None) or {})
+    theta = rp.get("rope_theta") or getattr(tc, "rope_theta", None) or 10000.0
+    y = dict(rp, rope_type="yarn", factor=float(factor), original_max_position_embeddings=int(orig_ctx),
+             rope_theta=float(theta))
+    y.pop("type", None)
+    tc.rope_scaling = dict(y)
     try:
-        cfg.rope_parameters = dict(y)
+        tc.rope_parameters = dict(y)
     except Exception:
         pass
-    cfg.max_position_embeddings = int(orig_ctx * factor)
+    tc.max_position_embeddings = int(orig_ctx * factor)
     return cfg
 
 

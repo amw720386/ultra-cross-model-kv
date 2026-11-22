@@ -54,6 +54,7 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
     def __init__(self, vllm_config, role, kv_cache_config=None):
         super().__init__(vllm_config=vllm_config, role=role, kv_cache_config=kv_cache_config)
         cfg = self._kv_transfer_config
+        self.max_model_len = int(vllm_config.model_config.max_model_len)
         self.tail = int(cfg.get_from_extra_config("tail", 256))
         self.align = int(cfg.get_from_extra_config("align", 1))
         self.tail_frac = float(cfg.get_from_extra_config("tail_frac", 0.25))
@@ -253,6 +254,9 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
                     if want.search(k):
                         sd[re.sub(r"^.*?(layers\.)", "model.layers.", k)] = h.get_tensor(k)
         self.params = hs.TargetParams.from_state_dict(tcfg, sd).to(device)
+        if getattr(self.params, "yarn", None):  # kvx-speed: vLLM's rope rows (its mrope YaRN differs from HF's formula)
+            hs.vllm_rope_table(self.params, tcfg.rope_parameters, getattr(self, "max_model_len", 0) or 1048576, device)
+            logger.info("kvx hybrid: target rope = vLLM table (%d positions)", self.params.rope_table[0].shape[0])
         self.full_params = self.params
         self.prefix = None
         if self.native_layers > 0:

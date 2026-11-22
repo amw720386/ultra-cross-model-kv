@@ -23,6 +23,24 @@ hf_shared = modal.Volume.from_name(os.environ.get("KVX_WEIGHTS_VOLUME", "kvx-hf"
 app = modal.App(os.environ.get("KVX_APP", "kvx-vllm"), image=image)
 
 
+def target_overrides(tgt, yarn, orig_ctx, max_model_len):
+    """(hf_overrides or None, allow_long). yarn > 0: YaRN on the target's text config (rope_parameters in transformers
+    5; multimodal checkpoints such as Qwen3.8 / Gemma-4 keep it under text_config, and their partial-rotary / mrope keys
+    must survive). yarn == 0 past the card's max_position_embeddings (plain RoPE, labelled beyond-spec rows): allow_long."""
+    from transformers import AutoConfig
+    full = AutoConfig.from_pretrained(tgt)
+    if yarn > 0:
+        from kvx.models import apply_yarn
+        apply_yarn(full, yarn, orig_ctx)
+        tc = getattr(full, "text_config", None) or full
+        mpos = tc.max_position_embeddings
+        ov = {"rope_parameters": tc.rope_parameters, "rope_scaling": tc.rope_scaling, "max_position_embeddings": mpos}
+        return ({"text_config": ov} if tc is not full else ov), max_model_len > mpos
+    tc = getattr(full, "text_config", None) or full
+    mp = getattr(tc, "max_position_embeddings", 0) or 0
+    return None, bool(mp and max_model_len > mp)
+
+
 def serve_impl(mode: str, src: str, tgt: str, maps: str, lens: str, tail: int, reps: int = 3, fp8: int = -1, tag: str = "",
                util: float = 0.72, restore: str = "rms", sink: str = "", backend: str = "FLASH_ATTN",
                yarn: float = 0.0, orig_ctx: int = 32768, quality_long: int = 0, maxlen: int = 0, src_sdpa: str = "cudnn", tp: int = 1, src_tp: int = 1, lens_quality: int = 1,
@@ -35,12 +53,11 @@ def serve_impl(mode: str, src: str, tgt: str, maps: str, lens: str, tail: int, r
         kw = dict(model=tgt, dtype="bfloat16", max_model_len=maxlen or (max(int(x) for x in lens.split(",")) + 256),
                   gpu_memory_utilization=util, enable_prefix_caching=False, enforce_eager=False,
                   **({"attention_backend": backend} if backend else {}), tensor_parallel_size=tp)
-        if yarn > 0:  # YaRN on the target via HF config overrides (rope_parameters in transformers 5)
-            from transformers import AutoConfig
-            from kvx.models import apply_yarn
-            tc = apply_yarn(AutoConfig.from_pretrained(tgt), yarn, orig_ctx)
-            kw["hf_overrides"] = {"rope_parameters": tc.rope_parameters, "rope_scaling": tc.rope_scaling,
-                                  "max_position_embeddings": tc.max_position_embeddings}
+        ov, allow_long = target_overrides(tgt, yarn, orig_ctx, kw["max_model_len"])
+        if ov:
+            kw["hf_overrides"] = ov
+        if allow_long:
+            os.environ["VLLM_ALLOW_LONG_MAX_MODEL_LEN"] = "1"
         if max_num_seqs:  # hybrid (GatedDeltaNet) targets: vLLM refuses the default 256 state slots on 80 GB
             kw["max_num_seqs"] = max_num_seqs
         if mode == "mapped":

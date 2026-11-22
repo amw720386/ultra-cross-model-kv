@@ -89,8 +89,34 @@ def _yarn_inv_freq(rd, base, y, device):
     return inv, float(af)
 
 
+def vllm_rope_table(p, rope_parameters, n_pos, device):
+    """p.rope_table = vLLM's own cos/sin rows for this target's rope (get_rope, the call vLLM's attention makes), first
+    n_pos positions, as [n_pos, rd] neox-cat tables with the YaRN mscale folded in. vLLM 0.34's mrope YaRN ramps its
+    frequencies as if the original context were orig*factor (Qwen3.8 YaRN x4 from 262144: dims 15-23 off by up to 43%
+    vs the HF formula, |dcos| ~2 past 262K; tests/modal_target_overrides_cpu.py), so mapped keys must use vLLM's
+    table, not HF's, to match the queries vLLM computes."""
+    from vllm.model_executor.layers.rotary_embedding import get_rope
+    from vllm.config import DeviceConfig, VllmConfig, set_current_vllm_config
+    rd = int(p.head_dim * p.partial)
+    with set_current_vllm_config(VllmConfig(device_config=DeviceConfig(device="cpu"))):
+        rope = get_rope(head_size=p.head_dim, max_position=int(n_pos), is_neox_style=True,
+                        rope_parameters=dict(rope_parameters), dtype=torch.float32)
+    cache = rope.cos_sin_cache.float()
+    if cache.shape[1] != rd or cache.shape[0] < n_pos:
+        raise RuntimeError(f"vLLM rope cache {tuple(cache.shape)} vs rotary dim {rd}, {n_pos} positions")
+    c, s_ = cache[:n_pos, :rd // 2], cache[:n_pos, rd // 2:]
+    p.rope_table = (torch.cat([c, c], -1).to(device), torch.cat([s_, s_], -1).to(device))
+    del rope, cache
+    return p
+
+
 def rope_cos_sin(p, T, device, dtype=torch.float32, offset=0):
     rd = int(p.head_dim * p.partial)
+    tab = getattr(p, "rope_table", None)
+    if tab is not None:  # vLLM's own rows (vllm_rope_table)
+        if offset + T > tab[0].shape[0]:
+            raise RuntimeError(f"rope table has {tab[0].shape[0]} positions, need {offset + T}")
+        return tab[0][offset:offset + T].to(device, dtype), tab[1][offset:offset + T].to(device, dtype), rd
     scale = 1.0
     if getattr(p, "yarn", None):
         inv, scale = _yarn_inv_freq(rd, p.theta, p.yarn, device)
