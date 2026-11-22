@@ -101,6 +101,41 @@ def arena_rows(root, ours):
                 ours["x-ar-match-or-exceed"] = dict(value=a["better"] + a["same"], n=36, run_id=run_id + "+glm-judge", note=jn)
 
 
+def ttft007_rows(root, ours, their_kl=0.18138, their_top1=82.52):
+    """x-ml-ttft-8k-speedup: speedup vs native vLLM 8K prefill (strict), value_hf_baseline vs HF prefill (theirs)."""
+    fs = glob.glob(f"{root}/ttft007-*/*.json")
+    vs = glob.glob(f"{root}/vllm-llama8b-*/vllm_native.json")
+    if not fs:
+        return
+    r = json.load(open(fs[0]))
+    tm, q = r["timing"], r["kl32_greedy"]
+    arms = {"handoff_direct": "direct", "handoff_distilled": "ridge_kd"}
+    best = None
+    for a, qa in arms.items():
+        if a not in tm or qa not in q:
+            continue
+        ok = q[qa]["kl32"] <= their_kl + 2 * (q[qa].get("kl32_se") or 0)  # not worse than their learned arm beyond noise
+        cand = (tm[a]["p50_ms"], a, qa, ok)
+        if ok and (best is None or cand[0] < best[0]):
+            best = cand
+    if best is None:  # neither arm meets the quality bar: report the faster one, flagged
+        a = min((x for x in arms if x in tm), key=lambda x: tm[x]["p50_ms"])
+        best = (tm[a]["p50_ms"], a, arms[a], False)
+    ms, a, qa, ok = best
+    vn = json.load(open(vs[0]))["8192"]["p50_ms"] if vs else None
+    run_id = os.path.basename(os.path.dirname(fs[0]))
+    note = (f"handoff with the source cache RESIDENT (source prefill not counted, as theirs): arm {a}, target TTFT p50 {ms:.2f} ms "
+            f"(their learned arm 38.25 ms); native HF prefill p50 {tm['native_prefill']['p50_ms']:.1f} ms (theirs 302.69); "
+            f"native vLLM 8K prefill p50 {vn if vn is None else round(vn, 1)} ms; {tm['tokens']} real FineWeb tokens, "
+            f"p50 of {tm[a]['reps']} reps after {tm[a]['warmups']} warmups, CUDA-synchronized, {r['gpu']}; quality of this arm: "
+            f"KL32 {q[qa]['kl32']:.5f} / top-1 {100 * q[qa]['agree']:.2f}% on 64 WikiText-103 windows x 256 prefix (their learned "
+            f"{their_kl} / {their_top1}); quality_ok={ok}")
+    ours["x-ml-ttft-8k-speedup"] = dict(value=(vn / ms) if vn else None, value_hf_baseline=tm["native_prefill"]["p50_ms"] / ms,
+                                       baseline_vllm=vn, rig=f"Modal {r['gpu']}, HF bf16 handoff; vLLM native baseline",
+                                       run_id=run_id, quality_ok=ok, note=note)
+    ours["x-ml-ttft-8k-learned"] = dict(value=ms, rig=f"Modal {r['gpu']}, HF bf16", run_id=run_id, quality_ok=ok, note=note)
+
+
 def kl32_rows(root, ours):
     for f in glob.glob(f"{root}/kl32-*/*.json"):
         r = json.load(open(f))
@@ -205,6 +240,7 @@ def main(root, out_path):
             if "direct" in h:
                 put("x-v0-nta-gain", h["map_k1"]["agree"] / max(h["direct"]["agree"], 1e-9), h["map_k1"]["n"] * 64)
     kl32_rows(root, ours)
+    ttft007_rows(root, ours)
     arena_rows(root, ours)
     if len(means.get("mapped", [])) == 10:  # the ten-direction means (their 43.67 / 49.14 / 56.02 / 72.11)
         m = {a: (sum(v) / 10 if None not in v else None) for a, v in means.items()}
