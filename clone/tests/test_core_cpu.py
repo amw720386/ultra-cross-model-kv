@@ -552,3 +552,14 @@ def test_kv_layout_rejects_unknown():
     vc = _import_connector_with_stub_vllm()
     with pytest.raises(RuntimeError):
         vc.kv_layout(torch.zeros(3, 5, 16, 7), 4, 8, "X")
+
+
+def test_kv_layout_h2_needs_backend():
+    """H == 2 (e.g. TP2 of a 4-KV-head model): [blocks, 2, block, 2D] is FlashAttention's fa OR split4. Guessing
+    without the backend wrote every TP2 K/V of the hybrid connector in the wrong layout (oracle KL 1.41)."""
+    vc = _import_connector_with_stub_vllm()
+    kv = torch.zeros(3, 2, 16, 16)
+    assert vc.kv_layout(kv, 2, 8, "FLASH_ATTN") == "fa"
+    assert vc.kv_layout(kv, 2, 8, "ROCM_ATTN") == "split4"
+    with pytest.raises(RuntimeError):
+        vc.kv_layout(kv, 2, 8, "")

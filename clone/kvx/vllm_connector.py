@@ -85,6 +85,8 @@ def kv_layout(kv, H, D, backend=""):
     lead2: [2, blocks, block, H, D] (older flash-attn). The backend name settles the H == 2 ambiguity of fa vs split4."""
     b = str(backend).upper()
     sh = tuple(kv.shape)
+    if kv.dim() == 4 and H == 2 and sh[1] == 2 and sh[3] == 2 * D and not b:
+        raise RuntimeError(f"kvx connector: KV cache {sh} is fa or split4 when H == 2; pass the attention backend name")
     if kv.dim() == 4 and sh[1] == H and sh[3] == 2 * D and (H != 2 or "FLASH_ATTN" in b):
         return "fa"
     if kv.dim() == 5 and sh[1] == 2 and sh[3:] == (H, D):

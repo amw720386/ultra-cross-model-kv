@@ -372,7 +372,15 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
                     bi, off = slots // bs, slots % bs
                     kv = cache[0] if isinstance(cache, (list, tuple)) else cache
                     if self._layout is None:
-                        self._layout = self.kv_layout(kv, K.shape[1], K.shape[2], "")
+                        # the backend name settles fa vs split4 when this rank holds 2 KV heads (TP2 of a 4-KV-head
+                        # model): without it TP2 wrote every attention K/V in the wrong layout (oracle KL 1.41)
+                        fl = next((l for n, l in forward_context.no_compile_layers.items()
+                                   if _LAYER_RE.search(n) and int(_LAYER_RE.search(n).group(1)) == t), None)
+                        be = getattr(fl, "attn_backend", None)
+                        bname = be.get_name() if hasattr(be, "get_name") else type(getattr(fl, "impl", None)).__name__
+                        self._layout = self.kv_layout(kv, K.shape[1], K.shape[2], str(bname))
+                        print(f"[kvx] hybrid: attention backend {bname}, KV layout {self._layout}, kv shape "
+                              f"{tuple(kv.shape)}, {K.shape[1]} KV heads on this rank", flush=True)
                     from .vllm_connector import write_kv
                     write_kv(kv, bi, off, K.to(torch.bfloat16), V.to(torch.bfloat16), bs, self._layout)
                 else:
