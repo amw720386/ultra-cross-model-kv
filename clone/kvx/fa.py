@@ -10,13 +10,15 @@ FP8 = False
 # sliding attention window for the SOURCE prefill (0 = full causal). Each source token attends to the last WINDOW tokens
 # only: attention FLOPs drop from O(T^2) to O(T*W). The target still attends over the whole mapped prefix.
 WINDOW = 0
-# what the kernel was actually asked to do (proof that a windowed arm ran windowed): calls, calls with a window_size,
-# the distinct window_size values passed, fp8 calls. Reset with reset_stats().
-STATS = {"calls": 0, "windowed_calls": 0, "window_sizes": [], "fp8_calls": 0}
+# what the kernel was actually asked to do. Proof that a windowed arm ran windowed: windowed_calls == calls_over_window
+# > 0 and window_sizes == [[WINDOW - 1, 0]] (a chunk with S <= WINDOW is full causal == window, so it passes no
+# window_size). Default arm: windowed_calls == 0 unless the source has its own sliding layers (sliding_layer_calls > 0).
+# Reset with reset_stats().
+STATS = {"calls": 0, "windowed_calls": 0, "calls_over_window": 0, "sliding_layer_calls": 0, "window_sizes": [], "fp8_calls": 0}
 
 
 def reset_stats():
-    STATS.update(calls=0, windowed_calls=0, window_sizes=[], fp8_calls=0)
+    STATS.update(calls=0, windowed_calls=0, calls_over_window=0, sliding_layer_calls=0, window_sizes=[], fp8_calls=0)
 
 
 def quant_e4m3(x, n_kv):
@@ -62,6 +64,10 @@ def vllm_fa_attention(module, query, key, value, attention_mask=None, scaling=No
     if win and S > win:
         kw["window_size"] = [win - 1, 0]
     STATS["calls"] += 1
+    if WINDOW and S > WINDOW:  # calls the module window must cut (chunks with S <= WINDOW are full causal == window)
+        STATS["calls_over_window"] += 1
+    if sw:  # the layer's own sliding window (Gemma local layers); GLM-4.7-Flash has none
+        STATS["sliding_layer_calls"] += 1
     if "window_size" in kw:
         STATS["windowed_calls"] += 1
         if kw["window_size"] not in STATS["window_sizes"]:
