@@ -1,0 +1,23 @@
+{
+ "rule": "all 4 easy + medium: shortest-timeout task per category (2 for software-engineering), up to 11 + the 3 shortest-timeout hard tasks; deterministic from task.toml (harborframework/terminal-bench-2.0)",
+ "tasks": [
+  "cobol-modernization",
+  "fix-git",
+  "overfull-hbox",
+  "prove-plus-comm",
+  "modernize-scientific-stack",
+  "build-cython-ext",
+  "build-pmars",
+  "chess-best-move",
+  "count-dataset-tokens",
+  "crack-7z-hash",
+  "db-wal-recovery",
+  "git-leak-recovery",
+  "git-multibranch",
+  "hf-model-inference",
+  "largest-eigenval",
+  "cancel-async-tasks",
+  "configure-git-webserver",
+  "fix-code-vulnerability"
+ ]
+}

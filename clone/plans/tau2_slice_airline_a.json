@@ -1,0 +1,16 @@
+{
+ "rule": "half a of OneTriangle's mapped airline slice (tau2_slice.json)",
+ "mapped_slice_task_ids": {
+  "airline": [
+   "0",
+   "1",
+   "16",
+   "2",
+   "3",
+   "4",
+   "5",
+   "6",
+   "7"
+  ]
+ }
+}
