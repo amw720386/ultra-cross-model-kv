@@ -99,7 +99,8 @@ def fit_impl(src: str, tgt: str, run_id: str, n_calib: int = 4000, L: int = 1024
              lam_rels: str = "1e-3", n_eval: int = 64, P: int = 960, sinks: str = "4", tails: str = "64,256",
              bs: int = 4, mem_frac: float = 0.80, save: int = 1, oracle: int = 1, stride: int = 4, tf32: int = 0,
              split_kv: int = 0, maps_from: str = "", ebs: int = 2, eval_l: int = 0, tgt_device_map: str = "",
-             gpu0_gib: int = 60, per_gpu_gib: int = 130, xkv_maps: str = "", emb_feats: int = 0):
+             gpu0_gib: int = 60, per_gpu_gib: int = 130, xkv_maps: str = "", emb_feats: int = 0, niah: int = 0,
+             niah_len: int = 4096, niah_native: str = ""):
     import torch
     from transformers import AutoTokenizer
     from kvx import hybrid
@@ -333,6 +334,52 @@ def fit_impl(src: str, tgt: str, run_id: str, n_calib: int = 4000, L: int = 1024
             del given
         del feats
     res["eval"] = {k: {m: v[m] / v["n"] for m in ("kl", "kl_first", "agree")} for k, v in acc.items()}
+
+    # ---- needle recall (gate on recall, not KL: a map can have fine KL and lose exact recall)
+    if niah and lams:
+        import random
+        rng = random.Random(0)
+        filler = evals.reshape(-1).tolist()
+        q_ids = tok("\nWhat is the secret number mentioned above? The secret number is", add_special_tokens=False)["input_ids"]
+        native_sets = [[]] + [[int(x) for x in g.split("+")] for g in niah_native.split(",") if g]
+        hits = {}
+        m0 = maps_by_lam[lams[0]]
+        for k in range(niah):
+            num = str(rng.randrange(1000000, 9999999))
+            nd = tok(f" The secret number is {num}. Remember it.", add_special_tokens=False)["input_ids"]
+            body = niah_len - len(nd) - len(q_ids)
+            st = rng.randrange(0, max(1, len(filler) - body))
+            hay = filler[st:st + body]
+            pos = rng.randrange(int(0.1 * body), int(0.9 * body))
+            ids_l = hay[:pos] + nd + hay[pos:] + q_ids
+            if _bos(tok):
+                ids_l = [tok.bos_token_id] + ids_l[1:]
+            ids = torch.tensor([ids_l], device=dev)
+            N = len(q_ids) + 16  # the question (and a little before it) runs natively
+            Pm = ids.shape[1] - N
+
+            def gen(cache, first):
+                out, lg = [], first
+                for _ in range(10):
+                    nxt = lg[:, -1:].argmax(-1)
+                    out.append(int(nxt))
+                    lg, cache = T.forward(nxt, cache=cache)
+                return tok.decode(out)
+            lg, c = T.forward(ids, keep=1)
+            hits.setdefault("native", []).append(num in gen(c, lg))
+            del c
+            g = hybrid.restore_rms({t: dict(d) for t, d in hybrid.apply_units(
+                m0, hybrid.source_features(S, ids[:, :Pm], drop_q=bool(drop_q), emb=bool(emb_feats)), 1, Pm, T, us, ut,
+                recolor=True, drop_q=bool(drop_q), src=S, out_dtype=torch.bfloat16).items()}, T)
+            for ns in native_sets:
+                gg = {t: d for t, d in g.items() if t not in ns}  # layers in ns keep their native taps
+                cache = hybrid.mapped_cache(T, ids[:, :Pm], gg, sinks=4)
+                lg, cache = T.forward(ids[:, Pm:], cache=cache)
+                hits.setdefault("mapped" + ("" if not ns else "_native" + "+".join(map(str, ns))), []).append(num in gen(cache, lg[:, -1:]))
+                del cache
+        res["niah"] = {k: sum(v) / len(v) for k, v in hits.items()}
+        res["niah_cfg"] = dict(n=niah, len=niah_len, native_sets=native_sets, mapped="recolor+rms, native sink 4, native question tail")
+        print("[niah]", res["niah"], flush=True)
     res["t_total"] = time.time() - t0
     os.makedirs(f"/vol/runs/{run_id}", exist_ok=True)
     json.dump(res, open(f"/vol/runs/{run_id}/result.json", "w"), indent=1, default=str)
@@ -357,12 +404,14 @@ def main(src: str = "Qwen/Qwen3.5-4B", tgt: str = "Qwen/Qwen3.8-27B", run_id: st
          w: int = 3, drop_q: int = 1, lam_rels: str = "1e-3", n_eval: int = 64, sinks: str = "4", tails: str = "64,256",
          bs: int = 4, oracle: int = 1, save: int = 1, stride: int = 4, tf32: int = 0, split_kv: int = 0,
          maps_from: str = "", prefix: int = 960, eval_l: int = 0, ebs: int = 2, tgt_device_map: str = "",
-         gpu0_gib: int = 60, per_gpu_gib: int = 130, xkv_maps: str = "", emb_feats: int = 0):
+         gpu0_gib: int = 60, per_gpu_gib: int = 130, xkv_maps: str = "", emb_feats: int = 0, niah: int = 0,
+         niah_len: int = 4096, niah_native: str = ""):
     run_id = run_id or time.strftime("pairs-%Y%m%dT%H%M%SZ", time.gmtime())
     r = fit.remote(src=src, tgt=tgt, run_id=run_id, n_calib=n_calib, w=w, drop_q=drop_q, lam_rels=lam_rels,
                    n_eval=n_eval, sinks=sinks, tails=tails, bs=bs, oracle=oracle, save=save, stride=stride, tf32=tf32, split_kv=split_kv,
                    maps_from=maps_from, P=prefix, eval_l=eval_l, ebs=ebs, tgt_device_map=tgt_device_map,
-                   gpu0_gib=gpu0_gib, per_gpu_gib=per_gpu_gib, xkv_maps=xkv_maps, emb_feats=emb_feats)
+                   gpu0_gib=gpu0_gib, per_gpu_gib=per_gpu_gib, xkv_maps=xkv_maps, emb_feats=emb_feats, niah=niah,
+                   niah_len=niah_len, niah_native=niah_native)
     os.makedirs(f"out/{run_id}", exist_ok=True)
     json.dump(r, open(f"out/{run_id}/result.json", "w"), indent=1)
     print(json.dumps(r.get("eval", r), indent=1))
