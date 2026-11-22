@@ -57,8 +57,8 @@ def mc_gpu_seq(pairs, run_id, kw, harness="mc128"):
     """All directions in one container; each model loaded once (kept while a later pair needs it)."""
     import gc, time, torch
     hf_shared.reload()
-    from research import mc128, kl32, arena, xfit, recall015, debugkv, qa018
-    mod = {"kl32": kl32, "arena": arena, "xfit": xfit, "recall015": recall015, "debugkv": debugkv, "qa018": qa018}.get(harness, mc128)
+    from research import mc128, kl32, arena, xfit, recall015, debugkv, qa018, ttft007
+    mod = {"kl32": kl32, "arena": arena, "xfit": xfit, "recall015": recall015, "debugkv": debugkv, "qa018": qa018, "ttft007": ttft007}.get(harness, mc128)
     cache, outs = {}, []
     for i, (s, t) in enumerate(pairs):
         later = {m for p in pairs[i:] for m in p}
@@ -89,16 +89,66 @@ def mc_gpu_seq(pairs, run_id, kw, harness="mc128"):
     return outs
 
 
+# native vLLM prefill TTFT (strict baseline for TTFT rows): own image, same GPU class
+vllm_image = (modal.Image.debian_slim(python_version="3.12")
+              .pip_install("vllm", "datasets", "hf_transfer")
+              .env({"HF_HOME": "/vol/hf", "HF_HUB_ENABLE_HF_TRANSFER": "1",
+                    **{k: os.environ[k] for k in ("KVX_VOLUME", "KVX_WEIGHTS_VOLUME", "KVX_RESEARCH_VOLUME") if k in os.environ}}))
+
+
+@app.function(gpu=GPU, timeout=3300, volumes=VOLS, image=vllm_image)
+def vllm_native_ttft(model, lens, warm=5, reps=20, max_model_len=0):
+    """Single-request prefill TTFT in vLLM (prefix caching off, max_tokens=1): p50 wall time over `reps` real FineWeb
+    prompts of each length (fresh tokens per rep so no cache can hit)."""
+    import time, statistics
+    hf_shared.reload()
+    from vllm import LLM, SamplingParams
+    from vllm.inputs import TokensPrompt
+    from huggingface_hub import snapshot_download
+    path = snapshot_download(model, cache_dir="/hf/hub", local_files_only=True)
+    from transformers import AutoTokenizer
+    tok = AutoTokenizer.from_pretrained(path)
+    mlen = max_model_len or (max(lens) + 64)
+    llm = LLM(model=path, max_model_len=mlen, enable_prefix_caching=False, gpu_memory_utilization=0.85, seed=0)
+    from datasets import load_dataset
+    ds = iter(load_dataset("HuggingFaceFW/fineweb-edu", name="sample-10BT", split="train", streaming=True))
+    sp = SamplingParams(max_tokens=1, temperature=0.0)
+    import vllm as _v
+    out = dict(model=model, engine=f"vllm {_v.__version__}", prefix_caching=False)
+    for L in lens:
+        prompts = []
+        while len(prompts) < warm + reps:
+            ids = tok(next(ds)["text"], add_special_tokens=False)["input_ids"]
+            if len(ids) >= L - 1:
+                prompts.append(([tok.bos_token_id] if tok.bos_token_id is not None else []) + ids[:L - 1])
+        ts = []
+        for i, p in enumerate(prompts):
+            t0 = time.perf_counter()
+            llm.generate([TokensPrompt(prompt_token_ids=p[:L])], sp, use_tqdm=False)
+            if i >= warm:
+                ts.append(1000 * (time.perf_counter() - t0))
+        out[str(L)] = dict(p50_ms=statistics.median(ts), min_ms=min(ts), max_ms=max(ts), reps=reps, warmups=warm)
+        print(L, out[str(L)], flush=True)
+    return out
+
+
 @app.local_entrypoint()
 def main(pairs: str, run_id: str = "mc128", cpu: int = 0, n_calib: int = 500, length: int = 512, ks: str = "1,4,8,16",
          n_heldout: int = 32, per_task: int = 32, hs_n: int = 0, piqa_n: int = 0, one_pass: int = 1, dtype: str = "bfloat16",
          calib_src: str = "fineweb", recipes: str = "", harness: str = "mc128", extra: str = ""):
-    if harness in ("kl32", "arena", "xfit", "recall015", "debugkv", "qa018"):  # kl32.run_pair keywords; extra = JSON overrides (windows, prefix, steps, mc, forced)
+    if harness in ("kl32", "arena", "xfit", "recall015", "debugkv", "qa018", "ttft007"):  # kl32.run_pair keywords; extra = JSON overrides (windows, prefix, steps, mc, forced)
         kw = dict(n_calib=n_calib, L=length, ks=ks, calib_src=calib_src, recipes=recipes, one_pass=one_pass)
     else:
         kw = dict(n_calib=n_calib, L=length, ks=ks, n_heldout=n_heldout, per_task=per_task, hs_n=hs_n, piqa_n=piqa_n,
                   one_pass=one_pass, dtype=dtype, calib_src=calib_src, recipes=recipes)
     kw.update(json.loads(extra) if extra else {})
+    if harness == "vllm_native":  # pairs = model ids; extra {"lens": [...]} ; result -> out/<run_id>/vllm_native.json
+        ex = json.loads(extra) if extra else {}
+        os.makedirs(f"out/{run_id}", exist_ok=True)
+        r = vllm_native_ttft.remote(pairs, ex.get("lens", [8192]), ex.get("warm", 5), ex.get("reps", 20))
+        json.dump(r, open(f"out/{run_id}/vllm_native.json", "w"), indent=1)
+        print(json.dumps(r))
+        return
     plist = [p.split(":") for p in pairs.split(",")]
     os.makedirs(f"out/{run_id}", exist_ok=True)
     if cpu:
