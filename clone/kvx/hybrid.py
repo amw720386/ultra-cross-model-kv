@@ -476,13 +476,12 @@ def to_core_maps(maps, us, ut, tgt):
     """Export split_kv attention maps to modal_fit_eval's maps_k format {"k": [per target layer], "v": [...]}
     (sel = source LAYER ids; W rows = their K (or V) blocks in sel order), for kvx/vllm_connector.py."""
     out = {"k": [], "v": []}
-    c = tgt.cfg
-    H = c.num_key_value_heads
     for j, (t, kind, _) in enumerate(ut):
         if kind not in ("attn_k", "attn_v") or j not in maps:
             continue
         m = maps[j]
-        D = m["W"].shape[1] // H
+        D = tgt.layers[t].self_attn.head_dim  # per layer (Gemma 4: sliding 256, global 512; config is heterogeneous)
+        H = m["W"].shape[1] // D
         out["k" if kind == "attn_k" else "v"].append(dict(sel=[us[i][0] for i in m["sel"]], W=m["W"].float().cpu(),
                                                          b=m["b"].float().cpu(), r2=m.get("r2"), mu=m.get("mu"),
                                                          H=H, D=D, layer=t))
