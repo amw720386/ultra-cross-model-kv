@@ -58,7 +58,17 @@ def main():
     ap.add_argument("--model", default="gpt-5.5")
     ap.add_argument("--data-root", required=True)
     ap.add_argument("--workers", type=int, default=8)
+    ap.add_argument("--rubric", default="v2frac",
+                    help="v2frac (default; kvx-research's calibration: native 27B .479 vs their native .4933) | v0 (original)")
     a = ap.parse_args()
+    global PROMPT
+    if a.rubric != "v0":
+        import importlib.util, os as _os
+        path = _os.path.join(_os.path.dirname(__file__), "..", "..", "research", "qmsum_calib.py")
+        spec = importlib.util.spec_from_file_location("qmsum_calib", path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        PROMPT = mod.VARIANTS[a.rubric]
     from kvx.evals import data
     queries = {it["id"]: it["question"].split("\n\n")[0].removeprefix("Query: ") for it in data.qmsum(a.data_root, 10**6)}
     rows = [json.loads(l) for l in open(a.gens)]
@@ -73,7 +83,7 @@ def main():
     m = sum(ok) / len(ok) if ok else float("nan")
     sd = math.sqrt(sum((x - m) ** 2 for x in ok) / max(1, len(ok) - 1)) if ok else float("nan")
     print(json.dumps(dict(n=len(res), scored=len(ok), mean=m, ci_half=1.96 * sd / math.sqrt(max(1, len(ok))),
-                          cost_usd=sum(r["cost"] for r in res), judge=a.model)))
+                          cost_usd=sum(r["cost"] for r in res), judge=a.model, rubric=a.rubric)))
 
 
 if __name__ == "__main__":
