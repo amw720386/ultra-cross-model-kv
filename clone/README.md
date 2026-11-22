@@ -67,7 +67,7 @@ This repo rebuilds, from public material only, the method that OneTriangle (YC S
 | bundle-cowtext-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | CowText | 0.65 | None | quality | blocked |
 | bundle-humaneval-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | HumanEval | 0.91 | 0.85 | quality | tied |
 | bundle-mbpp-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | MBPP | 0.88 | 0.84 | quality | tied |
-| bundle-bigcodebench-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | BigCodeBench | 0.55 | 0.5 | quality | tied |
+| bundle-bigcodebench-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | BigCodeBench | 0.55 | 0.59 | quality | tied |
 | bundle-math-500-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | MATH-500 | 0.59 | 0.9 | quality | beaten |
 | bundle-tau2-airline-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | tau2 Airline | 0.5882352941 | 0.4118 | quality | tied |
 | bundle-tau2-retail-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | tau2 Retail | 0.4117647059 |  | quality | open |
