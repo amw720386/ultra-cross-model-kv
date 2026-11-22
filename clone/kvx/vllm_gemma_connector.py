@@ -86,6 +86,7 @@ class GemmaCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
         self.min_len = int(g("min_len", 512))
         self.src_name, self.maps_path, self.sink_path = g("src", None), g("maps", None), g("sink_template", None)
         self.src_sdpa = str(g("src_sdpa", "vllm_fa"))
+        self.src_tp = int(g("g4_src_tp", 0))  # kvx-speed: Megatron-split source prefill, opt-in until GPU-checked
         self.dump_path = g("dump_path", None)  # debug: save the first request's written K/V (rank 0) for an HF check
         self.tgt_name = vllm_config.model_config.model
         self.max_len = vllm_config.model_config.max_model_len
@@ -156,6 +157,14 @@ class GemmaCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
             from .fa import use_vllm_fa
             use_vllm_fa(self.Sdec.model)
         self.src_w = [dict(w) for w in hybrid.tap_widths(self.Sdec)]  # per source layer {"k": wk, "v": wv}
+        self.src_tp_on = False
+        if self.tp_size > 1 and getattr(self, "src_tp", 0):  # after tap_widths: src_w stays full width
+            from .tp_source_gemma import shard_gemma_source
+            from .vllm_connector import _tp_group
+            shard_gemma_source(self.Sdec, self.tp_rank, self.tp_size, _tp_group(getattr(self, "tp_group_override", None)))
+            if device.type == "cuda":
+                torch.cuda.empty_cache()
+            self.src_tp_on = True
         tc = AutoConfig.from_pretrained(self.tgt_name)
         tc = getattr(tc, "text_config", tc)
         self.types = list(tc.layer_types)
@@ -203,6 +212,9 @@ class GemmaCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
     def _features(self, ids):
         from . import hybrid
         feats = hybrid.source_features(self.Sdec, ids)
+        if getattr(self, "src_tp_on", False):  # rank-local k/v taps -> full width
+            from .tp_source_gemma import gather_taps
+            feats = gather_taps(self.Sdec, feats)
         return feats  # per source layer [T, wk + wv] (k | v), None for KV-shared layers
 
     def _map_layer(self, t, feats, T):
@@ -294,7 +306,8 @@ class GemmaCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
                 logger.info("kvx gemma: dumped %d layers to %s", len(dump), self.dump_path)
             if device.type == "cuda":
                 torch.cuda.synchronize(device)
-            logger.info("kvx gemma: n=%d src_ms=%.1f map+write_ms=%.1f", T, 1e3 * (t1 - t0), 1e3 * (_t.perf_counter() - t1))
+            logger.info("kvx gemma: n=%d src_ms=%.1f map+write_ms=%.1f src_tp=%d", T, 1e3 * (t1 - t0),
+                        1e3 * (_t.perf_counter() - t1), int(getattr(self, "src_tp_on", False)))
 
     def wait_for_layer_load(self, layer_name: str) -> None:
         return
