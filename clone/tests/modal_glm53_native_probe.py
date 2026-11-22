@@ -55,7 +55,7 @@ def _save(out):
     vol.commit()  # visible to the laptop poller before the container ends (lead rule 4)
 
 
-@app.function(gpu=GPU, timeout=7200, memory=900_000, ephemeral_disk=307200, volumes={"/vol": vol, "/hf": hf_shared.read_only()})
+@app.function(gpu=GPU, timeout=7200, memory=900_000, ephemeral_disk=524288, volumes={"/vol": vol, "/hf": hf_shared.read_only()})
 def probe(gate_cmd: str = ""):
     t0 = time.time()
     hf_shared.reload()
