@@ -378,3 +378,32 @@ def test_split_kv_cross_size_fit_and_mapped_cache():
     assert set(g) == set(range(5)) and all(set(d) == {"k", "v"} for d in g.values())
     lg, _ = T.forward(ids[:, 22:], cache=hybrid.mapped_cache(T, ids[:, :22], g))
     assert torch.isfinite(lg).all()
+
+
+def test_xkv_adapter_reproduces_gdn_taps_with_exact_linear_maps(tmp_path):
+    """src == tgt; xkv W/Wq built from the target's own in_proj weights -> adapter taps == the target's taps."""
+    from kvx import xkv_adapter as X
+    dec = _tiny(10)
+    c = dec.cfg
+    kd = c.linear_key_head_dim * c.linear_num_key_heads
+    h = c.hidden_size
+    W, Wq, slices, src_of = {}, {}, {}, {}
+    for j, (kind, _) in enumerate(hybrid.layer_taps(dec)):
+        if kind != "lin":
+            continue
+        la = dec.layers[j].linear_attn
+        Wqkv = la.in_proj_qkv.weight.detach().float()  # [q|k|v, h]
+        rest = torch.cat([Wqkv[kd:], la.in_proj_a.weight.detach().float(), la.in_proj_b.weight.detach().float()], 0)
+        z = torch.zeros(1, rest.shape[0])
+        W[j] = torch.cat([rest.T, z], 0)
+        Wq[j] = torch.cat([Wqkv[:kd].T, torch.zeros(1, kd)], 0)
+        slices[j] = {j: (0, rest.shape[0])}
+        src_of[j] = j
+    torch.save({"W": W, "Wq": Wq, "slices": slices, "src_of": src_of}, tmp_path / "m.pt")
+    xm = X.load_xkv(tmp_path / "m.pt")
+    ids = torch.randint(0, 101, (1, 20))
+    given = X.xkv_given(dec, dec, xm, ids, out_dtype=torch.float32)
+    ref = _record_taps(dec, ids)
+    for j in W:
+        for tap in ("qkv", "a", "b"):
+            assert torch.allclose(given[j][tap], ref[j][tap].float(), atol=1e-4), (j, tap)

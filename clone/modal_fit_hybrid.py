@@ -99,7 +99,7 @@ def fit_impl(src: str, tgt: str, run_id: str, n_calib: int = 4000, L: int = 1024
              lam_rels: str = "1e-3", n_eval: int = 64, P: int = 960, sinks: str = "4", tails: str = "64,256",
              bs: int = 4, mem_frac: float = 0.80, save: int = 1, oracle: int = 1, stride: int = 4, tf32: int = 0,
              split_kv: int = 0, maps_from: str = "", ebs: int = 2, eval_l: int = 0, tgt_device_map: str = "",
-             gpu0_gib: int = 60, per_gpu_gib: int = 130):
+             gpu0_gib: int = 60, per_gpu_gib: int = 130, xkv_maps: str = ""):
     import torch
     from transformers import AutoTokenizer
     from kvx import hybrid
@@ -164,6 +164,14 @@ def fit_impl(src: str, tgt: str, run_id: str, n_calib: int = 4000, L: int = 1024
     maps_by_lam = {lam: {} for lam in lams}
     A_ = max([int(x) for x in sinks.split(",")] + [0]) if sinks else 0
     tmpl = {}
+    xm = None
+    if xkv_maps:  # eval xkv (src/xkv) maps through kvx/xkv_adapter: "<dir on the volume>/<base>[+<attn>]"
+        from kvx import xkv_adapter as XA
+        d_, _, nm = xkv_maps.rpartition("/")
+        base, _, att = nm.partition("+")
+        xm = XA.load_xkv(f"/vol/{d_}/{base}.pt", f"/vol/{d_}/{att}.pt" if att else None, device=dev)
+        groups, save = [], 0
+        res["xkv_maps"] = xkv_maps
     if maps_from:  # eval only: reuse a saved fit (no calibration); one file per lambda
         groups = []
         for lam in lams:
@@ -263,6 +271,13 @@ def fit_impl(src: str, tgt: str, run_id: str, n_calib: int = 4000, L: int = 1024
         sc("ref_native_twostep", T.forward(ids[:, P:], cache=c_nat)[0])
         del c_nat
         sc("ref_source_model", S.forward(ids, keep=C, use_cache=False)[0])
+        if xm is not None:
+            gx = XA.xkv_given(S, T, xm, ids[:, :P])
+            sc("map_xkv", T.forward(ids[:, P:], cache=hybrid.mapped_cache(T, ids[:, :P], gx))[0])
+            for N in [1] + tail_list:
+                sc(f"map_xkv_tail{N}", T.forward(ids[:, P - N:], cache=hybrid.mapped_cache(T, ids[:, :P - N], gx))[0][:, N:])
+            del gx
+            continue
         feats = hybrid.source_features(S, ids[:, :P], drop_q=bool(drop_q))
         for lam in lams:
             lt = "" if lam == lam0 else f"_lam{lam:g}"
@@ -341,12 +356,12 @@ def main(src: str = "Qwen/Qwen3.5-4B", tgt: str = "Qwen/Qwen3.8-27B", run_id: st
          w: int = 3, drop_q: int = 1, lam_rels: str = "1e-3", n_eval: int = 64, sinks: str = "4", tails: str = "64,256",
          bs: int = 4, oracle: int = 1, save: int = 1, stride: int = 4, tf32: int = 0, split_kv: int = 0,
          maps_from: str = "", prefix: int = 960, eval_l: int = 0, ebs: int = 2, tgt_device_map: str = "",
-         gpu0_gib: int = 60, per_gpu_gib: int = 130):
+         gpu0_gib: int = 60, per_gpu_gib: int = 130, xkv_maps: str = ""):
     run_id = run_id or time.strftime("pairs-%Y%m%dT%H%M%SZ", time.gmtime())
     r = fit.remote(src=src, tgt=tgt, run_id=run_id, n_calib=n_calib, w=w, drop_q=drop_q, lam_rels=lam_rels,
                    n_eval=n_eval, sinks=sinks, tails=tails, bs=bs, oracle=oracle, save=save, stride=stride, tf32=tf32, split_kv=split_kv,
                    maps_from=maps_from, P=prefix, eval_l=eval_l, ebs=ebs, tgt_device_map=tgt_device_map,
-                   gpu0_gib=gpu0_gib, per_gpu_gib=per_gpu_gib)
+                   gpu0_gib=gpu0_gib, per_gpu_gib=per_gpu_gib, xkv_maps=xkv_maps)
     os.makedirs(f"out/{run_id}", exist_ok=True)
     json.dump(r, open(f"out/{run_id}/result.json", "w"), indent=1)
     print(json.dumps(r.get("eval", r), indent=1))
