@@ -34,6 +34,29 @@ def log(*a):
     print(LOG[-1], flush=True)
 
 
+def mem(stage):
+    """Log host memory (RSS, MemAvailable, page cache, cgroup usage) and /tmp disk free at a stage."""
+    import shutil
+    info = {}
+    try:
+        st = open("/proc/self/status").read()
+        info["rss_gb"] = int(st.split("VmRSS:")[1].split()[0]) / 1e6
+        mi = {l.split(":")[0]: int(l.split()[1]) for l in open("/proc/meminfo") if ":" in l}
+        info.update(avail_gb=mi.get("MemAvailable", 0) / 1e6, cached_gb=mi.get("Cached", 0) / 1e6)
+        for f in ("/sys/fs/cgroup/memory.current", "/sys/fs/cgroup/memory/memory.usage_in_bytes"):
+            if os.path.exists(f):
+                info["cgroup_gb"] = int(open(f).read()) / 1e9
+                break
+        info["tmp_free_gb"] = shutil.disk_usage(SPILL if os.path.isdir(SPILL) else "/tmp").free / 1e9
+    except Exception as e:
+        info["err"] = repr(e)[:100]
+    log("mem", stage, json.dumps({k: round(v, 1) if isinstance(v, float) else v for k, v in info.items()}))
+    return info
+
+
+SPILL = "/tmp/kvx_gate_feats"
+
+
 def ensure_pkgs():
     """accelerate (device_map) and kernels (HF FP8) may be missing in the serving image: install into /tmp, no deps."""
     import importlib.util
@@ -98,14 +121,22 @@ class FAProbe:
                     fa_STATS=dict(getattr(self.fa, "STATS", {})))
 
     def proof(self, W):
-        """Lead's criterion: windowed arm: windowed_calls == calls_over_window > 0 and the only window passed is
-        (W-1, 0); default arm (W=0): windowed_calls == 0 (GLM-4.7-Flash has no sliding layers of its own)."""
+        """Criterion from kvx/fa.py STATS (agreed): WINDOW arm: windowed_calls == calls_over_window, calls_over_window > 0,
+        window_sizes == [[W-1, 0]]; DEFAULT arm: windowed_calls == 0 and sliding_layer_calls == 0 (GLM-4.7-Flash has no
+        sliding layers of its own). The wrapper's own counts must agree with STATS (cross-check)."""
+        st = getattr(self.fa, "STATS", None)
+        if st is None or "calls_over_window" not in st:
+            return dict(ok=False, rule="kvx/fa.py STATS with calls_over_window required", stats=st)
         if W:
-            ok = self.windowed == self.over > 0 and set(self.windows) <= {(W - 1, 0), (-1, -1)}
+            ok = (st["windowed_calls"] == st["calls_over_window"] and st["calls_over_window"] > 0
+                  and st["window_sizes"] == [[W - 1, 0]])
+            rule = "windowed_calls == calls_over_window AND calls_over_window > 0 AND window_sizes == [[W-1, 0]]"
         else:
-            ok = self.windowed == 0
-        return dict(ok=ok, rule="windowed_calls == calls_over_window > 0, window_sizes == [[W-1, 0]]" if W
-                    else "windowed_calls == 0")
+            ok = st["windowed_calls"] == 0 and st["sliding_layer_calls"] == 0
+            rule = "windowed_calls == 0 AND sliding_layer_calls == 0"
+        cross = dict(calls=self.calls == st["calls"], windowed_calls=self.windowed == st["windowed_calls"],
+                     calls_over_window=(self.over == st["calls_over_window"]) if W else True)
+        return dict(ok=bool(ok and all(cross.values())), rule=rule, stats=dict(st), wrapper_agrees=cross)
 
 
 def source_feats(S, ids, chunk, emb=True):
@@ -160,8 +191,9 @@ def write_cache(Tm, ids, feats, maps, ut, widths, sinks, chunk, dev0):
                 o += wd
             attn = Tm.layers[t].self_attn
             ldev = next(attn.parameters()).device
+            cdt = attn.kv_a_layernorm.weight.dtype  # the model's own activation / cache dtype (bf16 on GLM-5.3)
             with torch.no_grad():
-                r = G.layer_rows(attn, d["ckv"].to(ldev, torch.bfloat16), None if "ik" not in d else d["ik"].to(ldev, torch.bfloat16),
+                r = G.layer_rows(attn, d["ckv"].to(ldev, cdt), None if "ik" not in d else d["ik"].to(ldev, cdt),
                                  cos.to(ldev), sin.to(ldev), layout="hf")
             R = attn.kv_lora_rank
             cache.update(r["mla"][None, None, :, :R].contiguous(), r["mla"][None, None, :, R:].contiguous(), t)
@@ -246,7 +278,9 @@ def gate(a):
         from kvx import fa
         probe = FAProbe()
     log(f"source loaded {time.time()-ts:.0f}s")
-    feats = {}
+    feats = {}  # (arm, prompt) -> spill file on local disk (one prompt-arm in RAM at a time; ~13 GB each at 202K)
+    os.makedirs(SPILL, exist_ok=True)
+    mem("source loaded")
     arms = [("default", 0), ("window", a.src_window)]
     for arm, W in arms:
         if probe is not None:
@@ -256,7 +290,19 @@ def gate(a):
         for i, p in enumerate(prompts):
             Pm = len(p["ids"]) - a.tail
             ids = torch.tensor([p["ids"][:Pm]])
-            feats[(arm, i)] = source_feats(S, ids, a.src_chunk if (probe is not None) else 10 ** 9, emb=True)
+            f = source_feats(S, ids, a.src_chunk if (probe is not None) else 10 ** 9, emb=True)
+            feats[(arm, i)] = f"{SPILL}/{arm}_{i}.pt"
+            torch.save(f, feats[(arm, i)])
+            del f
+            if arm == "default" and i == 0:  # disk check from the first real file: all prompt-arms must fit
+                import shutil
+                need = os.path.getsize(feats[(arm, i)]) * (2 * len(prompts) - 1) * 1.05
+                free = shutil.disk_usage(SPILL).free
+                log(f"spill: {os.path.getsize(feats[(arm, i)]) / 1e9:.1f} GB per prompt-arm, need {need / 1e9:.0f} GB more, free {free / 1e9:.0f} GB")
+                if free < need:
+                    save()
+                    raise SystemExit(f"local disk too small for the feature spill: free {free / 1e9:.0f} GB < {need / 1e9:.0f} GB")
+        mem(f"{arm} source features spilled")
         src_info = dict(probe.summary(), proof=probe.proof(W)) if probe is not None else dict(attn_impl="sdpa (selfcheck, no window)")
         res["arms"].setdefault(arm, {})["source_attention"] = dict(src_window_arg=W, **src_info)
         res["arms"][arm]["t_source_s"] = time.time() - ta
@@ -277,6 +323,11 @@ def gate(a):
     else:
         Tm = hybrid.load(a.tgt, path=a._tgt_path, attn="sdpa")
     Tm.model.requires_grad_(False)
+    res["t_target_load_s"] = time.time() - tt
+    if res["t_target_load_s"] > 20 * 60:
+        res["note_target_load"] = f"target load took {res['t_target_load_s'] / 60:.1f} min (> 20): page cache likely evicted"
+        log(res["note_target_load"])
+    mem("target loaded")
     from transformers import AutoTokenizer
     tok = AutoTokenizer.from_pretrained(a._tgt_path or snapshot(a.tgt))
     d = torch.load(f"{vol_root}/runs/{a.maps_from}/hybrid_maps.pt", map_location="cpu")
@@ -298,7 +349,10 @@ def gate(a):
         rec = dict(i=i, kind=p["kind"], len=len(p["ids"]), depth=p.get("depth"))
         for arm, _ in arms:
             tp = time.time()
-            cache = write_cache(Tm, full[:, :Pm], feats[(arm, i)], maps, ut, widths, a.sinks, a.map_chunk, dev0)
+            fx = torch.load(feats[(arm, i)])
+            cache = write_cache(Tm, full[:, :Pm], fx, maps, ut, widths, a.sinks, a.map_chunk, dev0)
+            del fx
+            os.remove(feats[(arm, i)])
             if p["kind"] == "long":
                 cont = torch.tensor([p["cont"]])
                 lg, cache = run_tail(Tm, cache, torch.cat([full[:, Pm:], cont[:, :-1]], 1), a.tail_step)
@@ -327,6 +381,7 @@ def gate(a):
             rec["agree_window_default"] = sum(x == y for x, y in zip(pd, pw)) / len(pd)
         res["prompts"].append(rec)
         log("prompt", i, json.dumps({k: v for k, v in rec.items() if k != "i"})[:400])
+        mem(f"after prompt {i}")
         save()
     done = len(res["prompts"]) == len(prompts)
     for arm, _ in arms:
@@ -392,8 +447,57 @@ def selfcheck():
     c2 = hybrid.mapped_cache(T, ids[:, :P], given, sinks=A)
     l2, _ = T.forward(ids[:, P:], cache=c2)
     err = float((l1 - l2).abs().max())
-    log("selfcheck writer vs override forward: max |dlogits|", f"{err:.2e}")
+    cerr = {}
+    for l in range(len(c1.layers)):
+        x1, x2 = c1.layers[l], c2.layers[l]
+        for nm in ("keys", "values", "indexer_keys"):
+            u, v = getattr(x1, nm, None), getattr(x2, nm, None)
+            if u is not None or v is not None:
+                assert u is not None and v is not None and u.shape == v.shape, (l, nm)
+                cerr[nm] = max(cerr.get(nm, 0.0), float((u - v).abs().max()))
+    log("selfcheck writer vs override forward: cache max |d|", json.dumps({k: f"{v:.1e}" for k, v in cerr.items()}),
+        "| max |dlogits|", f"{err:.2e}")
+    assert max(cerr.values()) < 1e-4, cerr  # the rows themselves (DSA top-k can amplify tiny row noise in the logits)
     assert err < 5e-3, err
+    # window path through kvx/fa.py with a reference varlen kernel (CPU): window features == banded-mask features,
+    # and the STATS proof holds for both arms
+    from kvx import fa
+
+    def ref_kernel(q, k, v, cu_seqlens_q, cu_seqlens_k, max_seqlen_q, max_seqlen_k, softmax_scale, causal,
+                   window_size=None, **kw):
+        Tq, Sk = q.shape[0], k.shape[0]
+        sc = torch.einsum("thd,shd->hts", q.float(), k.float()) * softmax_scale
+        i = torch.arange(Tq)[:, None] + (Sk - Tq)
+        j = torch.arange(Sk)[None]
+        ok = j <= i
+        if window_size is not None and window_size[0] >= 0:
+            ok &= (i - j) <= window_size[0]
+        sc = sc.masked_fill(~ok[None], float("-inf"))
+        return torch.einsum("hts,shd->thd", sc.softmax(-1), v.float()).to(q.dtype)
+    fa._fa_func = lambda: (ref_kernel, None)
+    probe = FAProbe()
+    Wn = 8
+    ids_w = torch.randint(3, 101, (1, 30))
+    fa.use_vllm_fa(S.model, window=Wn)
+    probe.reset()
+    fw = source_feats(S, ids_w, chunk=7, emb=False)
+    pw = probe.proof(Wn)
+    fa.use_vllm_fa(S.model, window=0)
+    probe.reset()
+    source_feats(S, ids_w, chunk=7, emb=False)
+    pd = probe.proof(0)
+    log("selfcheck window proof", json.dumps(pw["stats"]), pw["ok"], "| default", json.dumps(pd["stats"]), pd["ok"])
+    assert pw["ok"] and pd["ok"], (pw, pd)
+    S.model.set_attn_implementation("eager") if hasattr(S.model, "set_attn_implementation") else None
+    S.model.config._attn_implementation = "eager"
+    band = torch.zeros(30, 30).masked_fill(~((torch.arange(30)[None] <= torch.arange(30)[:, None]) &
+                                             (torch.arange(30)[:, None] - torch.arange(30)[None] < Wn)), float("-inf"))
+    got = {}
+    with torch.no_grad(), hybrid.Taps(S).record(lambda l, d: got.__setitem__(l, torch.cat([d[n] for n, _, _ in hybrid.layer_taps(S)[l][1]], -1)[0])):
+        S.text(input_ids=ids_w, attention_mask=band[None, None], use_cache=False)
+    werr = max(float((fw[l].float() - got[l].float()).abs().max()) for l in got)
+    log("selfcheck window feats vs banded-mask reference: max |d|", f"{werr:.2e}")
+    assert werr < 2e-2, werr
     run = f"{root}/vol/runs/selfmaps"
     os.makedirs(run)
     torch.save(dict(maps={j: dict(sel=m["sel"], W=m["W"].to(torch.bfloat16), b=m["b"]) for j, m in maps.items()}),
