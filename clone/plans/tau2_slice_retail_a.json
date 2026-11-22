@@ -1,0 +1,16 @@
+{
+ "rule": "half a of OneTriangle's mapped retail slice (tau2_slice.json), split so each boot ends inside Modal's 1-h app limit",
+ "mapped_slice_task_ids": {
+  "retail": [
+   "6",
+   "8",
+   "11",
+   "13",
+   "14",
+   "16",
+   "17",
+   "18",
+   "19"
+  ]
+ }
+}
