@@ -141,8 +141,8 @@
 | bundle-longhealth-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | LongHealth | 0.76 | yes | 0.88 | beaten |
 | bundle-qmsum-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | QMSum | 0.4065 | yes | 0.468 | beaten |
 | bundle-cowtext-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | CowText | 0.65 | yes | None | blocked(dataset and judge not public: CowText is the only bundle benchmark with no paper/dataset link; definition is only 'long-form response quality scored by the campaign's canonical language-model judge' (kvx-research 2026-11-22, transfer-benchmarks bundle)) |
-| bundle-humaneval-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | HumanEval | 0.91 | yes | 0.87 | tied |
-| bundle-mbpp-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | MBPP | 0.88 | yes | 0.75 | behind |
+| bundle-humaneval-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | HumanEval | 0.91 | yes | 0.85 | tied |
+| bundle-mbpp-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | MBPP | 0.88 | yes | 0.84 | tied |
 | bundle-bigcodebench-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | BigCodeBench | 0.55 | yes | 0.5 | tied |
 | bundle-math-500-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | MATH-500 | 0.59 | yes | 0.9 | beaten |
 | bundle-tau2-airline-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | tau2 Airline | 0.5882352941 | yes | 0.4118 | tied |
