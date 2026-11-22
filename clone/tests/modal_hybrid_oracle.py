@@ -55,28 +55,35 @@ RUN = r'''
 import json, sys, torch
 from vllm import LLM, SamplingParams
 from vllm.inputs import TokensPrompt
-mode, maps, out = sys.argv[1], sys.argv[2], sys.argv[3]
-kw = dict(model="%s", max_model_len=8192, gpu_memory_utilization=0.55, enable_prefix_caching=False,
-          limit_mm_per_prompt={"image": 0, "video": 0}, seed=0, enforce_eager=True, max_num_seqs=32)
-if mode == "mapped":
-    from vllm.config import KVTransferConfig
-    kw["kv_transfer_config"] = KVTransferConfig(kv_connector="HybridCrossModelConnector",
-        kv_connector_module_path="kvx.vllm_hybrid_connector", kv_role="kv_both",
-        kv_connector_extra_config={"src": "%s", "maps": maps, "tail": 64, "min_len": 256})
-llm = LLM(**kw)
-from transformers import AutoTokenizer
-tok = AutoTokenizer.from_pretrained("%s")
 import pyarrow.parquet as pq
-rows = pq.read_table("/vol/data/evals/quality_val.parquet").to_pylist()[:16]
-prompts = []
-for r in rows:
-    ids = tok(r["article"], add_special_tokens=False)["input_ids"][:1500 + 37 * len(prompts)]
-    prompts.append(TokensPrompt(prompt_token_ids=ids))
-sp = SamplingParams(temperature=0.0, max_tokens=32, logprobs=20)
-res = llm.generate(prompts, sp)
-o = dict(first=[{str(k): v.logprob for k, v in r.outputs[0].logprobs[0].items()} for r in res],
-         greedy=[list(r.outputs[0].token_ids) for r in res], n=[len(p["prompt_token_ids"]) for p in prompts])
-json.dump(o, open(out, "w"))
+
+
+def main():
+    mode, maps, out = sys.argv[1], sys.argv[2], sys.argv[3]
+    kw = dict(model="%s", max_model_len=8192, gpu_memory_utilization=0.55, enable_prefix_caching=False,
+              limit_mm_per_prompt={"image": 0, "video": 0}, seed=0, enforce_eager=True, max_num_seqs=32)
+    if mode == "mapped":
+        from vllm.config import KVTransferConfig
+        kw["kv_transfer_config"] = KVTransferConfig(kv_connector="HybridCrossModelConnector",
+            kv_connector_module_path="kvx.vllm_hybrid_connector", kv_role="kv_both",
+            kv_connector_extra_config={"src": "%s", "maps": maps, "tail": 64, "min_len": 256})
+    llm = LLM(**kw)
+    from transformers import AutoTokenizer
+    tok = AutoTokenizer.from_pretrained("%s")
+    rows = pq.read_table("/vol/data/evals/quality_val.parquet").to_pylist()[:16]
+    prompts = []
+    for r in rows:
+        ids = tok(r["article"], add_special_tokens=False)["input_ids"][:1500 + 37 * len(prompts)]
+        prompts.append(TokensPrompt(prompt_token_ids=ids))
+    sp = SamplingParams(temperature=0.0, max_tokens=32, logprobs=20)
+    res = llm.generate(prompts, sp)
+    o = dict(first=[{str(k): v.logprob for k, v in r.outputs[0].logprobs[0].items()} for r in res],
+             greedy=[list(r.outputs[0].token_ids) for r in res], n=[len(p["prompt_token_ids"]) for p in prompts])
+    json.dump(o, open(out, "w"))
+
+
+if __name__ == "__main__":  # vLLM spawns its engine core: the module must not start an engine on import
+    main()
 ''' % (MODEL, MODEL, MODEL)
 
 
@@ -95,7 +102,9 @@ def oracle():
     for mode in ("native", "mapped"):
         p = subprocess.run([sys.executable, "/tmp/run.py", mode, "/tmp/oracle_maps.pt", f"/tmp/{mode}.json"],
                            capture_output=True, text=True)
-        logs[mode] = (p.returncode, (p.stdout + p.stderr)[-5000:])
+        txt = p.stdout + p.stderr
+        key = [l for l in txt.splitlines() if ("Error" in l or "error" in l or "raise" in l) and "Processed prompts" not in l]
+        logs[mode] = (p.returncode, "\n".join(key[-25:])[-6000:] if p.returncode else txt[-3000:])
         if p.returncode:
             return dict(error=mode, logs=logs)
     a, b = json.load(open("/tmp/native.json")), json.load(open("/tmp/mapped.json"))
