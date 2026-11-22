@@ -1,0 +1,7 @@
+{
+ "rule": "TB2 top-up: the 2 batch-4 tasks cut off unscored by the 55-min client timeout (one wave of 18 from here on)",
+ "tasks": [
+  "headless-terminal",
+  "mteb-leaderboard"
+ ]
+}
