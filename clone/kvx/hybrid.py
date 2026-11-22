@@ -300,9 +300,9 @@ class WindowRidge:
             return None
         Wb = W[:, :nb * bd].view(W.shape[0], nb, bd).permute(1, 0, 2)  # [nb, din, bd]
         A.diagonal().sub_(lam)
-        Ch = torch.einsum("bid,ij,bje->bde", Wb, A, Wb) / n
+        Ch = (torch.einsum("bid,ij,bje->bde", Wb, A, Wb) / n).double()
         A.diagonal().add_(lam)
-        mb = my[:nb * bd].view(nb, bd)
+        mb = my[:nb * bd].double().view(nb, bd)
         Cy = self.yyb[t].to(W.device).double() / n - mb[:, :, None] * mb[:, None, :]
 
         def root(C, p):
@@ -328,8 +328,14 @@ class WindowRidge:
         n = self.n
         maps = {}
         for w in self.wins:
-            mx = (self.sx[w] / n).to(dev)
-            A = self.xx[w].to(dev).double()
+            din = self.xx[w].shape[0]
+            sdt = torch.float64
+            if torch.device(dev).type == "cuda":  # fp64 solve needs ~3 din^2 doubles (A, factor, temporaries)
+                free_b = torch.cuda.mem_get_info(torch.device(dev))[0]
+                if free_b < 3.5 * 8 * din * din + 8 * din * max(self.dt[t] for t in self.targets if self.win[t] == w):
+                    sdt = torch.float32  # fp32 Cholesky with the ridge (as modal_fit_eval for big systems)
+            mx = (self.sx[w] / n).to(dev, sdt)
+            A = self.xx[w].to(dev).to(sdt)
             A.addr_(mx, mx, alpha=-n)  # centered in place (no din x din temporary)
             lam = lam_rel * A.diagonal().mean().item()
             A.diagonal().add_(lam)
@@ -344,13 +350,13 @@ class WindowRidge:
             if free:
                 del self.xx[w]
             for t in [t for t in self.targets if self.win[t] == w]:
-                my = (self.sy[t] / n).to(dev)
-                B = self.xy[t].to(dev).double()
+                my = (self.sy[t] / n).to(dev, sdt)
+                B = self.xy[t].to(dev).to(sdt)
                 B.addr_(mx, my, alpha=-n)
                 if free:
                     del self.xy[t]
                 W = torch.cholesky_solve(B, Lc)
-                yyc = self.yy[t].to(dev) - n * my ** 2
+                yyc = self.yy[t].to(dev).double() - n * my.double() ** 2
                 sse = yyc - (B * W).sum(0) - lam * (W * W).sum(0)
                 r2 = {}
                 o = 0
@@ -358,9 +364,9 @@ class WindowRidge:
                     r2[name] = float(1 - sse[o:o + wd].sum() / yyc[o:o + wd].sum().clamp(min=1e-30))
                     o += wd
                 xm = torch.cat([self.shx[s].to(dev).double() for s in w]) + mx
-                b = (self.shy[t].to(dev).double() + my) - xm @ W
+                b = (self.shy[t].to(dev).double() + my.double()) - xm @ W.double()
                 rc = self._recolor(t, W, A, lam, my, n) if recolor else None
-                maps[t] = dict(sel=list(w), W=W.float(), b=b.float(), r2=r2, mu=(self.shy[t].to(dev).double() + my).float(), rc=rc,
+                maps[t] = dict(sel=list(w), W=W.float(), b=b.float(), r2=r2, mu=(self.shy[t].to(dev).double() + my.double()).float(), rc=rc,
                                lam_eff=lam)
                 del B, W
             del A, Lc
