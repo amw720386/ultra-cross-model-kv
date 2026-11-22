@@ -30,6 +30,15 @@ hf_shared = modal.Volume.from_name(os.environ.get("KVX_WEIGHTS_VOLUME", "kvx-hf"
 app = modal.App(os.environ.get("KVX_APP", "kvx-quality-tau2"), image=image)
 
 
+def _gpu_name():
+    """The GPU actually served (Modal may upgrade a request), from nvidia-smi: vLLM owns the device in a subprocess."""
+    try:
+        return subprocess.run(["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"], capture_output=True,
+                              text=True, timeout=30).stdout.strip().splitlines()[0]
+    except Exception as e:
+        return f"unknown ({e!r})"
+
+
 def _serve_cmd(model, connector, max_len, gpu_util):
     c = ["vllm", "serve", model, "--port", "8000", "--max-model-len", str(max_len), "--gpu-memory-utilization",
          str(gpu_util), "--max-num-seqs", "64", "--enable-auto-tool-choice", "--tool-call-parser", "qwen3_coder", "--reasoning-parser", "qwen3",
@@ -91,7 +100,8 @@ def run(domains: str, arm: str, run_id: str, model: str, connector: str, num_tas
             rc, so, se = "timeout", (e.stdout or b"").decode(errors="replace") if isinstance(e.stdout, bytes) else (e.stdout or ""), \
                 (e.stderr or b"").decode(errors="replace") if isinstance(e.stderr, bytes) else (e.stderr or "")
         open(f"{out}/tau2.log", "w").write(so[-30000:] + "\n---\n" + se[-30000:])
-        res = dict(domain=domain, arm=arm, rc=rc, t_ready_s=round(t_ready), wall_s=round(time.time() - t0))
+        res = dict(domain=domain, arm=arm, rc=rc, t_ready_s=round(t_ready), wall_s=round(time.time() - t0),
+                   gpu_measured=_gpu_name())
         try:
             rp = f"{out}/tau2.json"
             d = json.load(open(os.path.join(rp, "results.json") if os.path.isdir(rp) else rp))  # --save-to makes a dir

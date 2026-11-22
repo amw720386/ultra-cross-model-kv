@@ -220,6 +220,11 @@ def main():
             m, h = score.mean_ci(sc)
             ent.update(score=m, ci_half=h)
         summ["benches"][b] = ent
+    try:  # the GPU actually served (Modal may upgrade a request; decision rig-h200-hold: every row records it)
+        import torch
+        summ["gpu_measured"] = torch.cuda.get_device_name() if torch.cuda.is_available() else "cpu"
+    except Exception as e:
+        summ["gpu_measured"] = f"unknown ({e!r})"
     with open(os.path.join(a.out, "summary.json"), "w") as f:
         json.dump(summ, f, indent=1)
     print(json.dumps(summ), flush=True)

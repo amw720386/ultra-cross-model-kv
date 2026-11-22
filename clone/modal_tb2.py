@@ -71,7 +71,12 @@ def serve(key: str, model: str, connector: str, max_len: int, run_dir: str):
             time.sleep(10)
     srv.terminate()
     vol.commit()
-    return dict(ok=True)
+    try:  # the GPU actually served (decision rig-h200-hold)
+        g = subprocess.run(["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"], capture_output=True, text=True,
+                           timeout=30).stdout.strip().splitlines()[0]
+    except Exception as e:
+        g = f"unknown ({e!r})"
+    return dict(ok=True, gpu_measured=g)
 
 
 @app.local_entrypoint()
@@ -114,5 +119,5 @@ def main(arm: str, run_id: str, model: str = "Qwen/Qwen3.8-27B", connector: str 
         rc = "timeout"
     finally:
         ctl[key + ":stop"] = True
-    call.get(timeout=600)
-    print(json.dumps(dict(arm=arm, rc=rc, wall_s=round(time.time() - t0), jobs=jobs, tasks=len(tasks))))
+    sv = call.get(timeout=600) or {}
+    print(json.dumps(dict(arm=arm, rc=rc, gpu_measured=sv.get("gpu_measured"), wall_s=round(time.time() - t0), jobs=jobs, tasks=len(tasks))))
