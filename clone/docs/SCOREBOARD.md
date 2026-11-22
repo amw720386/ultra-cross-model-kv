@@ -98,7 +98,7 @@
 | home-qwen3-5-4b-qwen3-8-27b-32K-speedup | Qwen3.5-4B -> Qwen3.8-27B | speedup x vs their native | 32K | 2.826 | yes |  | open |
 | home-qwen3-5-4b-qwen3-8-27b-64K-ttft | Qwen3.5-4B -> Qwen3.8-27B | TTFT s (mapped) | 64K | 6.33 | yes | 3.8213 | beaten |
 | home-qwen3-5-4b-qwen3-8-27b-64K-speedup | Qwen3.5-4B -> Qwen3.8-27B | speedup x vs their native | 64K | 2.961 | yes |  | open |
-| home-qwen3-5-4b-qwen3-8-27b-128K-ttft | Qwen3.5-4B -> Qwen3.8-27B | TTFT s (mapped) | 128K | 16.41 | est. |  | open |
+| home-qwen3-5-4b-qwen3-8-27b-128K-ttft | Qwen3.5-4B -> Qwen3.8-27B | TTFT s (mapped) | 128K | 16.41 | est. | 6.3699 | beaten |
 | home-qwen3-5-4b-qwen3-8-27b-128K-speedup | Qwen3.5-4B -> Qwen3.8-27B | speedup x vs their native | 128K | 3.344 | est. |  | open |
 | home-qwen3-5-4b-qwen3-8-27b-256K-ttft | Qwen3.5-4B -> Qwen3.8-27B | TTFT s (mapped) | 256K | 48.06 | est. |  | open |
 | home-qwen3-5-4b-qwen3-8-27b-256K-speedup | Qwen3.5-4B -> Qwen3.8-27B | speedup x vs their native | 256K | 3.566 | est. |  | open |

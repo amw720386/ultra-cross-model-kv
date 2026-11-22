@@ -79,7 +79,7 @@ This repo rebuilds, from public material only, the method that OneTriangle (YC S
 
 All rows (Tier 2 and untracked included):
 
-**Beaten 185 of 1143** published OneTriangle numbers (tied 32, behind 79, blocked 1, open 735). Full row table: [docs/SCOREBOARD.md](docs/SCOREBOARD.md). Rules: same pair, context/benchmark and N or more; TTFT on their GPU class (H100) and speedups against native vLLM/SGLang.
+**Beaten 186 of 1143** published OneTriangle numbers (tied 32, behind 79, blocked 1, open 734). Full row table: [docs/SCOREBOARD.md](docs/SCOREBOARD.md). Rules: same pair, context/benchmark and N or more; TTFT on their GPU class (H100) and speedups against native vLLM/SGLang.
 
 | pair | category | rows | beaten | tied | behind | blocked | open |
 |---|---|---|---|---|---|---|---|
@@ -111,7 +111,7 @@ All rows (Tier 2 and untracked included):
 | Qwen3-1.7B -> Qwen3-32B | TTFT table | 15 | 7 | 0 | 8 | 0 | 0 |
 | Qwen3-1.7B -> Qwen3-8B | TTFT table | 15 | 6 | 1 | 6 | 0 | 2 |
 | Qwen3.5-2B -> Qwen3.8-27B | TTFT table | 15 | 0 | 0 | 0 | 0 | 15 |
-| Qwen3.5-4B -> Qwen3.8-27B | TTFT table | 15 | 4 | 0 | 0 | 0 | 11 |
+| Qwen3.5-4B -> Qwen3.8-27B | TTFT table | 15 | 5 | 0 | 0 | 0 | 10 |
 | Qwen3-4B -> Ministral-3-14B | quality | 14 | 0 | 0 | 0 | 0 | 10 |
 | Qwen3-30B-A3B-Instruct-2507 -> Qwen3-30B-A3B-Thinking | quality | 13 | 3 | 0 | 3 | 0 | 6 |
 | Qwen3-4B -> Ministral-3-14B | speed/cost | 13 | 0 | 0 | 0 | 0 | 13 |
