@@ -210,7 +210,9 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
         self.xm = None
         if self.xkv_mapper:
             from .xkv_adapter import load_xkv
-            self.xm = load_xkv(self.xkv_mapper, self.xkv_attn, device=device)
+            from .vllm_connector import _tp_rank_size
+            # TP > 1: load on CPU, shard there (below), move only this rank's columns to the GPU
+            self.xm = load_xkv(self.xkv_mapper, self.xkv_attn, device="cpu" if _tp_rank_size()[1] > 1 else device)
             self.mf = dict(format="kvx-hybrid-v1", maps={}, tgt_taps=None, src=self.src_name, tgt=self.tgt_name)
             self.maps_path = None
         if self.maps_path is None and self.xm is None:
@@ -282,6 +284,14 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
         if self.xm is not None:
             self.kinds = {t: ("lin" if lt == "linear_attention" else "attn") for t, lt in enumerate(tcfg.layer_types)}
             self.tcfg = tcfg
+            from .xkv_adapter import needed_layers
+            self.xkv_needed = needed_layers(self.xm)
+            if self.tp_size > 1:  # each rank keeps only its heads' map columns and GDN params (lead: 2xH100 rows)
+                # shard_xkv reads only head counts from params (TargetParams.to would move them in place)
+                self.xm = hs.to_device(hs.shard_xkv(self.xm, self.kinds, tcfg, self.params, self.tp_rank, self.tp_size),
+                                       device)
+                self.params = hs.shard_params(self.params, self.tp_rank, self.tp_size)
+                self._sharded = True
         else:
             self.kinds = {t: x["kind"] for t, x in enumerate(self.mf["tgt_taps"])}
         from .fast_gdn import patch as _fast_gdn  # HF Qwen3.5 GDN -> vLLM's FLA Triton kernel (torch fallback was ~2x slower)
@@ -326,8 +336,8 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
             ids = torch.tensor([r.token_ids], device=device)
             T = len(r.token_ids)
             if self.xm is not None:
-                from .xkv_adapter import needed_layers, source_inputs
-                xf, emb, emb_prev = source_inputs(self.Sdec, ids, needed_layers(self.xm))
+                from .xkv_adapter import source_inputs
+                xf, emb, emb_prev = source_inputs(self.Sdec, ids, self.xkv_needed)
                 layers = sorted(self.kinds)
             else:
                 layers = sorted(self.maps)
@@ -340,7 +350,8 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
                 if t in ntaps:  # native first layers override the map
                     given = {t: ntaps[t]}
                 elif self.xm is not None:
-                    tp = hs.xkv_layer_taps(self.xm, xf, emb, emb_prev, t, self.kinds[t], self.tcfg)
+                    tp = (hs.xkv_layer_taps_r(self.xm, xf, emb, emb_prev, t) if self._sharded else
+                          hs.xkv_layer_taps(self.xm, xf, emb, emb_prev, t, self.kinds[t], self.tcfg))
                     given = {t: {k: v[0] for k, v in tp.items()}}
                 else:
                     given = taps_from_feats(self.mf, {t: self.maps[t]}, feats, T, self.knw, sinks=self.sinks,
@@ -348,7 +359,7 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
                 # native-layer taps are full width: their states use the unsharded params, then get sliced
                 st = caches_from_taps(self.full_params if t in ntaps else self.params, self.kinds, given)[t]
                 del given
-                if not self._sharded or t in ntaps or self.xm is not None:  # sharded maps give rank-local states
+                if not self._sharded or t in ntaps:  # sharded maps (hybrid-v1 or xkv) give rank-local states
                     st = slice_for_rank(self.full_params if self._sharded else self.params, st, self.tp_rank, self.tp_size)
                 cache = self._kv.get(t)
                 if cache is None:

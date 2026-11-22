@@ -461,7 +461,6 @@ def shard_for_rank(mf, maps, p, rank, tp, kv_heads):
     """(maps, tgt_taps, params) holding only this rank's output columns (W, b, mu, recolor blocks) and its share of
     the GatedDeltaNet params, so taps_from_feats + caches_from_taps directly yield the rank's slice (== slice_for_rank
     of the full result) with 1/tp of the map memory."""
-    import copy
     if tp == 1:
         return maps, mf["tgt_taps"], p
     out, taps_r = {}, [dict(x) for x in mf["tgt_taps"]]
@@ -482,6 +481,14 @@ def shard_for_rank(mf, maps, p, rank, tp, kv_heads):
             r["rc"] = rc.index_select(0, blocks)
         out[t] = r
         taps_r[t] = dict(kind=kind, taps=widths)
+    return out, taps_r, shard_params(p, rank, tp)
+
+
+def shard_params(p, rank, tp):
+    """This rank's share of the GatedDeltaNet params (conv channels of its q|k|v heads, A_log/dt_bias of its v-heads)."""
+    import copy
+    if tp == 1:
+        return p
     pr = copy.copy(p)
     pr.Hk, pr.Hv = p.Hk // tp, p.Hv // tp
     kd, vd = p.Hk * p.dk, p.Hv * p.dv
@@ -495,7 +502,7 @@ def shard_for_rank(mf, maps, p, rank, tp, kv_heads):
         ci, hi = torch.tensor(ch, device=dev), torch.tensor(hv, device=dev)
         pr.lin[l] = dict(conv_w=d["conv_w"].index_select(0, ci), conv_b=None if d["conv_b"] is None else d["conv_b"].index_select(0, ci),
                          A_log=d["A_log"].index_select(0, hi), dt_bias=d["dt_bias"].index_select(0, hi))
-    return out, taps_r, pr
+    return pr
 
 
 class FeatStream:
@@ -524,3 +531,96 @@ class FeatStream:
     def finish(self):
         if self.pend:
             raise RuntimeError(f"kvx hybrid: target layers {self.pend[:4]} never got their source features")
+
+
+def _xkv_full_taps(kind, c):
+    g = (lambda k: c[k]) if isinstance(c, dict) else (lambda k: getattr(c, k))
+    if kind == "lin":
+        kd = g("linear_key_head_dim") * g("linear_num_key_heads")
+        vd = g("linear_value_head_dim") * g("linear_num_value_heads")
+        nv = g("linear_num_value_heads")
+        return [("qkv", 2 * kd + vd), ("a", nv), ("b", nv)], kd
+    kv = g("num_key_value_heads") * g("head_dim")
+    return [("k", kv), ("v", kv)], 0
+
+
+def shard_xkv(xm, kinds, c, p, rank, tp):
+    """xkv maps holding only this TP rank's output columns per target layer (its GatedDeltaNet q|k|v heads and a/b
+    v-heads; its attention K/V heads), so xkv_layer_taps_r(...) == the rank's slice of xkv_layer_taps(...) at 1/tp
+    of the map memory and GEMM work. Every tap is linear in the weights' output columns: W (bias row last), Wq, and
+    the attention map's b, per-source-layer parts, e/p and the MLP's w2 (w1/b1 stay full)."""
+    g = (lambda k: c[k]) if isinstance(c, dict) else (lambda k: getattr(c, k))
+    kvh, hd = g("num_key_value_heads"), g("head_dim")
+    attn = xm.get("attn")
+    out = dict(embed=bool(attn and attn["embed"]), layers={})
+    for j, kind in kinds.items():
+        taps, kd = _xkv_full_taps(kind, c)
+        cols, widths = _rank_cols(kind, taps, p, rank, tp, kvh, hd)
+        if kind == "attn" and attn is not None and j in attn["layers"]:
+            d = attn["parts"][j]
+            ix = torch.tensor(cols, device=d["b"].device)
+            r = dict(mode="attnmap", srcs=list(attn["layers"][j]), b=d["b"].index_select(-1, ix),
+                     parts={i: d[i].index_select(1, ix) for i in attn["layers"][j]})
+            if attn["embed"]:
+                r["e"], r["p"] = d["e"].index_select(1, ix), d["p"].index_select(1, ix)
+            mlp = attn.get("mlp")
+            if mlp and j in mlp:
+                m = mlp[j]
+                r["mlp"] = dict(w1=m["w1"], b1=m["b1"], w2=m["w2"].index_select(1, ix.to(m["w2"].device)))
+        elif j in xm["src_of"]:
+            i = xm["src_of"][j]
+            sl = xm["slices"][i] if i in xm["slices"] else xm["slices"][str(i)]
+            a0, a1 = sl[j] if j in sl else sl[str(j)]
+            W = xm["W"][i]
+            Wj = torch.cat([W[:-1, a0:a1], W[-1:, a0:a1]], 0)
+            if kind == "lin":  # full taps [q (Wq) | k v a b (W slice)]
+                qc = [x for x in cols if x < kd]
+                yc = [x - kd for x in cols if x >= kd]
+                r = dict(mode="lin", src=i, Wq=xm["Wq"][j].index_select(1, torch.tensor(qc, device=xm["Wq"][j].device)),
+                         Wy=Wj.index_select(1, torch.tensor(yc, device=Wj.device)))
+            else:
+                r = dict(mode="attnW", src=i, Wy=Wj.index_select(1, torch.tensor(cols, device=Wj.device)))
+        else:
+            continue
+        r["widths"] = widths
+        out["layers"][j] = r
+    return out
+
+
+def xkv_layer_taps_r(xmr, feats, emb, emb_prev, j, out_dtype=torch.float32):
+    """This rank's taps of target layer j from shard_xkv maps (rank-local widths)."""
+    from .xkv_adapter import _mm
+    r = xmr["layers"][j]
+    if r["mode"] == "attnmap":
+        dt = emb.dtype
+        y = r["b"].to(device=emb.device, dtype=dt).expand(*emb.shape[:-1], -1).clone()
+        for i in r["srcs"]:
+            y = y + feats[i].to(dt) @ r["parts"][i].to(device=emb.device, dtype=dt)
+        if xmr["embed"]:
+            y = y + emb @ r["e"].to(device=emb.device, dtype=dt) + emb_prev @ r["p"].to(device=emb.device, dtype=dt)
+        if "mlp" in r:
+            m = r["mlp"]
+            f = torch.cat([feats[i].to(dt) for i in r["srcs"]] + ([emb, emb_prev] if xmr["embed"] else []), -1)
+            y = y + torch.nn.functional.gelu(f @ m["w1"].to(f) + m["b1"].to(f)) @ m["w2"].to(f)
+    elif r["mode"] == "attnW":
+        y = _mm(feats[r["src"]], r["Wy"])
+    else:
+        q = _mm(feats[r["src"]], r["Wq"])
+        y = _mm(feats[r["src"]], r["Wy"])
+        (_, wqkv), (_, nv), _ = r["widths"]
+        kv_w = wqkv - q.shape[-1]
+        return {"qkv": torch.cat([q, y[..., :kv_w]], -1).to(out_dtype), "a": y[..., kv_w:kv_w + nv].to(out_dtype),
+                "b": y[..., kv_w + nv:kv_w + 2 * nv].to(out_dtype)}
+    h = y.shape[-1] // 2
+    return {"k": y[..., :h].to(out_dtype), "v": y[..., h:].to(out_dtype)}
+
+
+def to_device(x, device):
+    """Nested dict/list of tensors -> device (shard_xkv output)."""
+    if torch.is_tensor(x):
+        return x.to(device)
+    if isinstance(x, dict):
+        return {k: to_device(v, device) for k, v in x.items()}
+    if isinstance(x, (list, tuple)):
+        return type(x)(to_device(v, device) for v in x)
+    return x

@@ -295,3 +295,50 @@ def test_feat_stream_runs_each_target_once_with_its_inputs_and_frees():
     fs.finish()
     assert sorted(ran) == list(range(16)) and len(ran) == 16
     assert fs.peak <= 2 and not feats
+
+
+def test_tp_sharded_xkv_equals_sliced_full(fx):
+    """xkv maps sharded per TP rank (shard_xkv + xkv_layer_taps_r + shard_params) give exactly slice_for_rank of the
+    unsharded xkv states: GatedDeltaNet layers (Wq + W slice), an attention layer through the attention map (embed +
+    MLP), and an attention layer through the W slice."""
+    d, p = fx
+    c = d["tgt_config"]
+    kinds = {t: ("lin" if lt == "linear_attention" else "attn") for t, lt in enumerate(c["layer_types"])}
+    g = torch.Generator().manual_seed(3)
+    rn = lambda *s: torch.randn(*s, generator=g)
+    T, ds, de, n_src = 12, 24, 10, 3
+    kd = c["linear_key_head_dim"] * c["linear_num_key_heads"]
+    vd = c["linear_value_head_dim"] * c["linear_num_value_heads"]
+    nv = c["linear_num_value_heads"]
+    kv = c["num_key_value_heads"] * c["head_dim"]
+    width = {"lin": kd + vd + 2 * nv, "attn": 2 * kv}
+    src_of = {j: j % n_src for j in kinds}
+    slices, W = {i: {} for i in range(n_src)}, {}
+    for i in range(n_src):
+        o = 0
+        for j in [j for j in kinds if src_of[j] == i]:
+            slices[i][j] = (o, o + width[kinds[j]])
+            o += width[kinds[j]]
+        W[i] = 0.1 * rn(ds + 1, o)
+    Wq = {j: 0.1 * rn(ds + 1, kd) for j in kinds if kinds[j] == "lin"}
+    j_am = next(j for j in kinds if kinds[j] == "attn")
+    parts = {0: 0.1 * rn(ds, 2 * kv), 1: 0.1 * rn(ds, 2 * kv), "b": rn(2 * kv), "e": 0.1 * rn(de, 2 * kv),
+             "p": 0.1 * rn(de, 2 * kv)}
+    mlp = {j_am: dict(w1=0.1 * rn(2 * ds + 2 * de, 16), b1=rn(16), w2=0.1 * rn(16, 2 * kv))}
+    xm = dict(W=W, Wq=Wq, slices=slices, src_of=src_of,
+              attn=dict(layers={j_am: [0, 1]}, embed=True, parts={j_am: parts}, mlp=mlp))
+    feats = {i: rn(1, T, ds) for i in range(n_src)}
+    emb, emb_prev = rn(1, T, de), rn(1, T, de)
+    full = {}
+    for j, k in kinds.items():
+        tp_ = hs.xkv_layer_taps(xm, feats, emb, emb_prev, j, k, c)
+        full[j] = hs.caches_from_taps(p, kinds, {j: {n: v[0] for n, v in tp_.items()}})[j]
+    for rank in range(2):
+        xmr = hs.shard_xkv(xm, kinds, c, p, rank, 2)
+        pr = hs.shard_params(p, rank, 2)
+        for j, k in kinds.items():
+            tr = hs.xkv_layer_taps_r(xmr, feats, emb, emb_prev, j)
+            got = hs.caches_from_taps(pr, kinds, {j: {n: v[0] for n, v in tr.items()}})[j]
+            ref = hs.slice_for_rank(p, full[j], rank, 2)
+            for a_, b_ in zip(got[1:], ref[1:]):
+                assert a_.shape == b_.shape and torch.allclose(a_, b_, atol=1e-4, rtol=1e-4), (rank, j, k)
