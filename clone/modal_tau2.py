@@ -84,9 +84,14 @@ def run(domains: str, arm: str, run_id: str, model: str, connector: str, num_tas
         if left < 120:
             out_all.append(dict(domain=domain, arm=arm, error="skipped: budget"))
             continue
-        p = subprocess.run(cmd, capture_output=True, text=True, cwd="/opt/tau2", timeout=left)
-        open(f"{out}/tau2.log", "w").write(p.stdout[-30000:] + "\n---\n" + p.stderr[-30000:])
-        res = dict(domain=domain, arm=arm, rc=p.returncode, t_ready_s=round(t_ready), wall_s=round(time.time() - t0))
+        try:
+            p = subprocess.run(cmd, capture_output=True, text=True, cwd="/opt/tau2", timeout=left)
+            rc, so, se = p.returncode, p.stdout, p.stderr
+        except subprocess.TimeoutExpired as e:  # budget hit: keep whatever tau2 saved so far (partial, flagged)
+            rc, so, se = "timeout", (e.stdout or b"").decode(errors="replace") if isinstance(e.stdout, bytes) else (e.stdout or ""), \
+                (e.stderr or b"").decode(errors="replace") if isinstance(e.stderr, bytes) else (e.stderr or "")
+        open(f"{out}/tau2.log", "w").write(so[-30000:] + "\n---\n" + se[-30000:])
+        res = dict(domain=domain, arm=arm, rc=rc, t_ready_s=round(t_ready), wall_s=round(time.time() - t0))
         try:
             rp = f"{out}/tau2.json"
             d = json.load(open(os.path.join(rp, "results.json") if os.path.isdir(rp) else rp))  # --save-to makes a dir
@@ -101,7 +106,7 @@ def run(domains: str, arm: str, run_id: str, model: str, connector: str, num_tas
                        user_cost_usd=sum((s.get("user_cost") or 0) for s in sims))
         except Exception as e:
             res["parse_error"] = repr(e)
-            res["tail"] = (p.stdout + p.stderr)[-3000:]
+            res["tail"] = (so + se)[-3000:]
         json.dump(res, open(f"{out}/summary.json", "w"), indent=1)
         vol.commit()
         out_all.append(res)
