@@ -28,7 +28,7 @@ image = (
     .env({"HF_HOME": "/hf", "HF_HUB_CACHE": "/vol/hf/hub", "HF_DATASETS_CACHE": "/vol/hf/datasets",
           "PYTHONUNBUFFERED": "1", "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
           **{k: os.environ[k] for k in ("KVX_VOLUME", "KVX_WEIGHTS_VOLUME") if k in os.environ}})
-    .add_local_python_source("xkv")
+    .add_local_python_source("xkv", "kvx")
 )
 vol = modal.Volume.from_name(os.environ.get("KVX_VOLUME", "kvx"), create_if_missing=True)
 weights = modal.Volume.from_name(os.environ.get("KVX_WEIGHTS_VOLUME", "kvx-hf"))
@@ -42,6 +42,8 @@ def run_tasks(run_id: str, tasks: list):
     if not os.path.exists("/artifacts"):
         os.symlink("/vol/xkv", "/artifacts")
     from xkv.experiments import dispatch
+    from kvx import xkv_extra
+    xkv_extra.register()  # mbpp_dev bench + agent_kl task (clone-side, src/xkv unchanged)
     from xkv import evals as _xev
     _orig = _xev.load_heldout_text
 
