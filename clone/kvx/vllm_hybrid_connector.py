@@ -272,6 +272,8 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
             self.tcfg = tcfg
         else:
             self.kinds = {t: x["kind"] for t, x in enumerate(self.mf["tgt_taps"])}
+        from .fast_gdn import patch as _fast_gdn  # HF Qwen3.5 GDN -> vLLM's FLA Triton kernel (torch fallback was ~2x slower)
+        _fast_gdn()
         self.S = hybrid.load(self.src_name).model.to(device)
         self.Sdec = hybrid.Dec(self.S)
         from vllm.model_executor.layers.mamba.mamba_utils import is_conv_state_dim_first
