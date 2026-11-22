@@ -1,0 +1,22 @@
+[
+ {
+  "arm": "xcode27-bcbc-full-a",
+  "model": "Qwen/Qwen3.8-27B",
+  "benches": "bigcodebench_complete",
+  "n": 570,
+  "connector": {
+   "_class": "HybridCrossModelConnector",
+   "_module": "kvx.vllm_hybrid_connector",
+   "src": "Qwen/Qwen3.5-4B",
+   "xkv_mapper": "/vol/xkv/maps/4b-27b-r2-distill-code.pt",
+   "xkv_attn": "/vol/xkv/maps/4b-27b-r2-distill-code-attn.pt",
+   "tail": 256,
+   "min_len": 16,
+   "align": 1,
+   "tail_frac": 0.25
+  },
+  "gpu_util": 0.72,
+  "max_num_seqs": 32,
+  "offset": 0
+ }
+]

@@ -29,7 +29,7 @@ app = modal.App(os.environ.get("KVX_APP", "kvx-quality-evals"), image=image)
 
 def _arm_cmd(arm, out_dir):
     c = [sys.executable, "-m", "kvx.evals.run", "--model", arm["model"], "--arm", arm["arm"], "--benches", arm["benches"],
-         "--n", str(arm.get("n", 100)), "--out", out_dir, "--data-root", "/vol/data/evals",
+         "--n", str(arm.get("n", 100)), "--offset", str(arm.get("offset", 0)), "--out", out_dir, "--data-root", "/vol/data/evals",
          "--max-model-len", str(arm.get("max_model_len", 32768)), "--gpu-util", str(arm.get("gpu_util", 0.88))]
     if arm.get("thinking"):
         c.append("--thinking")

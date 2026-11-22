@@ -113,6 +113,8 @@ def main():
     ap.add_argument("--arm", required=True)
     ap.add_argument("--benches", required=True)
     ap.add_argument("--n", type=int, default=100)
+    ap.add_argument("--offset", type=int, default=0, help="skip the first OFFSET items of each bench (split a full split "
+                                                          "across boots: items [offset, offset + n))")
     ap.add_argument("--ns", default=None, help='JSON per-bench n overrides, e.g. {"longbench_v2": 97}')
     ap.add_argument("--out", required=True)
     ap.add_argument("--data-root", default=os.environ.get("KVX_DATA", "/w/data"))
@@ -138,7 +140,7 @@ def main():
     items = []
     ns = json.loads(a.ns) if a.ns else {}
     for b in a.benches.split(","):
-        items += data.load(b, a.data_root, int(ns.get(b, a.n)))
+        items += data.load(b, a.data_root, a.offset + int(ns.get(b, a.n)))[a.offset:]
     if a.reread:
         items = apply_reread(tok, items, total=a.tail_cap - 16)
     prompts = build_prompts(tok, items, a.max_model_len, a.thinking)
