@@ -62,6 +62,13 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
         # cost ~ m/num_layers of a target prefill, not part of the native-tail cap)
         self.native_layers = int(cfg.get_from_extra_config("native_layers", 0))
         self.sinks = cfg.get_from_extra_config("sinks", None)  # override the file's sink count (template rows)
+        # map_once (multi-turn, OneTriangle's "exact mapped cache"): a conversation's FIRST request maps all but its
+        # native tail; every later request that starts with that mapped prefix maps exactly the same prefix (causal
+        # and deterministic, so the same KV/state as reusing the cache) and the target computes everything after it
+        # natively: later user turns, tool outputs and the agent's own replies never go through the map.
+        self.map_once = bool(int(cfg.get_from_extra_config("map_once", 0)))
+        self._prefixes = {}  # first-prompt length -> {hash(first prompt tokens): its mapped prefix length}
+        self._mstats = dict(first_n=0, first_prompt=0, first_mapped=0, later_n=0, later_prompt=0, later_mapped=0)
         self.tgt_name = vllm_config.model_config.model
         if vllm_config.cache_config.enable_prefix_caching:
             raise ValueError("kvx hybrid connector: start vLLM with enable_prefix_caching=False (one state slot per request)")
@@ -98,9 +105,44 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
         p = getattr(request, "kv_transfer_params", None) or {}
         return p.get("kvx_tail") if isinstance(p, dict) else None
 
+    def _map_once(self, ids, tail):
+        """Mapped prefix length under map_once. A later turn starts with its conversation's WHOLE first prompt: it maps
+        exactly that first request's mapped prefix. Otherwise this is a first request: n - tail, remembered."""
+        n = len(ids)
+        for N in sorted(self._prefixes, reverse=True):  # N = a first prompt's length -> {hash(first prompt): m}
+            if N <= n:
+                L = self._prefixes[N].get(hash(tuple(ids[:N])))
+                if L is not None:
+                    st = self._mstats
+                    st["later_n"] += 1
+                    st["later_prompt"] += n
+                    st["later_mapped"] += L
+                    return L
+        m = self._n_mapped(n, tail)
+        if m > 0:
+            self._prefixes.setdefault(n, {})[hash(tuple(ids))] = m
+            if sum(len(v) for v in self._prefixes.values()) > 4096:  # bound memory: forget the shortest prompts
+                self._prefixes.pop(min(self._prefixes))
+        st = self._mstats
+        st["first_n"] += 1
+        st["first_prompt"] += n
+        st["first_mapped"] += m
+        if st["first_n"] % 10 == 0 or (st["later_n"] and st["later_n"] % 50 == 0):
+            logger.info("kvx map_once: first requests %d mapped %.4f of their prompts; later requests %d mapped "
+                        "%.4f; all %.4f", st["first_n"], st["first_mapped"] / max(1, st["first_prompt"]),
+                        st["later_n"], st["later_mapped"] / max(1, st["later_prompt"]),
+                        (st["first_mapped"] + st["later_mapped"]) / max(1, st["first_prompt"] + st["later_prompt"]))
+        return m
+
     def get_num_new_matched_tokens(self, request, num_computed_tokens):
-        m = self._n_mapped(len(request.prompt_token_ids or []), self._req_tail(request))
-        self.__dict__.setdefault("_m_req", {})[request.request_id] = m
+        mr = self.__dict__.setdefault("_m_req", {})
+        if request.request_id in mr:  # the scheduler may ask again for a waiting request: decide once
+            m = mr[request.request_id]
+        elif self.map_once:
+            m = self._map_once(list(request.prompt_token_ids or []), self._req_tail(request))
+        else:
+            m = self._n_mapped(len(request.prompt_token_ids or []), self._req_tail(request))
+        mr[request.request_id] = m
         return max(0, m - num_computed_tokens), False
 
     def update_state_after_alloc(self, request, blocks, num_external_tokens):
