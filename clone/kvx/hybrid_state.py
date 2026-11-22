@@ -161,12 +161,31 @@ def delta_rule_state(k, v, beta, g):
             except (ImportError, AttributeError):
                 continue
         if chunk_gated_delta_rule is not None:
-            # q is only needed for the kernel's outputs, which we drop: pass k (already l2-normed; no in-kernel norm)
-            _, S = chunk_gated_delta_rule(q=k[None].contiguous(), k=k[None].contiguous(), v=v[None].contiguous(),
-                                          g=g[None].contiguous(), beta=beta[None].contiguous(), initial_state=None,
+            # q is only needed for the kernel's outputs, which we drop: pass k (already l2-normed; no in-kernel norm).
+            # The kernel rejects fp32 q/k/v: bf16 inputs as vLLM's own GDN layer passes them (g fp32, state fp32)
+            kb, vb = k[None].to(torch.bfloat16).contiguous(), v[None].to(torch.bfloat16).contiguous()
+            _, S = chunk_gated_delta_rule(q=kb, k=kb, v=vb, g=g[None].float().contiguous(),
+                                          beta=beta[None].to(torch.bfloat16).contiguous(), initial_state=None,
                                           output_final_state=True, use_qk_l2norm_in_kernel=False)
-            return S[0].float()  # fla returns [B, H, dk, dv]
+            S = S[0].float()  # fla returns [B, H, dk, dv]
+            if _FLA_OK.get("ok") is None:  # one-time check of the bf16 kernel against the fp32 recurrence
+                n = min(k.shape[0], 256)
+                _, Sn = chunk_gated_delta_rule(q=kb[:, -n:], k=kb[:, -n:], v=vb[:, -n:],
+                                               g=g[None, -n:].float().contiguous(),
+                                               beta=beta[None, -n:].to(torch.bfloat16).contiguous(),
+                                               initial_state=None, output_final_state=True,
+                                               use_qk_l2norm_in_kernel=False)
+                ref = delta_rule_state_ref(k[-n:].float(), v[-n:].float(), beta[-n:].float(), g[-n:].float())
+                rel = ((Sn[0].float() - ref).norm() / ref.norm().clamp_min(1e-12)).item()
+                _FLA_OK.update(ok=rel < 0.05, rel=rel)
+                print(f"[kvx] fla chunk_gated_delta_rule check: rel err {rel:.4g} over {n} tokens -> "
+                      f"{'fast path' if rel < 0.05 else 'FALLBACK to the reference loop'}", flush=True)
+            if _FLA_OK["ok"]:
+                return S
     return delta_rule_state_ref(k.float(), v.float(), beta.float(), g.float())
+
+
+_FLA_OK = {}
 
 
 def lin_states(p, l, qkv, a, b, conv_rows=None):
