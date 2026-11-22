@@ -142,7 +142,8 @@ def main():
         for rid, v in out.items():  # keep the better measurement per row (rows carry their own rig and run_id)
             old = cur.get(rid)
             higher = byid[rid].get("direction") == "higher"
-            if old and old.get("run_id") != v["run_id"] and (old["value"] > v["value"] if higher else old["value"] < v["value"]):
+            if old and old.get("quality_ok") is not False and old.get("run_id") != v["run_id"] and (
+                    old["value"] > v["value"] if higher else old["value"] < v["value"]):
                 kept += 1
                 continue
             cur[rid] = v
