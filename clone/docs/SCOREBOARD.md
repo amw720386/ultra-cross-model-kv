@@ -27,13 +27,13 @@
 | home-qwen3-1-7b-qwen3-32b-32K-speedup | Qwen3-1.7B -> Qwen3-32B | speedup x vs their native | 32K | 8.437 | yes | 5.294 | behind |
 | home-qwen3-1-7b-qwen3-32b-64K-ttft | Qwen3-1.7B -> Qwen3-32B | TTFT s (mapped) | 64K | 2.29 | est. | 0.659 | beaten |
 | home-qwen3-1-7b-qwen3-32b-64K-speedup | Qwen3-1.7B -> Qwen3-32B | speedup x vs their native | 64K | 9.376 | est. | 6.1439 | behind |
-| home-qwen3-1-7b-qwen3-32b-128K-ttft | Qwen3-1.7B -> Qwen3-32B | TTFT s (mapped) | 128K | 6.96 | est. | 1.5432 | hold(quality) |
-| home-qwen3-1-7b-qwen3-32b-128K-speedup | Qwen3-1.7B -> Qwen3-32B | speedup x vs their native | 128K | 10.075 | est. | 14.5613 | hold(quality) |
-| home-qwen3-1-7b-qwen3-32b-256K-ttft | Qwen3-1.7B -> Qwen3-32B | TTFT s (mapped) | 256K | 23.57 | est. | 4.623 | beaten |
+| home-qwen3-1-7b-qwen3-32b-128K-ttft | Qwen3-1.7B -> Qwen3-32B | TTFT s (mapped) | 128K | 6.96 | est. | 1.1724 | beaten |
+| home-qwen3-1-7b-qwen3-32b-128K-speedup | Qwen3-1.7B -> Qwen3-32B | speedup x vs their native | 128K | 10.075 | est. | 5.4765 | behind |
+| home-qwen3-1-7b-qwen3-32b-256K-ttft | Qwen3-1.7B -> Qwen3-32B | TTFT s (mapped) | 256K | 23.57 | est. | 3.1433 | beaten |
 | home-qwen3-1-7b-qwen3-32b-256K-speedup | Qwen3-1.7B -> Qwen3-32B | speedup x vs their native | 256K | 10.563 | est. | 8.8576 | behind |
-| home-qwen3-1-7b-qwen3-32b-512K-ttft | Qwen3-1.7B -> Qwen3-32B | TTFT s (mapped) | 512K | 85.98 | est. |  | open |
-| home-qwen3-1-7b-qwen3-32b-512K-speedup | Qwen3-1.7B -> Qwen3-32B | speedup x vs their native | 512K | 10.849 | est. |  | open |
-| home-qwen3-1-7b-qwen3-32b-peak | Qwen3-1.7B -> Qwen3-32B | peak speedup x (headline) | 1M | 11.0 | est. |  | open |
+| home-qwen3-1-7b-qwen3-32b-512K-ttft | Qwen3-1.7B -> Qwen3-32B | TTFT s (mapped) | 512K | 85.98 | est. | 9.2555 | beaten |
+| home-qwen3-1-7b-qwen3-32b-512K-speedup | Qwen3-1.7B -> Qwen3-32B | speedup x vs their native | 512K | 10.849 | est. | 7.8661 | behind |
+| home-qwen3-1-7b-qwen3-32b-peak | Qwen3-1.7B -> Qwen3-32B | peak speedup x (headline) | 1M | 11.0 | est. | 8.913 | behind |
 | home-qwen2-5-3b-qwen2-5-72b-32K-ttft | Qwen2.5-3B -> Qwen2.5-72B | TTFT s (mapped) | 32K | 1.46 | yes | 0.3041 | beaten |
 | home-qwen2-5-3b-qwen2-5-72b-32K-speedup | Qwen2.5-3B -> Qwen2.5-72B | speedup x vs their native | 32K | 8.514 | yes | 5.4135 | behind |
 | home-qwen2-5-3b-qwen2-5-72b-64K-ttft | Qwen2.5-3B -> Qwen2.5-72B | TTFT s (mapped) | 64K | 3.46 | yes | 0.569 | beaten |
@@ -44,7 +44,7 @@
 | home-qwen2-5-3b-qwen2-5-72b-262K-speedup | Qwen2.5-3B -> Qwen2.5-72B | speedup x vs their native | 262K | 9.147 | yes | 14.0457 | hold(quality) |
 | home-qwen2-5-3b-qwen2-5-72b-524K-ttft | Qwen2.5-3B -> Qwen2.5-72B | TTFT s (mapped) | 524K | 136.7 | yes | 4.2536 | hold(quality) |
 | home-qwen2-5-3b-qwen2-5-72b-524K-speedup | Qwen2.5-3B -> Qwen2.5-72B | speedup x vs their native | 524K | 8.843 | yes | 23.8782 | hold(quality) |
-| home-qwen2-5-3b-qwen2-5-72b-peak | Qwen2.5-3B -> Qwen2.5-72B | peak speedup x (headline) | 127K | 9.6 | yes | 9.6288 | tied |
+| home-qwen2-5-3b-qwen2-5-72b-peak | Qwen2.5-3B -> Qwen2.5-72B | peak speedup x (headline) | 127K | 9.6 | yes | 10.2285 | beaten |
 | home-gemma-4-e2b-gemma-4-31b-8K-ttft | Gemma-4-E2B -> Gemma-4-31B | TTFT s (mapped) | 8K | 0.23 | est. |  | open |
 | home-gemma-4-e2b-gemma-4-31b-8K-speedup | Gemma-4-E2B -> Gemma-4-31B | speedup x vs their native | 8K | 5.174 | est. |  | open |
 | home-gemma-4-e2b-gemma-4-31b-16K-ttft | Gemma-4-E2B -> Gemma-4-31B | TTFT s (mapped) | 16K | 0.44 | est. |  | open |
@@ -1084,22 +1084,22 @@
 | x-tb-qwen-ladder-ttft-map-64k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: KV map (ms) [mapped] | context 64K; p50 | 55 | est. | 96.8 | behind |
 | x-tb-qwen-ladder-ttft-move-64k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: cache move (ms) [mapped] | context 64K; p50 | 97 | est. | 24.0 | beaten |
 | x-tb-qwen-ladder-ttft-decode-64k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: first target token (ms) [mapped] | context 64K; p50 | 171 | est. | 63.6 | beaten |
-| x-tb-qwen-ladder-ttft-prefill-128k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: source-model prefill (ms) [mapped] | context 128K; p50 | 6372 | est. | 1046.2 | hold(quality) |
-| x-tb-qwen-ladder-ttft-map-128k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: KV map (ms) [mapped] | context 128K; p50 | 110 | est. | 191.4 | behind |
+| x-tb-qwen-ladder-ttft-prefill-128k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: source-model prefill (ms) [mapped] | context 128K; p50 | 6372 | est. | 803.2 | beaten |
+| x-tb-qwen-ladder-ttft-map-128k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: KV map (ms) [mapped] | context 128K; p50 | 110 | est. | 190.0 | behind |
 | x-tb-qwen-ladder-ttft-move-128k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: cache move (ms) [mapped] | context 128K; p50 | 193 | est. | 48.4 | beaten |
-| x-tb-qwen-ladder-ttft-decode-128k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: first target token (ms) [mapped] | context 128K; p50 | 281 | est. | 106.2 | beaten |
-| x-tb-qwen-ladder-ttft-prefill-256k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: source-model prefill (ms) [mapped] | context 256K; p50 | 22468 | est. | 3955.2 | beaten |
-| x-tb-qwen-ladder-ttft-map-256k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: KV map (ms) [mapped] | context 256K; p50 | 220 | est. | 378.9 | behind |
+| x-tb-qwen-ladder-ttft-decode-128k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: first target token (ms) [mapped] | context 128K; p50 | 281 | est. | 100.6 | beaten |
+| x-tb-qwen-ladder-ttft-prefill-256k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: source-model prefill (ms) [mapped] | context 256K; p50 | 22468 | est. | 2433.8 | beaten |
+| x-tb-qwen-ladder-ttft-map-256k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: KV map (ms) [mapped] | context 256K; p50 | 220 | est. | 378.2 | behind |
 | x-tb-qwen-ladder-ttft-move-256k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: cache move (ms) [mapped] | context 256K; p50 | 386 | est. | 97.2 | beaten |
-| x-tb-qwen-ladder-ttft-decode-256k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: first target token (ms) [mapped] | context 256K; p50 | 500 | est. | 191.6 | beaten |
-| x-tb-qwen-ladder-ttft-prefill-512k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: source-model prefill (ms) [mapped] | context 512K; p50 | 83829 | est. |  | open |
-| x-tb-qwen-ladder-ttft-map-512k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: KV map (ms) [mapped] | context 512K; p50 | 441 | est. |  | open |
-| x-tb-qwen-ladder-ttft-move-512k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: cache move (ms) [mapped] | context 512K; p50 | 773 | est. |  | open |
-| x-tb-qwen-ladder-ttft-decode-512k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: first target token (ms) [mapped] | context 512K; p50 | 939 | est. |  | open |
-| x-tb-qwen-ladder-ttft-prefill-1m | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: source-model prefill (ms) [mapped] | context 1M; p50 | 323231 | est. |  | open |
-| x-tb-qwen-ladder-ttft-map-1m | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: KV map (ms) [mapped] | context 1M; p50 | 882 | est. |  | open |
-| x-tb-qwen-ladder-ttft-move-1m | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: cache move (ms) [mapped] | context 1M; p50 | 1545 | est. |  | open |
-| x-tb-qwen-ladder-ttft-decode-1m | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: first target token (ms) [mapped] | context 1M; p50 | 1817 | est. |  | open |
+| x-tb-qwen-ladder-ttft-decode-256k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: first target token (ms) [mapped] | context 256K; p50 | 500 | est. | 174.5 | beaten |
+| x-tb-qwen-ladder-ttft-prefill-512k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: source-model prefill (ms) [mapped] | context 512K; p50 | 83829 | est. | 7851.5 | beaten |
+| x-tb-qwen-ladder-ttft-map-512k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: KV map (ms) [mapped] | context 512K; p50 | 441 | est. | 752.0 | behind |
+| x-tb-qwen-ladder-ttft-move-512k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: cache move (ms) [mapped] | context 512K; p50 | 773 | est. | 313.8 | beaten |
+| x-tb-qwen-ladder-ttft-decode-512k | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: first target token (ms) [mapped] | context 512K; p50 | 939 | est. | 337.6 | beaten |
+| x-tb-qwen-ladder-ttft-prefill-1m | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: source-model prefill (ms) [mapped] | context 1M; p50 | 323231 | est. | 28127.4 | beaten |
+| x-tb-qwen-ladder-ttft-map-1m | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: KV map (ms) [mapped] | context 1M; p50 | 882 | est. | 1492.6 | behind |
+| x-tb-qwen-ladder-ttft-move-1m | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: cache move (ms) [mapped] | context 1M; p50 | 1545 | est. | 618.7 | beaten |
+| x-tb-qwen-ladder-ttft-decode-1m | Qwen3-1.7B -> Qwen3-4B–32B | TTFT component: first target token (ms) [mapped] | context 1M; p50 | 1817 | est. | 646.4 | beaten |
 | x-tb-qwen-72-mean-map | Qwen2.5-3B -> Qwen2.5-72B | mean accuracy (0-1) [mapped_routed] | mean of 8 benchmarks (routed system chart) | 0.725 | yes |  | open |
 | x-tb-qwen-72-gap | Qwen2.5-3B -> Qwen2.5-72B | quality gap closed % [mapped_routed] | mean of 8 benchmarks | 68 | yes |  | open |
 | x-tb-qwen-72-ttft-frac | Qwen2.5-3B -> Qwen2.5-72B | TTFT as % of native target [mapped_routed] | 32K context | 12 | yes |  | open |
