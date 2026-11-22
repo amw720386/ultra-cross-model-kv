@@ -27,7 +27,7 @@ This repo rebuilds, from public material only, the method that OneTriangle (YC S
 ## Scoreboard: every OneTriangle number vs ours
 
 <!-- SCOREBOARD:BEGIN -->
-**OneTriangle Tier 1: 6 / 45 beaten** (tied 0, behind 0, on quality hold 6, blocked 1, open 32): the 9 homepage peak speedups, their measured end-to-end TTFT points, and the 15 rows of their benchmark bundle. Only Tier 1 is the goal.
+**OneTriangle Tier 1: 7 / 45 beaten** (tied 0, behind 0, on quality hold 6, blocked 1, open 31): the 9 homepage peak speedups, their measured end-to-end TTFT points, and the 15 rows of their benchmark bundle. Only Tier 1 is the goal.
 
 | id | pair | metric | context / benchmark | theirs | ours | owner | status |
 |---|---|---|---|---|---|---|---|
@@ -74,12 +74,12 @@ This repo rebuilds, from public material only, the method that OneTriangle (YC S
 | bundle-tau2-telecom-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | tau2 Telecom | 0.4705882353 |  | quality | open |
 | bundle-tau2-overall-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | tau2 Overall | 0.4901960784 |  | quality | open |
 | bundle-terminal-bench-2-0-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | Terminal-Bench 2.0 | 0.1 |  | quality | open |
-| x-ml-ttft-8k-speedup | Llama-3.1-Minitron-4B-Width-Base -> Llama-3.1-8B | TTFT speedup x [mapped_direct+rank8_residual] | 8K, resident source cache | 7.91 |  | speed | open |
+| x-ml-ttft-8k-speedup | Llama-3.1-Minitron-4B-Width-Base -> Llama-3.1-8B | TTFT speedup x [mapped_direct+rank8_residual] | 8K, resident source cache | 7.91 | 12.31646246586625 | speed | beaten |
 | x-tb-qwen-72-sq-3b-72b-cache-transfer-x | Qwen2.5-3B -> Qwen2.5-72B | TTFT speedup relative to native 72B @32K [mapped] | quality vs TTFT @32K; pooled QuALITY + ContractNLI slice | 8.69 |  | speed | open |
 
 All rows (Tier 2 and untracked included):
 
-**Beaten 145 of 1143** published OneTriangle numbers (tied 24, behind 61, blocked 1, open 804). Full row table: [docs/SCOREBOARD.md](docs/SCOREBOARD.md). Rules: same pair, context/benchmark and N or more; TTFT on their GPU class (H100) and speedups against native vLLM/SGLang.
+**Beaten 147 of 1143** published OneTriangle numbers (tied 24, behind 61, blocked 1, open 802). Full row table: [docs/SCOREBOARD.md](docs/SCOREBOARD.md). Rules: same pair, context/benchmark and N or more; TTFT on their GPU class (H100) and speedups against native vLLM/SGLang.
 
 | pair | category | rows | beaten | tied | behind | blocked | open |
 |---|---|---|---|---|---|---|---|
@@ -133,7 +133,7 @@ All rows (Tier 2 and untracked included):
 | Qwen3-1.7B -> Qwen3-32B | quality | 8 | 2 | 2 | 1 | 0 | 3 |
 | Qwen3-4B -> Qwen3-32B-(direct-depth-map,-repair-32,-adaptive-speculation) | speed/cost | 8 | 0 | 0 | 0 | 0 | 8 |
 | TinyLlama-1.1B -> Qwen3-4B-Instruct | quality | 8 | 0 | 0 | 0 | 0 | 8 |
-| Llama-3.1-Minitron-4B-Width-Base -> Llama-3.1-8B | speed/cost | 7 | 0 | 0 | 0 | 0 | 7 |
+| Llama-3.1-Minitron-4B-Width-Base -> Llama-3.1-8B | speed/cost | 7 | 2 | 0 | 0 | 0 | 5 |
 | Qwen3-0.6B -> Qwen3-1.7B | diagnostic | 7 | 4 | 0 | 0 | 0 | 0 |
 | Qwen3-32B -> Qwen3-8B-(32B-prefill,-ridge-map,-8B-decode) | quality | 7 | 0 | 0 | 0 | 0 | 7 |
 | Llama-3.1-8B -> Qwen2.5-72B-Instruct | speed/cost | 6 | 0 | 0 | 0 | 0 | 6 |

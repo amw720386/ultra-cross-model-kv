@@ -281,8 +281,8 @@
 | x-p32-decode-8b-card | Qwen3-32B -> Qwen3-8B | decode tokens/s (approx) [mapped_ridge] | blog card | 47 | yes |  | open |
 | x-pr-err-mapped_affin | toy-4-layer-source -> perturbed-4-layer-target-(alpha=0.12) | mean relative target-logit error [mapped_affine] | 480 held-out comparisons, 10 seeds | 5.2 | yes |  | open |
 | x-pr-agr-mapped_affin | toy-4-layer-source -> perturbed-4-layer-target-(alpha=0.12) | target top-1 agreement [mapped_affine] | 480 held-out comparisons, 10 seeds | 92.71 | yes |  | open |
-| x-ml-ttft-8k-learned | Llama-3.1-Minitron-4B-Width-Base -> Llama-3.1-8B | target TTFT p50 ms [mapped_direct+rank8_residual] | 8,192-token prefix, resident source cache | 38.25 | yes |  | open |
-| x-ml-ttft-8k-speedup | Llama-3.1-Minitron-4B-Width-Base -> Llama-3.1-8B | TTFT speedup x [mapped_direct+rank8_residual] | 8K, resident source cache | 7.91 | yes |  | open |
+| x-ml-ttft-8k-learned | Llama-3.1-Minitron-4B-Width-Base -> Llama-3.1-8B | target TTFT p50 ms [mapped_direct+rank8_residual] | 8,192-token prefix, resident source cache | 38.25 | yes | 17.8243649999672 | beaten |
+| x-ml-ttft-8k-speedup | Llama-3.1-Minitron-4B-Width-Base -> Llama-3.1-8B | TTFT speedup x [mapped_direct+rank8_residual] | 8K, resident source cache | 7.91 | yes | 12.31646246586625 | beaten |
 | x-ml-ttft-8k-reduction | Llama-3.1-Minitron-4B-Width-Base -> Llama-3.1-8B | TTFT reduction [mapped_direct+rank8_residual] | 8K, resident source cache | 87 | yes |  | open |
 | x-ml-cold-8k-learned | Llama-3.1-Minitron-4B-Width-Base -> Llama-3.1-8B | cold-context latency ms [mapped_direct+rank8_residual] | 8K incl. Minitron prefill | 241.56 | yes |  | open |
 | x-ml-cold-8k-speedup | Llama-3.1-Minitron-4B-Width-Base -> Llama-3.1-8B | speedup x [mapped_direct+rank8_residual] | 8K incl. Minitron prefill | 1.25 | yes |  | open |
