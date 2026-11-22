@@ -180,10 +180,19 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
         meta = self._get_connector_metadata()
         if not isinstance(meta, HybridMeta) or not meta.requests:
             return
-        if not getattr(self, "_kv", None):
-            self.register_kv_caches({n: l.kv_cache[0] if isinstance(l.kv_cache, (list, tuple)) and len(l.kv_cache) == 1
-                                     else l.kv_cache for n, l in forward_context.no_compile_layers.items()
-                                     if getattr(l, "kv_cache", None) is not None})
+        # vLLM 0.34 registers ONE raw allocation per layer; each layer's own bind_kv_cache unpacks it into views
+        # (attention: the paged KV tensor; GatedDeltaNet: (conv_state, ssm_state)). Write through those views.
+        views = {}
+        for n, l in forward_context.no_compile_layers.items():
+            m = _LAYER_RE.search(n)
+            kvc = getattr(l, "kv_cache", None)
+            if m is None or kvc is None:
+                continue
+            if isinstance(kvc, (list, tuple)) and len(kvc) == 1:  # per-virtual-engine wrapper
+                kvc = kvc[0]
+            views[int(m.group(1))] = kvc
+        if views:
+            self._kv = views
         device = next(t for t in self._kv.values() if isinstance(t, torch.Tensor)).device if any(
             isinstance(t, torch.Tensor) for t in self._kv.values()) else torch.device("cuda")
         if not self._ready:
@@ -215,6 +224,21 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
                     write_kv(kv, bi, off, K.to(torch.bfloat16), V.to(torch.bfloat16), bs, self._layout)
                 else:
                     _, conv, S = st
+                    if not getattr(self, "_logged_lin", False):
+                        def desc(x, d=0):
+                            if torch.is_tensor(x):
+                                return f"Tensor{tuple(x.shape)} {x.dtype} stride={x.stride()}"
+                            if isinstance(x, (list, tuple)) and d < 3:
+                                return f"{type(x).__name__}[" + ", ".join(desc(y, d + 1) for y in x) + "]"
+                            return type(x).__name__
+                        fc_layer = next((l for n, l in forward_context.no_compile_layers.items()
+                                         if _LAYER_RE.search(n) and int(_LAYER_RE.search(n).group(1)) == t), None)
+                        logger.info("kvx hybrid: lin layer %d registered cache %s | layer.kv_cache %s | blocks %s | "
+                                    "conv %s S %s", t, desc(cache), desc(getattr(fc_layer, "kv_cache", None)),
+                                    blocks[:4], tuple(conv.shape), tuple(S.shape))
+                        self._logged_lin = True
+                    if not (isinstance(cache, (list, tuple)) and len(cache) >= 2):
+                        raise RuntimeError(f"kvx hybrid: unexpected GDN cache object for layer {t}: see the log line above")
                     conv_c, ssm_c = cache[0], cache[1]
                     write_lin_state(conv_c, ssm_c, int(blocks[0]), conv, S, self.dim_first)
             self.stats["requests"] += 1
