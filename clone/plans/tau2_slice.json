@@ -1,0 +1,75 @@
+{
+ "note": "OneTriangle mapped tau2 arm: deterministic balanced 51-task slice (17/domain), from their bundle tau2 results",
+ "protocol": {
+  "benchmark": "official tau2 text-v1",
+  "domains": [
+   "airline",
+   "retail",
+   "telecom"
+  ],
+  "language": "en",
+  "seed": 300,
+  "tau2_revision": "989d3285ae669e49503324bdb9981bf14fccedeb",
+  "trials_per_task": 1,
+  "user_simulator": "openai/gpt-5.5"
+ },
+ "mapped_slice_task_ids": {
+  "airline": [
+   "0",
+   "1",
+   "16",
+   "2",
+   "3",
+   "4",
+   "5",
+   "6",
+   "7",
+   "8",
+   "9",
+   "10",
+   "11",
+   "12",
+   "13",
+   "14",
+   "15"
+  ],
+  "retail": [
+   "6",
+   "8",
+   "11",
+   "13",
+   "14",
+   "16",
+   "17",
+   "18",
+   "19",
+   "21",
+   "22",
+   "23",
+   "25",
+   "26",
+   "30",
+   "32",
+   "36"
+  ],
+  "telecom": [
+   "[mobile_data_issue]airplane_mode_on|data_mode_off[PERSONA:None]",
+   "[mobile_data_issue]airplane_mode_on|bad_network_preference[PERSONA:Hard]",
+   "[mobile_data_issue]data_saver_mode_on|user_abroad_roaming_enabled_off[PERSONA:Easy]",
+   "[mobile_data_issue]bad_network_preference|bad_vpn|user_abroad_roaming_enabled_off[PERSONA:Easy]",
+   "[mobile_data_issue]bad_network_preference|bad_vpn|user_abroad_roaming_disabled_on[PERSONA:None]",
+   "[mobile_data_issue]data_mode_off|data_usage_exceeded|user_abroad_roaming_disabled_off[PERSONA:Hard]",
+   "[mobile_data_issue]airplane_mode_on|bad_network_preference|data_mode_off|user_abroad_roaming_disabled_on[PERSONA:Hard]",
+   "[mobile_data_issue]airplane_mode_on|bad_network_preference|data_mode_off|data_saver_mode_on[PERSONA:Hard]",
+   "[mobile_data_issue]airplane_mode_on|bad_network_preference|data_mode_off|data_usage_exceeded|user_abroad_roaming_disabled_on[PERSONA:None]",
+   "[mobile_data_issue]airplane_mode_on|bad_network_preference|data_saver_mode_on|data_usage_exceeded|user_abroad_roaming_disabled_off[PERSONA:None]",
+   "[mobile_data_issue]bad_network_preference|data_mode_off|data_saver_mode_on|data_usage_exceeded|user_abroad_roaming_disabled_off[PERSONA:Easy]",
+   "[mobile_data_issue]bad_network_preference|bad_vpn|data_saver_mode_on|data_usage_exceeded|user_abroad_roaming_disabled_off[PERSONA:Easy]",
+   "[mobile_data_issue]airplane_mode_on|bad_network_preference|data_mode_off|data_saver_mode_on|data_usage_exceeded|user_abroad_roaming_disabled_on[PERSONA:None]",
+   "[mobile_data_issue]bad_network_preference|bad_vpn|data_mode_off|data_saver_mode_on|data_usage_exceeded|user_abroad_roaming_enabled_off[PERSONA:Easy]",
+   "[mobile_data_issue]airplane_mode_on|bad_network_preference|bad_vpn|data_mode_off|data_saver_mode_on|data_usage_exceeded|user_abroad_roaming_enabled_off[PERSONA:Easy]",
+   "[mobile_data_issue]airplane_mode_on|bad_network_preference|bad_vpn|data_mode_off|data_saver_mode_on|data_usage_exceeded|user_abroad_roaming_disabled_on[PERSONA:None]",
+   "[service_issue]airplane_mode_on|lock_sim_card_pin[PERSONA:Easy]"
+  ]
+ }
+}
