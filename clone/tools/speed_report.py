@@ -26,12 +26,14 @@ PAIRS = {
     "Qwen/Qwen3-8B": ("Qwen3-1.7B -> Qwen3-8B", "Qwen3-1.7B -> Qwen3-8B",
                       {8192: "8K", 16384: "16K", 32768: "32K", 65536: "64K", 130816: "128K", 261888: "256K",
                        523776: "512K", 1048320: "1M"}),
+    "mistralai/Mistral-Medium-3.5-128B": ("Ministral-3-3B -> Mistral-Medium-3.5-128B", "Ministral-3-3B -> Mistral-Medium-3.5-128B",
+                                          {8192: "8K", 16384: "16K", 32768: "32K", 65536: "64K"}),
     "Qwen/Qwen2.5-72B": ("Qwen2.5-3B -> Qwen2.5-72B", "Qwen2.5-3B -> Qwen2.5-72B",
                          {32768: "32K", 65536: "64K", 130816: "127K", 261888: "262K", 523776: "524K", 1048320: "1M"}),
 }
 # their headline peak context per pair (Tier 1 "peak speedup x (headline)" rows) and the documented max context
 PEAK = {"Qwen3-1.7B -> Qwen3-32B": ("1M", 131072), "Qwen3-1.7B -> Qwen3-8B": ("1M", 131072),
-        "Qwen2.5-3B -> Qwen2.5-72B": ("127K", 131072)}
+        "Qwen2.5-3B -> Qwen2.5-72B": ("127K", 131072), "Ministral-3-3B -> Mistral-Medium-3.5-128B": ("32K", 262144)}
 COMP = {"src_ms": "source-model prefill", "map_ms": "KV map", "move_ms": "cache move", "first_ms": "first target token"}
 LINE = re.compile(r"kvx components: n=(\d+) src_ms=([\d.]+) map_ms=([\d.]+) move_ms=([\d.]+) total_ms=([\d.]+)")
 
