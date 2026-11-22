@@ -8,6 +8,7 @@ image = (
     .pip_install("torch==2.8.0", "transformers==4.56.2", "accelerate", "numpy", "hf_transfer", "packaging", "ninja", "wheel")
     .pip_install("https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.3/flash_attn-2.8.3+cu12torch2.8cxx11abiTRUE-cp311-cp311-linux_x86_64.whl")
     .env({"HF_HOME": "/vol/hf", "HF_HUB_CACHE": "/hf/hub", "HF_HUB_OFFLINE": "1", "HF_HUB_ENABLE_HF_TRANSFER": "1"})
+    .env({k: v for k, v in __import__("os").environ.items() if k.startswith("KVX_") and k.endswith(("_VOLUME", "_SECRET"))})
     .add_local_python_source("kvx")
 )
 vol = modal.Volume.from_name(os.environ.get("KVX_VOLUME", "kvx"), create_if_missing=True)
