@@ -16,7 +16,7 @@ import re
 import modal
 
 image = (modal.Image.debian_slim(python_version="3.11")
-         .pip_install("transformers==5.20.2", "tokenizers", "datasets==3.6.0", "huggingface_hub", "torch==2.8.0")
+         .pip_install("transformers==5.20.2", "tokenizers", "datasets>=4.0", "huggingface_hub", "torch==2.8.0")
          .env({"HF_HOME": "/vol/hf", **{k: os.environ[k] for k in ("KVX_VOLUME", "KVX_WEIGHTS_VOLUME") if k in os.environ}}))
 vol = modal.Volume.from_name(os.environ.get("KVX_VOLUME", "kvx"), create_if_missing=True)
 weights = modal.Volume.from_name(os.environ.get("KVX_WEIGHTS_VOLUME", "kvx-hf"))
