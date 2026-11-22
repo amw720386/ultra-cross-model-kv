@@ -1,7 +1,7 @@
 [
  {
   "src": "google/gemma-4-E4B",
-  "tgt": "google/gemma-4-31b",
+  "tgt": "google/gemma-4-31B",
   "maps": "/vol/runs/pairs-g4e4bB-g4-31bB/maps_core.pt",
   "lens": "8192,16384,32768,65536,130816",
   "reps": 3,
@@ -27,7 +27,7 @@
  },
  {
   "src": "google/gemma-4-E4B",
-  "tgt": "google/gemma-4-31b",
+  "tgt": "google/gemma-4-31B",
   "maps": "/vol/runs/pairs-g4e4bB-g4-31bB/maps_core.pt",
   "lens": "8192,16384,32768,65536,130816",
   "reps": 3,
