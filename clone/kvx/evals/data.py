@@ -275,6 +275,16 @@ def bigcodebench(root, n):
     return out
 
 
+def bigcodebench_complete(root, n):
+    """BigCodeBench "complete" split: the function signature + docstring to continue (code completion form)."""
+    out = []
+    for r in _parquet(root, "bigcodebench.parquet")[:n]:
+        q = f"Complete the following Python code.\n\n```python\n{r['complete_prompt']}```\n\n{CODE_ASK}"
+        out.append(dict(id=r["task_id"], bench="bigcodebench", context="", question=q, kind="code", answer=None,
+                        meta=dict(prompt=r["complete_prompt"], test=r["test"], entry_point=r["entry_point"])))
+    return out
+
+
 def deveval(root, n):
     """DevEval (arXiv 2405.19856) local-file completion prompts (official gpt-4-1106 prompt file): the file context above
     the function is the mapped part, "The code to be completed is: ..." the native tail. Items: the first n namespaces
@@ -299,11 +309,11 @@ def deveval(root, n):
 BENCHES = dict(arc_chat=arc_chat, contract_nli=contract_nli, bamboo_paperqa=bamboo_paperqa, longhealth=longhealth,
                qmsum=qmsum, humaneval=humaneval, mbpp=mbpp, math500=math500,
                hellaswag=hellaswag, piqa=piqa, arc_c=arc_c, quality=quality, longbench_v2=longbench_v2,
-               zebralogic=zebralogic, medqa=medqa, obqa=obqa, bigcodebench=bigcodebench, deveval=deveval)
+               zebralogic=zebralogic, medqa=medqa, obqa=obqa, bigcodebench=bigcodebench, bigcodebench_complete=bigcodebench_complete, deveval=deveval)
 # generation budget per bench (non-thinking)
 MAX_TOKENS = dict(arc_chat=16, contract_nli=16, bamboo_paperqa=16, longhealth=16, qmsum=512, humaneval=1024,
                   mbpp=1024, math500=4096, hellaswag=16, piqa=16, arc_c=16, quality=16, longbench_v2=16,
-                  zebralogic=4096, medqa=16, obqa=16, bigcodebench=1536, deveval=1024)
+                  zebralogic=4096, medqa=16, obqa=16, bigcodebench=1536, bigcodebench_complete=1536, deveval=1024)
 THINK_TOKENS = 16384  # extra generation budget per item when --thinking
 
 
