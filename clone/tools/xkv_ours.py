@@ -51,6 +51,7 @@ def main():
     ap.add_argument("--alt-label", default="plain distilled map")
     ap.add_argument("--note", default="", help="extra note text, first (e.g. the router label)")
     ap.add_argument("--decontam-text", default="", help="decontam note text (replaces --decontam's line)")
+    ap.add_argument("--gpu", required=True, help="gpu_measured for the row (decision rig-h200-hold), e.g. 'NVIDIA H200'")
     ap.add_argument("--dry", action="store_true")
     a = ap.parse_args()
     mp = json.load(open(a.mapped))
@@ -95,7 +96,7 @@ def main():
         elif b in dc:
             note.append(f"decontam: {dc[b]['items_with_13gram_overlap']}/{dc[b]['items']} items share a 13-gram with "
                         f"the distillation data (FineWeb-Edu, {1500} x 4224 tokens)")
-        out[rid] = dict(value=round(p, 4), n=n, ci=round((hi - lo) / 2, 4), native_value=round(nat["score"], 4)
+        out[rid] = dict(gpu_measured=a.gpu, value=round(p, 4), n=n, ci=round((hi - lo) / 2, 4), native_value=round(nat["score"], 4)
                         if nat else None, retention=round(p / nat["score"], 4) if nat else None,
                         mapped_token_frac=round(frac(pt["min"]), 4),
                         rig="1x H200 (Modal), xkv engine (HF transformers, bf16), greedy, xkv bundle loaders",

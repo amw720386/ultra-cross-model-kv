@@ -17,6 +17,7 @@ def main():
     ap.add_argument("--cost", type=float, required=True)
     ap.add_argument("--native", default="9/18")
     ap.add_argument("--fit", default=os.path.join(os.path.dirname(__file__), "..", "plans", "tb2_fit1800.json"))
+    ap.add_argument("--gpu", required=True, help="gpu_measured for the row (decision rig-h200-hold), e.g. 'NVIDIA H200'")
     ap.add_argument("--dry", action="store_true")
     a = ap.parse_args()
     d = json.load(open(a.agg))["tb2"]
@@ -49,7 +50,7 @@ def main():
             f"{d['later_requests']} of ~{d['later_expected']} later requests reused the stored prefix; solved: "
             f"{', '.join(d['solved'])}; ablation (notes only): the re-map protocol on batch 1 with the plain distilled "
             f"map gave 3/18")
-    row = dict(value=d["value"], n=d["n"], ci=d["ci"], native_value=round(nat_k / nat_n, 4), retention=round(b1[0] / nat_k, 4),
+    row = dict(gpu_measured=a.gpu, value=d["value"], n=d["n"], ci=d["ci"], native_value=round(nat_k / nat_n, 4), retention=round(b1[0] / nat_k, 4),
                worst_case=wc, mapped_token_frac=d["mapped_frac_first"],
                mapped_token_frac_all=d["mapped_frac_all"], quality_ok=True,
                rig="Harbor 0.27 terminal-bench@2.0, terminus-2, Modal CPU sandboxes; agent Qwen3.8-27B on vLLM 0.34, "
