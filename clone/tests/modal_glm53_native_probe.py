@@ -59,7 +59,13 @@ def _save(out):
 def probe(gate_cmd: str = ""):
     t0 = time.time()
     hf_shared.reload()
-    out = {"cfg": CFG, "stage": "native"}
+    names = subprocess.run(["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"], capture_output=True,
+                           text=True).stdout.strip().splitlines()
+    out = {"cfg": CFG, "stage": "native", "gpu_names": names}
+    if len(names) != 8 or not all("H200" in n for n in names):  # glm-rig-exempt covers 8xH200 only
+        out.update(stage="done", native_error=f"ABORT: need 8x H200, container has {names}")
+        _save(out)
+        return out
     _save(out)
     rc, wall, txt = _sh([sys.executable, "-c", RUNNER, json.dumps(CFG), "/tmp/native.json"],
                         f"/vol/runs/speed_logs/{CFG['tag']}.log", timeout=5400)
