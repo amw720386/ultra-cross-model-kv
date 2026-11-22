@@ -50,6 +50,11 @@ def load(name, dtype=torch.bfloat16, attn="sdpa", path=None):
     from transformers import AutoConfig, AutoModelForCausalLM
     p = path or name
     cfg = AutoConfig.from_pretrained(p)
+    mt = getattr(getattr(cfg, "text_config", cfg), "model_type", "")
+    if mt.startswith("gemma4") and attn == "sdpa":
+        # HF's sdpa path does not reproduce Gemma 4's eager attention (CPU, fp32: 0.07-0.09 logit error, one-shot and
+        # cached two-step differ from each other too); eager is self-consistent (two-step == one-shot exactly)
+        attn = "eager"
     if cfg.architectures and "ConditionalGeneration" in cfg.architectures[0]:
         from transformers import AutoModelForImageTextToText
         # per sub-config attention: the text model gets `attn`; vision/audio towers (unused here) get eager, since
