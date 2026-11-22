@@ -51,6 +51,7 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
         cfg = self._kv_transfer_config
         self.tail = int(cfg.get_from_extra_config("tail", 256))
         self.align = int(cfg.get_from_extra_config("align", 1))
+        self.tail_frac = float(cfg.get_from_extra_config("tail_frac", 0.25))
         self.min_len = int(cfg.get_from_extra_config("min_len", 512))
         self.src_name = cfg.get_from_extra_config("src", None)
         self.maps_path = cfg.get_from_extra_config("maps", None)
@@ -80,6 +81,7 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
         if n < self.min_len:
             return 0
         t = self.tail if tail is None else max(1, int(tail))
+        t = max(1, min(t, int(self.tail_frac * n)))  # bundle rule: native tail <= 25% of the prompt
         a = max(1, self.align)
         return max(0, ((n - t) // a) * a)
 
