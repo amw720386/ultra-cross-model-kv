@@ -23,7 +23,8 @@
   "mode": "native",
   "tail": 128,
   "tag": "-h100x8-tp8-hyb-native-1m",
-  "max_num_seqs": 4
+  "max_num_seqs": 4,
+  "extra": {}
  },
  {
   "src": "Qwen/Qwen3.5-4B",
@@ -66,7 +67,8 @@
      10
     ],
     "mrope_interleaved": true
-   }
+   },
+   "hyb_src_tp": 1
   },
   "tag": "-h100x8-tp8-srctp-hyb-xkv4b-1m",
   "max_num_seqs": 4
@@ -112,7 +114,8 @@
      10
     ],
     "mrope_interleaved": true
-   }
+   },
+   "hyb_src_tp": 1
   },
   "tag": "-h100x8-tp8-srctp-hyb-xkv2b-1m",
   "max_num_seqs": 4
@@ -170,7 +173,8 @@
   "tail": 256,
   "extra": {
    "connector": "gemma",
-   "min_len": 512
+   "min_len": 512,
+   "g4_src_tp": 1
   },
   "tag": "-h100x8-tp8-srctp-g4-e4b-tail256-1m"
  },
@@ -200,7 +204,8 @@
   "tail": 256,
   "extra": {
    "connector": "gemma",
-   "min_len": 512
+   "min_len": 512,
+   "g4_src_tp": 1
   },
   "tag": "-h100x8-tp8-srctp-g4-e2b-tail256-1m"
  },
