@@ -1,0 +1,22 @@
+{
+ "rule": "TB2 2.0 tasks not in tb2_first_batch, sorted by name, every 4th starting at 3 (batch 5 of 5)",
+ "tasks": [
+  "build-pov-ray",
+  "compile-compcert",
+  "dna-assembly",
+  "feal-differential-cryptanalysis",
+  "fix-ocaml-gc",
+  "install-windows-3.11",
+  "log-summary-date-ranges",
+  "mcmc-sampling-stan",
+  "mteb-retrieve",
+  "password-recovery",
+  "polyglot-rust-c",
+  "pytorch-model-cli",
+  "query-optimize",
+  "reshard-c4-data",
+  "schemelike-metacircular-eval",
+  "torch-pipeline-parallelism",
+  "video-processing"
+ ]
+}

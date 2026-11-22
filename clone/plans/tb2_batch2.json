@@ -1,0 +1,23 @@
+{
+ "rule": "TB2 2.0 tasks not in tb2_first_batch, sorted by name, every 4th starting at 0 (batch 2 of 5)",
+ "tasks": [
+  "adaptive-rejection-sampler",
+  "caffe-cifar-10",
+  "constraints-scheduling",
+  "dna-insert",
+  "feal-linear-cryptanalysis",
+  "gcode-to-text",
+  "kv-store-grpc",
+  "mailman",
+  "merge-diff-arc-agi-task",
+  "multi-source-data-merger",
+  "path-tracing",
+  "portfolio-optimization",
+  "pytorch-model-recovery",
+  "raman-fitting",
+  "rstan-to-pystan",
+  "sparql-university",
+  "torch-tensor-parallelism",
+  "vulnerable-secret"
+ ]
+}

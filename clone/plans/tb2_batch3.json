@@ -1,0 +1,23 @@
+{
+ "rule": "TB2 2.0 tasks not in tb2_first_batch, sorted by name, every 4th starting at 1 (batch 3 of 5)",
+ "tasks": [
+  "bn-fit-modify",
+  "circuit-fibsqrt",
+  "custom-memory-heap-crash",
+  "extract-elf",
+  "filter-js-from-html",
+  "gpt2-codegolf",
+  "large-scale-text-editing",
+  "make-doom-for-mips",
+  "model-extraction-relu-logits",
+  "nginx-request-logging",
+  "path-tracing-reverse",
+  "protein-assembly",
+  "qemu-alpine-ssh",
+  "regex-chess",
+  "sam-cell-seg",
+  "sqlite-db-truncate",
+  "train-fasttext",
+  "winning-avg-corewars"
+ ]
+}

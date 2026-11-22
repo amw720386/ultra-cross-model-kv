@@ -1,0 +1,23 @@
+{
+ "rule": "TB2 2.0 tasks not in tb2_first_batch, sorted by name, every 4th starting at 2 (batch 4 of 5)",
+ "tasks": [
+  "break-filter-js-from-html",
+  "code-from-image",
+  "distribution-search",
+  "extract-moves-from-video",
+  "financial-document-processor",
+  "headless-terminal",
+  "llm-inference-batching-scheduler",
+  "make-mips-interpreter",
+  "mteb-leaderboard",
+  "openssl-selfsigned-cert",
+  "polyglot-c-py",
+  "pypi-server",
+  "qemu-startup",
+  "regex-log",
+  "sanitize-git-repo",
+  "sqlite-with-gcov",
+  "tune-mjcf",
+  "write-compressor"
+ ]
+}
