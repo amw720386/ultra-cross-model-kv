@@ -16,7 +16,9 @@ image = (
     modal.Image.debian_slim(python_version="3.11")
     .pip_install("torch==2.9.0", TRANSFORMERS, "accelerate", "datasets==5.0.1", "numpy", "hf_transfer",
                  extra_index_url="https://download.pytorch.org/whl/cpu" if os.environ.get("KVX_CPU_IMAGE") else None)
-    .env({"HF_HOME": "/vol/hf", "HF_HUB_ENABLE_HF_TRANSFER": "1", "TOKENIZERS_PARALLELISM": "false"})
+    # local env does not reach containers: copy the volume names into the image env (module-level reads run in both)
+    .env({"HF_HOME": "/vol/hf", "HF_HUB_ENABLE_HF_TRANSFER": "1", "TOKENIZERS_PARALLELISM": "false",
+          **{k: os.environ[k] for k in ("KVX_VOLUME", "KVX_WEIGHTS_VOLUME", "KVX_RESEARCH_VOLUME") if k in os.environ}})
     .add_local_python_source("kvx", "research")
 )
 vol = modal.Volume.from_name(os.environ.get("KVX_RESEARCH_VOLUME", "kvx-research"), create_if_missing=True)
