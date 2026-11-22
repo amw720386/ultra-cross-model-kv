@@ -33,6 +33,10 @@ class Dec:
         self.cfg = getattr(cfg, "text_config", None) or cfg
         self.layers = list(self.text.layers)
 
+    @property
+    def device0(self):  # device of the input embeddings (multi-GPU device_map: where features are gathered)
+        return self.text.get_input_embeddings().weight.device
+
     @torch.no_grad()
     def forward(self, ids, cache=None, keep=0, use_cache=True):
         out = self.text(input_ids=ids, past_key_values=cache, use_cache=use_cache)
@@ -46,7 +50,7 @@ class Dec:
         return logits, out.past_key_values
 
 
-def load(name, dtype=torch.bfloat16, attn="sdpa", path=None):
+def load(name, dtype=torch.bfloat16, attn="sdpa", path=None, device_map=None, max_memory=None):
     from transformers import AutoConfig, AutoModelForCausalLM
     p = path or name
     cfg = AutoConfig.from_pretrained(p)
@@ -63,9 +67,11 @@ def load(name, dtype=torch.bfloat16, attn="sdpa", path=None):
         impl = {k: (attn if k == "text_config" else "eager") for k in subs} if subs else attn
         if isinstance(impl, dict):
             impl[""] = attn
-        m = AutoModelForImageTextToText.from_pretrained(p, dtype=dtype, attn_implementation=impl)
+        m = AutoModelForImageTextToText.from_pretrained(p, dtype=dtype, attn_implementation=impl,
+                                                        device_map=device_map, max_memory=max_memory)
     else:
-        m = AutoModelForCausalLM.from_pretrained(p, dtype=dtype, attn_implementation=attn)
+        m = AutoModelForCausalLM.from_pretrained(p, dtype=dtype, attn_implementation=attn, device_map=device_map,
+                                                 max_memory=max_memory)
     return Dec(m.eval())
 
 
@@ -169,7 +175,7 @@ class Taps:
                     return None
                 new = out.clone()
                 flat = new.view(B, T, -1)
-                flat[:, s:] = g[:, s:T].to(out.dtype)
+                flat[:, s:] = g[:, s:T].to(device=out.device, dtype=out.dtype)
                 return new
             return None
         return f
@@ -198,7 +204,7 @@ def source_features(src, ids, drop_q=True):
             x = torch.cat([qkv, d["a"], d["b"]], -1)
         else:
             x = torch.cat([d[n] for n, _, _ in taps_s[l][1]], -1)
-        feats[l] = x.reshape(-1, x.shape[-1]).to(torch.bfloat16)
+        feats[l] = x.reshape(-1, x.shape[-1]).to(device=src.device0, dtype=torch.bfloat16)
 
     with Taps(src).record(on_layer):
         src.forward(ids, keep=1, use_cache=False)
@@ -268,10 +274,12 @@ class WindowRidge:
     def add_y(self, t, Y):  # Y [N, dt] float32, rows aligned with the last add_x
         if self.shy is None:
             self.shy = {}
+        Y = Y.to(self.dev)
         if t not in self.shy:
             self.shy[t] = Y.mean(0)
         Y = Y - self.shy[t]
         X = self._x(self.win[t])
+        Y = Y.to(X.device)
         self.xy[t].addmm_(X.T, Y)
         self.sy[t] += Y.sum(0).double()
         self.yy[t] += (Y.double() ** 2).sum(0)
