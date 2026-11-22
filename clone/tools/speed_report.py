@@ -29,6 +29,9 @@ PAIRS = {
     "Qwen/Qwen2.5-72B": ("Qwen2.5-3B -> Qwen2.5-72B", "Qwen2.5-3B -> Qwen2.5-72B",
                          {32768: "32K", 65536: "64K", 130816: "127K", 261888: "262K", 523776: "524K", 1048320: "1M"}),
 }
+# their headline peak context per pair (Tier 1 "peak speedup x (headline)" rows) and the documented max context
+PEAK = {"Qwen3-1.7B -> Qwen3-32B": ("1M", 131072), "Qwen3-1.7B -> Qwen3-8B": ("1M", 131072),
+        "Qwen2.5-3B -> Qwen2.5-72B": ("127K", 131072)}
 COMP = {"src_ms": "source-model prefill", "map_ms": "KV map", "move_ms": "cache move", "first_ms": "first target token"}
 LINE = re.compile(r"kvx components: n=(\d+) src_ms=([\d.]+) map_ms=([\d.]+) move_ms=([\d.]+) total_ms=([\d.]+)")
 
@@ -108,6 +111,14 @@ def main():
             if rid.endswith("-speedup") and hf:  # ours against THEIR HF-forwards native number (their own baseline)
                 out[rid]["value_hf_baseline"] = round(float(hf) / t, 3)
             print(f"{rid:45s} ours {val:8.3f}  theirs {byid[rid]['their_value']}")
+        pk = PEAK.get(home_pair)
+        if pk and lab == pk[0] and f"{hid}-peak" in byid:  # the headline peak row: our speedup at THEIR peak context
+            beyond = L > pk[1]
+            base = out.get(f"{hid}-{lab}-speedup") or dict(rig=a.rig, run_id=f"{run_id}{tag}", baseline_vllm=round(nat[L], 4),
+                                                         cost_usd=a.cost, note=note)
+            out[f"{hid}-peak"] = dict(base, value=round(sp, 4), note=(("BEYOND MODEL SPEC (card max %d tokens; RoPE/YaRN "
+                                      "extended, same for native and mapped); " % pk[1]) if beyond else "") + f"measured at {L} tokens; " + note)
+            print(f"{hid + '-peak':45s} ours {sp:8.3f}  theirs {byid[hid + '-peak']['their_value']}")
         ledger.append(dict(app_or_label="kvx-speed", baseline=round(nat[L], 4), chip=a.rig, cost_usd=a.cost,
                            delta_pct=round(100 * (t / nat[L] - 1), 1), lane="kvx", lever="cross-model KV transfer (" + tag + ")",
                            metric=f"TTFT s @{lab} c=1 vs native vLLM", model=f"{home_pair}", provider="modal",
