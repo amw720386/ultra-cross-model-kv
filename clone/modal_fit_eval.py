@@ -21,7 +21,7 @@ APP = os.environ.get("KVX_APP", "kvx-fit")
 image = (
     modal.Image.debian_slim(python_version="3.11")
     .pip_install("torch==2.8.0", "transformers==4.56.2", "accelerate", "datasets==3.6.0", "numpy", "hf_transfer")
-    .env({"HF_HOME": "/vol/hf", "HF_HUB_ENABLE_HF_TRANSFER": "1"})
+    .env({"HF_HOME": "/vol/hf", "HF_HUB_ENABLE_HF_TRANSFER": "1", **{k: os.environ[k] for k in ("KVX_VOLUME", "KVX_WEIGHTS_VOLUME") if k in os.environ}})
     .add_local_python_source("kvx")
 )
 vol = modal.Volume.from_name(os.environ.get("KVX_VOLUME", "kvx"), create_if_missing=True)

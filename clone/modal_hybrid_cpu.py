@@ -9,7 +9,7 @@ image = (
     modal.Image.debian_slim(python_version="3.11")
     .pip_install("torch==2.9.0", "transformers==5.24.0", "accelerate", "datasets==3.6.0", "numpy", "hf_transfer",
                  "einops")  # no flash-linear-attention: its Triton kernels need a GPU (HF uses the torch reference)
-    .env({"HF_HOME": "/vol/hf"})  # datasets cache writable on the seat volume; weights via snapshot(cache_dir=/hf/hub)
+    .env({"HF_HOME": "/vol/hf", **{k: os.environ[k] for k in ("KVX_VOLUME", "KVX_WEIGHTS_VOLUME") if k in os.environ}})  # datasets cache writable on the seat volume; weights via snapshot(cache_dir=/hf/hub)
     .add_local_python_source("kvx", "modal_fit_hybrid")
 )
 vol = modal.Volume.from_name(os.environ.get("KVX_VOLUME", "kvx"), create_if_missing=True)
