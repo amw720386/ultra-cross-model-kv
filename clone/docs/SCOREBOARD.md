@@ -59,7 +59,7 @@
 | home-gemma-4-e2b-gemma-4-31b-256K-speedup | Gemma-4-E2B -> Gemma-4-31B | speedup x vs their native | 256K | 9.04 | est. |  | open |
 | home-gemma-4-e2b-gemma-4-31b-512K-ttft | Gemma-4-E2B -> Gemma-4-31B | TTFT s (mapped) | 512K | 100.78 | est. |  | open |
 | home-gemma-4-e2b-gemma-4-31b-512K-speedup | Gemma-4-E2B -> Gemma-4-31B | speedup x vs their native | 512K | 9.256 | est. |  | open |
-| home-gemma-4-e2b-gemma-4-31b-peak | Gemma-4-E2B -> Gemma-4-31B | peak speedup x (headline) | 1M | 9.4 | est. |  | open |
+| home-gemma-4-e2b-gemma-4-31b-peak | Gemma-4-E2B -> Gemma-4-31B | peak speedup x (headline) | 1M | 9.4 | est. | 6.1 | behind |
 | home-qwen3-5-2b-qwen3-8-27b-8K-ttft | Qwen3.5-2B -> Qwen3.8-27B | TTFT s (mapped) | 8K | 0.38 | est. |  | open |
 | home-qwen3-5-2b-qwen3-8-27b-8K-speedup | Qwen3.5-2B -> Qwen3.8-27B | speedup x vs their native | 8K | 4.237 | est. |  | open |
 | home-qwen3-5-2b-qwen3-8-27b-16K-ttft | Qwen3.5-2B -> Qwen3.8-27B | TTFT s (mapped) | 16K | 0.7 | est. |  | open |
