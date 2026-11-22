@@ -130,10 +130,10 @@ def ttft007_rows(root, ours, their_kl=0.18138, their_top1=82.52):
             f"p50 of {tm[a]['reps']} reps after {tm[a]['warmups']} warmups, CUDA-synchronized, {r['gpu']}; quality of this arm: "
             f"KL32 {q[qa]['kl32']:.5f} / top-1 {100 * q[qa]['agree']:.2f}% on 64 WikiText-103 windows x 256 prefix (their learned "
             f"{their_kl} / {their_top1}); quality_ok={ok}")
-    ours["x-ml-ttft-8k-speedup"] = dict(value=(vn / ms) if vn else None, value_hf_baseline=tm["native_prefill"]["p50_ms"] / ms,
+    ours["x-ml-ttft-8k-speedup"] = dict(gpu_measured=r["gpu"], value=(vn / ms) if vn else None, value_hf_baseline=tm["native_prefill"]["p50_ms"] / ms,
                                        baseline_vllm=vn, rig=f"Modal {r['gpu']}, HF bf16 handoff; vLLM native baseline",
                                        run_id=run_id, quality_ok=ok, note=note)
-    ours["x-ml-ttft-8k-learned"] = dict(value=ms, rig=f"Modal {r['gpu']}, HF bf16", run_id=run_id, quality_ok=ok, note=note)
+    ours["x-ml-ttft-8k-learned"] = dict(gpu_measured=r["gpu"], value=ms, rig=f"Modal {r['gpu']}, HF bf16", run_id=run_id, quality_ok=ok, note=note)
 
 
 def kl32_rows(root, ours):
@@ -252,6 +252,8 @@ def main(root, out_path):
             ours[k] = dict(value=round(m[a], 3), n=1280, rig="Modal CPU/A100/H200/B200, HF", run_id="mc128 runs", note=note)
         if m["mk_nv"] is not None and m["nk_mv"] is not None:
           ours["x-wgl-vk-diff"] = dict(value=round(m["mk_nv"] - m["nk_mv"], 3), n=1280, run_id="mc128 runs", note=note)
+    for v in ours.values():  # lead rule rig-h200-hold: every row carries the GPU it was measured on
+        v.setdefault("gpu_measured", (v.get("rig") or "unknown").replace("Modal ", "").split(",")[0])
     sb = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(out_path)))), "scoreboard.json")
     if os.path.exists(sb):  # only ids the scoreboard has
         d = json.load(open(sb))

@@ -77,6 +77,8 @@ def run_pair(src="nvidia/Llama-3.1-Minitron-4B-Width-Base", tgt="unsloth/Meta-Ll
     S, T = models if models else (mc128.load(src, dev, torch.bfloat16), mc128.load(tgt, dev, torch.bfloat16))
     P = mc128.Pair(S, T, tok, dev, Lmax=N + 64)
     bos = tok.bos_token_id
+    if dev == "cuda" and not os.environ.get("KVX_ALLOW_NON_H100"):  # TTFT rows count only on their GPU class (lead: rig-h200-hold)
+        assert "H100" in torch.cuda.get_device_name(), f"TTFT timing must run on H100, got {torch.cuda.get_device_name()}"
     res = dict(src=src, tgt=tgt, N=N, gpu=torch.cuda.get_device_name() if torch.cuda.is_available() else "cpu", torch=str(torch.__version__))
     dm = kl32.direct_maps(P)
     P.maps[("k", "dir")], P.maps[("v", "dir")] = dm["k"], dm["v"]
