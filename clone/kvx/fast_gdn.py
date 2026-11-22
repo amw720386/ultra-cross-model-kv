@@ -32,7 +32,11 @@ def patch(modules=("transformers.models.qwen3_5.modeling_qwen3_5", "transformers
              cu_seqlens=None, **kw):
         dt = torch.bfloat16
         o, S = k(q=query.to(dt).contiguous(), k=key.to(dt).contiguous(), v=value.to(dt).contiguous(),
-                 g=g.contiguous(), beta=beta.contiguous(), initial_state=initial_state,
+                 g=g.contiguous(), beta=beta.contiguous(),
+                 # HF passes the carried state as [B, H, dk, dv]; vLLM's kernel takes [B, H, dv, dk] (its output is
+                 # transposed back below). Untransposed, every chunk after the first started from a wrong state
+                 # (kvx-speed: chunked source prefill, long-prompt KL .248 vs .040 on 2xH100)
+                 initial_state=None if initial_state is None else initial_state.transpose(-1, -2).contiguous(),
                  output_final_state=output_final_state, cu_seqlens=cu_seqlens,
                  use_qk_l2norm_in_kernel=use_qk_l2norm_in_kernel)
         if S is not None:
