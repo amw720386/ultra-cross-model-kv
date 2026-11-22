@@ -54,3 +54,23 @@ def smoke(src: str = "Qwen/Qwen3.5-0.8B", tgt: str = "Qwen/Qwen3.5-2B", run_id: 
 def prime_main(toks: str = "Qwen/Qwen3.8-27B", n_calib: int = 4000, n_eval: int = 64, eval_l: int = 0):
     for r in prime.starmap([(t, n_calib, n_eval, 1024, eval_l) for t in toks.split(",")]):
         print(r)
+
+
+@app.function(cpu=4.0, memory=98304, timeout=1800, volumes=mounts)
+def extract_template(run_id: str):
+    """Write runs/<run_id>/sink_template.pt from its hybrid_units.pt / hybrid_maps.pt (loading those needs RAM)."""
+    import torch
+    vol.reload()
+    d = f"/vol/runs/{run_id}"
+    src = f"{d}/hybrid_units.pt" if os.path.exists(f"{d}/hybrid_units.pt") else f"{d}/hybrid_maps.pt"
+    m = torch.load(src, map_location="cpu", mmap=True)
+    t = {int(l): {k: v.float() for k, v in dd.items()} for l, dd in m["sink_template"].items()}
+    torch.save(t, f"{d}/sink_template.pt")
+    vol.commit()
+    return f"{run_id}: {len(t)} layers, A={next(iter(next(iter(t.values())).values())).shape[0]}"
+
+
+@app.local_entrypoint()
+def template_main(run_ids: str):
+    for r in extract_template.map(run_ids.split(",")):
+        print(r)

@@ -228,6 +228,9 @@ def fit_impl(src: str, tgt: str, run_id: str, n_calib: int = 4000, L: int = 1024
 
     if save:
         os.makedirs(f"/vol/runs/{run_id}", exist_ok=True)
+        if tmpl:  # small standalone file for serving code: {target layer: {tap: [A, width]}}
+            torch.save({int(t): {k: v.float().cpu() for k, v in d.items()} for t, d in tmpl.items()},
+                       f"/vol/runs/{run_id}/sink_template.pt")
         for lam in lams:
             tag = "" if lam == lam0 else f"_lam{lam:g}"
             if split_kv:  # unit-keyed maps; attention-only targets also get modal_fit_eval's maps_k format
