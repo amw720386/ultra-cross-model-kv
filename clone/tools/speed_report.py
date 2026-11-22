@@ -95,13 +95,19 @@ def main():
         qn = ""
         try:  # this config's own quality vs native vLLM (lead's rule for configs that change the source computation)
             from speed_quality import cmp as _cmp
+            nf = next((r.get("quality_files") for r in native if r.get("quality_files")), None)
+            bf = best.get("quality_files")
+            same = nf is not None and bf is not None and all(nf.get(k) == bf.get(k) for k in ("fw", "long", "long_fw"))
+            if not same:
+                raise ValueError("prompt files differ or unrecorded")  # lead's rule: no quality note across prompt sets
+            qn += f"; prompt files {bf}"
             for key, lab_ in (("first_token_top20", "FW 1K"), ("long_first_token_top20", "PG19 long")):
                 nq = next((r.get(key) for r in native if r.get(key)), None)
                 if nq and best.get(key):
                     ag, nn, kl = _cmp(nq, best[key])
                     qn += f"; quality {lab_}: top1 {ag}/{nn}, approx first-token KL {kl:.3f} vs native"
-        except Exception:
-            pass
+        except Exception as e:
+            qn = f"; quality NOT compared ({e})"
         note = (f"mapped {t:.3f} s vs native vLLM {nat[L]:.3f} s ({tag}); src_tp={best.get('src_tp')}, tail={best['tail']}, "
                 f"fp8 mapper={best.get('fp8')}, YaRN-served; maps {best.get('maps')}; extra {best.get('extra_cfg')}" + qn)
         for rid, val in ((f"{hid}-{lab}-ttft", t), (f"{hid}-{lab}-speedup", sp)):

@@ -27,6 +27,14 @@ def main(paths):
         nat = nat[0]
         for r in [r for r in ok if r["tgt"] == tgt and r["mode"] == "mapped"]:
             row = {}
+            qa, qb = nat.get("quality_files"), r.get("quality_files")
+            if qa is None or qb is None or {k: qa.get(k) for k in ("fw", "long", "long_fw")} != \
+                    {k: qb.get(k) for k in ("fw", "long", "long_fw")}:
+                # lead's rule: native and mapped must be scored on the SAME prompt files (sha256), else refuse
+                print(tgt, r["tag"], "REFUSED: prompt files differ or unrecorded", qa, qb)
+                out[r["tag"]] = {"refused": True}
+                continue
+            row["prompt_files"] = qb
             for key in ("first_token_top20", "long_first_token_top20"):
                 if nat.get(key) and r.get(key):
                     row[key] = cmp(nat[key], r[key])

@@ -98,7 +98,17 @@ def serve_impl(mode: str, src: str, tgt: str, maps: str, lens: str, tail: int, r
                 except Exception:
                     pass
             return ok
+        def sha(path):
+            import hashlib
+            h = hashlib.sha256()
+            with open(path, "rb") as fh:
+                for chunk in iter(lambda: fh.read(1 << 20), b""):
+                    h.update(chunk)
+            return h.hexdigest()[:16]
+        out["quality_files"] = {"tokenizer": str(getattr(tok, "name_or_path", "")).split("/")[-1], "vocab": len(tok)}
         fs = tok_files("/vol/data/eval_64x1024_bos0_*.pt") or tok_files("/vol/data/eval_64x1024_bos1_*.pt")
+        if fs:
+            out["quality_files"]["fw"] = (os.path.basename(fs[0]), sha(fs[0]))
         if fs and lens_quality:
             ev = torch.load(fs[0])[:16]
             spq = SamplingParams(max_tokens=1, temperature=0.0, logprobs=20)
@@ -110,6 +120,7 @@ def serve_impl(mode: str, src: str, tgt: str, maps: str, lens: str, tail: int, r
             fl = tok_files("/vol/data/pg19train_*x4096_bos0_*.pt") or sorted(
                 tok_files("/vol/data/pg19train_*_bos*_*.pt"), key=lambda f: -os.path.getsize(f))
             if fl:
+                out["quality_files"]["long"] = (os.path.basename(fl[0]), sha(fl[0]))
                 pg = torch.load(fl[0])
                 per = -(-quality_long // len(pg[0]))  # rows of 4096 (Qwen caches) or 1024 tokens (Mistral)
                 n_pg = min(long_n, 16) if long_n > 4 else long_n  # beyond 4: half PG19 books, half concatenated FineWeb docs
@@ -117,6 +128,7 @@ def serve_impl(mode: str, src: str, tgt: str, maps: str, lens: str, tail: int, r
                 fc = tok_files("/vol/data/calib_4000x1024_bos0_*.pt") or sorted(
                     tok_files("/vol/data/calib_*x1024_bos*_*.pt"), key=lambda f: -os.path.getsize(f))
                 if long_n > n_pg and fc:
+                    out["quality_files"]["long_fw"] = (os.path.basename(fc[0]), sha(fc[0]))
                     fw = torch.load(fc[0])
                     dper = -(-quality_long // len(fw[0]))  # token caches are tensors or lists of lists
                     prompts += [sum((list(fw[j]) for j in range(i * dper, (i + 1) * dper)), [])[:quality_long]
