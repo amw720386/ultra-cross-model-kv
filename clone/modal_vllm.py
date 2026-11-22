@@ -56,7 +56,7 @@ def serve_impl(mode: str, src: str, tgt: str, maps: str, lens: str, tail: int, r
                util: float = 0.72, restore: str = "rms", sink: str = "", backend: str = "FLASH_ATTN",
                yarn: float = 0.0, orig_ctx: int = 32768, quality_long: int = 0, maxlen: int = 0, src_sdpa: str = "cudnn", tp: int = 1, src_tp: int = 1, lens_quality: int = 1,
                long_from: int = 0, reps_long: int = 1, extra: dict = None, long_n: int = 4, needle_n: int = 0,
-               max_num_seqs: int = 0):
+               max_num_seqs: int = 0, engine_kw: dict = None):
     try:
         import torch
         from vllm import LLM, SamplingParams
@@ -69,6 +69,8 @@ def serve_impl(mode: str, src: str, tgt: str, maps: str, lens: str, tail: int, r
             kw["hf_overrides"] = ov
         if allow_long:
             os.environ["VLLM_ALLOW_LONG_MAX_MODEL_LEN"] = "1"
+        if engine_kw:  # extra vLLM engine args (e.g. decode_context_parallel_size for GLM-5.3 MLA at 1M), logged in the result
+            kw.update(engine_kw)
         if max_num_seqs:  # hybrid (GatedDeltaNet) targets: vLLM refuses the default 256 state slots on 80 GB
             kw["max_num_seqs"] = max_num_seqs
         if mode == "mapped":
