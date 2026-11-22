@@ -37,19 +37,22 @@ def needed_layers(xm):
 
 
 @torch.no_grad()
-def source_inputs(src, ids, layers):
-    """{i: [B, T, h]} input_layernorm outputs of source layers `layers`, plus (emb, emb_prev) [B, T, h]."""
+def source_inputs(src, ids, layers, on_feat=None):
+    """{i: [B, T, h]} input_layernorm outputs of source layers `layers`, plus (emb, emb_prev) [B, T, h].
+    on_feat(i, x): streaming; each layer's output goes to the callback as the forward reaches it and is not kept
+    (feats is returned empty), so long prompts never hold every needed layer at once. emb/emb_prev come first."""
+    emb = src.text.get_input_embeddings()(ids)
+    emb_prev = torch.cat([torch.zeros_like(emb[:, :1]), emb[:, :-1]], 1)
     feats, hs = {}, []
+    put = on_feat if on_feat is not None else feats.__setitem__
     for i in layers:
         hs.append(src.layers[i].input_layernorm.register_forward_hook(
-            lambda mod, inp, out, i=i: feats.__setitem__(i, out.detach())))
+            lambda mod, inp, out, i=i: put(i, out.detach())))
     try:
         src.forward(ids, keep=1, use_cache=False)
     finally:
         for h in hs:
             h.remove()
-    emb = src.text.get_input_embeddings()(ids)
-    emb_prev = torch.cat([torch.zeros_like(emb[:, :1]), emb[:, :-1]], 1)
     return feats, emb, emb_prev
 
 

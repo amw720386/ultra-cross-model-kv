@@ -73,6 +73,8 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
         # natively: later user turns, tool outputs and the agent's own replies never go through the map.
         self.map_once = bool(int(cfg.get_from_extra_config("map_once", 0)))
         self.stream_feats = bool(int(cfg.get_from_extra_config("stream_feats", 1)))  # 0: all-layer feats (A/B)
+        # xkv path streaming: opt-in until GPU-checked against xkv_stream=0 in one boot (verified xkv rows ran without)
+        self.xkv_stream = bool(int(cfg.get_from_extra_config("xkv_stream", 0)))
         self._prefixes = {}  # key length K -> {hash(first prompt[:K]): its mapped prefix length}
         self._mstats = dict(first_n=0, first_prompt=0, first_mapped=0, later_n=0, later_prompt=0, later_mapped=0)
         self._recent = []  # last 32 first prompts (diagnostic log only)
@@ -286,6 +288,9 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
             self.tcfg = tcfg
             from .xkv_adapter import needed_layers
             self.xkv_needed = needed_layers(self.xm)
+            at = self.xm.get("attn")  # source layers each target reads (== xkv_layer_taps / shard_xkv)
+            self.xkv_sels = {t: (list(at["layers"][t]) if k == "attn" and at is not None and t in at["layers"]
+                                 else [self.xm["src_of"][t]]) for t, k in self.kinds.items()}
             if self.tp_size > 1:  # each rank keeps only its heads' map columns and GDN params (lead: 2xH100 rows)
                 # shard_xkv reads only head counts from params (TargetParams.to would move them in place)
                 self.xm = hs.to_device(hs.shard_xkv(self.xm, self.kinds, tcfg, self.params, self.tp_rank, self.tp_size),
@@ -335,13 +340,18 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
         for r in meta.requests:
             ids = torch.tensor([r.token_ids], device=device)
             T = len(r.token_ids)
+            feats = {}
             if self.xm is not None:
                 from .xkv_adapter import source_inputs
-                xf, emb, emb_prev = source_inputs(self.Sdec, ids, self.xkv_needed)
                 layers = sorted(self.kinds)
+                if self.xkv_stream:  # features arrive per source layer (FeatStream below); embeddings first
+                    xf = feats
+                    emb = self.Sdec.text.get_input_embeddings()(ids)
+                    emb_prev = torch.cat([torch.zeros_like(emb[:, :1]), emb[:, :-1]], 1)
+                else:  # A/B: every needed source layer at once
+                    xf, emb, emb_prev = source_inputs(self.Sdec, ids, self.xkv_needed)
             else:
                 layers = sorted(self.maps)
-            feats = {}
             # one target layer at a time: taps -> state -> write -> free (all 64 layers' fp32 taps of a 27K-token
             # prompt at once ran an H200 out of memory)
             ntaps = hs.native_prefix_taps(self.prefix, ids) if self.prefix is not None else {}
@@ -403,9 +413,18 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
                     conv_c, ssm_c = cache[0], cache[1]
                     write_lin_state(conv_c, ssm_c, int(blocks[0]), conv, S, self.dim_first)
 
-            if self.xm is not None:
+            if self.xm is not None and not self.xkv_stream:
                 for t in layers:
                     do_target(t)
+            elif self.xm is not None:
+                # stream (kvx-speed: TP2 64K OOM): a target runs when its source layers are done, then they are freed
+                for t in layers:
+                    if t in ntaps:
+                        do_target(t)
+                fs = hs.FeatStream({t: self.xkv_sels[t] for t in layers if t not in ntaps}, do_target, feats)
+                with torch.no_grad():
+                    source_inputs(self.Sdec, ids, self.xkv_needed, on_feat=fs.on_feat)
+                fs.finish()
             elif not self.stream_feats:  # A/B: the pre-streaming path (all source layers' features at once)
                 feats.update(enumerate(hybrid.source_features(self.Sdec, ids, drop_q=self.mf.get("drop_q", True))))
                 for t in layers:
