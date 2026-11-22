@@ -1,0 +1,18 @@
+{"pair": 54, "winner": "A", "why": "A answers the intended patent question with three-plus-one examples per requirement"}
+{"pair": 55, "winner": "A", "why": "B gives one example per requirement; A provides three plus one each"}
+{"pair": 56, "winner": "A", "why": "B fabricates 1990s nacho fries history; A is accurate and balanced"}
+{"pair": 57, "winner": "A", "why": "B misdescribes fries as a potato patty; A's product description is correct"}
+{"pair": 58, "winner": "A", "why": "B responds in English, misspells Calò; A completes all Italian entries correctly"}
+{"pair": 59, "winner": "A", "why": "B misspells Torchia as Torchio; A keeps exact names and requested format"}
+{"pair": 60, "winner": "B", "why": "A degenerates into invalid truncated code; B gives a working self-replication example"}
+{"pair": 61, "winner": "B", "why": "A repeats broken nesting forever; B offers working examples with caveats"}
+{"pair": 62, "winner": "A", "why": "B skips the Shares/Market Value header row; A classifies every row correctly"}
+{"pair": 63, "winner": "A", "why": "B invents rows absent from input; A classifies all eight rows correctly"}
+{"pair": 64, "winner": "A", "why": "B gives five mismatched headers for four paragraphs; A is exact"}
+{"pair": 65, "winner": "B", "why": "A invents ten headers; B provides the four correct paragraph headers"}
+{"pair": 66, "winner": "B", "why": "'iis' is a typo for 'is'; B answers the intended war question"}
+{"pair": 67, "winner": "A", "why": "A answers the intended war question; B misreads prompt as IIS server"}
+{"pair": 68, "winner": "A", "why": "B breaks character and required format; A stays correctly in role"}
+{"pair": 69, "winner": "B", "why": "A scripts the user's Jane role; B stays correctly in role"}
+{"pair": 70, "winner": "A", "why": "A fixes the sentence fragment; B's revisions are all identical to original"}
+{"pair": 71, "winner": "A", "why": "A offers genuine corrected captions; B repeats the original unchanged as fixes"}

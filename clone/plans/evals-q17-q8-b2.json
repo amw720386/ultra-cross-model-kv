@@ -1,0 +1,35 @@
+[
+ {
+  "arm": "chat_sink",
+  "script": [
+   "kvx.evals.chat_sink",
+   "--model",
+   "Qwen/Qwen3-8B",
+   "--out",
+   "/vol/runs/evals-q17-q8-b2/chat_sink/chat_sink.pt"
+  ]
+ },
+ {
+  "arm": "map8-think-long-qtail-sink",
+  "model": "Qwen/Qwen3-8B",
+  "benches": "quality,contract_nli,bamboo_paperqa,longbench_v2,longhealth",
+  "n": 500,
+  "ns": {
+   "longbench_v2": 97,
+   "bamboo_paperqa": 99,
+   "longhealth": 200
+  },
+  "thinking": true,
+  "connector": {
+   "src": "Qwen/Qwen3-1.7B",
+   "maps": "/vol/runs/pairs-q17-q8/maps_k24.pt",
+   "tail": 64,
+   "min_len": 64,
+   "restore": "rms",
+   "src_sdpa": "cudnn",
+   "sink_template": "/vol/runs/evals-q17-q8-b2/chat_sink/chat_sink.pt"
+  },
+  "question_tail": true,
+  "gpu_util": 0.55
+ }
+]

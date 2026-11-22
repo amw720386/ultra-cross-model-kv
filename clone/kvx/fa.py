@@ -5,6 +5,21 @@ import torch
 
 NAME = "vllm_fa"
 _REGISTERED = False
+# FP8 attention (FA3 on Hopper): q/k/v cast to e4m3 with per-KV-head scales, descaled in-kernel. Set by use_vllm_fa(fp8=).
+FP8 = False
+# sliding attention window for the SOURCE prefill (0 = full causal). Each source token attends to the last WINDOW tokens
+# only: attention FLOPs drop from O(T^2) to O(T*W). The target still attends over the whole mapped prefix.
+WINDOW = 0
+
+
+def quant_e4m3(x, n_kv):
+    """x [T, Hx, D] bf16 -> (e4m3 [T, Hx, D], descale [1, n_kv] fp32): one scale per KV head group (FA3's descale shape)."""
+    T, Hx, D = x.shape
+    g = x.view(T, n_kv, Hx // n_kv, D)
+    amax = g.abs().amax(dim=(0, 2, 3)).float().clamp(min=1e-6)  # [n_kv]
+    s = amax / 448.0
+    q = (g / s.view(1, n_kv, 1, 1).to(g.dtype)).clamp(-448, 448).to(torch.float8_e4m3fn).view(T, Hx, D)
+    return q, s.view(1, n_kv)
 
 
 def _fa_func():
@@ -28,6 +43,13 @@ def vllm_fa_attention(module, query, key, value, attention_mask=None, scaling=No
     cu_q = torch.tensor([0, T], dtype=torch.int32, device=q.device)
     cu_k = torch.tensor([0, S], dtype=torch.int32, device=q.device)
     kw = {}
+    if FP8:
+        Hk = k.shape[1]
+        q, kw["q_descale"] = quant_e4m3(q, Hk)
+        k, kw["k_descale"] = quant_e4m3(k, Hk)
+        v, kw["v_descale"] = quant_e4m3(v, Hk)
+    if WINDOW and S > WINDOW:
+        kw["window_size"] = [WINDOW - 1, 0]
     if ver is not None:
         v_ = ver(head_size=D)
         if v_ is not None:
@@ -39,9 +61,13 @@ def vllm_fa_attention(module, query, key, value, attention_mask=None, scaling=No
     return out[None], None
 
 
-def use_vllm_fa(model):
-    """Register the kernel with transformers and switch `model` to it. Returns True on success."""
-    global _REGISTERED
+def use_vllm_fa(model, fp8=False, window=0):
+    """Register the kernel with transformers and switch `model` to it. Returns True on success.
+    transformers builds no mask for a registered custom implementation (mask None), and FA aligns causal to the
+    bottom right, so chunked prefill (q = a chunk, k = cache + chunk) is exact."""
+    global _REGISTERED, FP8, WINDOW
+    FP8 = bool(fp8)
+    WINDOW = int(window or 0)
     from transformers import AttentionInterface
     if not _REGISTERED:
         AttentionInterface.register(NAME, vllm_fa_attention)

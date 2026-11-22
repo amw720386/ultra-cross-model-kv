@@ -1,14 +1,15 @@
 """CPU, vLLM serving image: the connector's mapped K/V (dense bf16 path) vs the fit_eval reference path, on real maps.
 No target model needed. modal run tests/modal_connector_vs_ref_cpu.py --run q25-3b-72b --tmpl q25-3b-72b-tmpl"""
+import os
 import modal
 
 image = (modal.Image.from_registry("nvidia/cuda:12.8.1-devel-ubuntu22.04", add_python="3.12")
          .pip_install("vllm==0.34.0", "hf_transfer")
          .env({"TRITON_INTERPRET": "1", "HF_HUB_CACHE": "/hf/hub", "HF_HUB_OFFLINE": "1"})
          .add_local_python_source("kvx"))
-vol = modal.Volume.from_name("kvx")
-hf_shared = modal.Volume.from_name("gap-push-models-xl-hf")
-app = modal.App("kvx-connref-cpu", image=image)
+vol = modal.Volume.from_name(os.environ.get("KVX_VOLUME", "kvx"))
+hf_shared = modal.Volume.from_name(os.environ.get("KVX_WEIGHTS_VOLUME", "kvx-hf"))
+app = modal.App(os.environ.get("KVX_APP", "kvx-connref-cpu"), image=image)
 
 
 @app.function(cpu=8.0, memory=49152, timeout=3000, volumes={"/vol": vol, "/hf": hf_shared.read_only()})

@@ -1,0 +1,18 @@
+{"pair": 54, "winner": "A", "why": "Patent reading fits; three examples and one counterexample each"}
+{"pair": 55, "winner": "A", "why": "Full three examples per requirement; B gives only one"}
+{"pair": 56, "winner": "A", "why": "Balanced advice; B invents 90s nostalgia history"}
+{"pair": 57, "winner": "A", "why": "B describes potato patty and invents spicy version"}
+{"pair": 58, "winner": "A", "why": "Follows Italian format; B misspells Caliò, mixes English"}
+{"pair": 59, "winner": "A", "why": "Keeps nome/cognome format; B drops it, misspells Torchia"}
+{"pair": 60, "winner": "B", "why": "A is broken runaway nesting; B gives working code"}
+{"pair": 61, "winner": "B", "why": "A is broken runaway nesting; B gives usable examples"}
+{"pair": 62, "winner": "A", "why": "All rows correct; B skips header row, alters values"}
+{"pair": 63, "winner": "A", "why": "B hallucinates rows not in the input"}
+{"pair": 64, "winner": "A", "why": "Four matching headers; B invents fifth, mismatched topics"}
+{"pair": 65, "winner": "B", "why": "Four matching headers; A gives ten for four paragraphs"}
+{"pair": 66, "winner": "B", "why": "Likely means war; A misreads as IIS server"}
+{"pair": 67, "winner": "A", "why": "Likely means war; B misreads as IIS server"}
+{"pair": 68, "winner": "A", "why": "Follows required format; B breaks character with narration"}
+{"pair": 69, "winner": "B", "why": "A writes Jane's lines for the user"}
+{"pair": 70, "winner": "A", "why": "Fixes fragment; B gives wrong, repetitive non-corrections"}
+{"pair": 71, "winner": "A", "why": "Notes fragment issue; B's lowercase claim is wrong"}

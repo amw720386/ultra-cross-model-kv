@@ -1,0 +1,13 @@
+[
+ {"arm": "chat_sink", "script": ["kvx.evals.chat_sink", "--model", "Qwen/Qwen2.5-72B-Instruct", "--out", "/vol/runs/lead-q25i-72b-evals/chat_sink/chat_sink.pt"]},
+ {"arm": "map72i-long-qtail-sink", "model": "Qwen/Qwen2.5-72B-Instruct",
+  "benches": "quality,contract_nli,bamboo_paperqa,longbench_v2", "n": 500,
+  "ns": {"quality": 2086, "contract_nli": 1037, "bamboo_paperqa": 84, "longbench_v2": 97},
+  "connector": {"src": "Qwen/Qwen2.5-3B-Instruct", "maps": "/vol/runs/lead-q25i-3b-72b/maps_k16.pt", "tail": 64, "min_len": 64,
+                "restore": "none", "src_sdpa": "cudnn", "fp8": true,
+                "sink_template": "/vol/runs/lead-q25i-72b-evals/chat_sink/chat_sink.pt"},
+  "question_tail": true, "gpu_util": 0.89},
+ {"arm": "nat72i-long", "model": "Qwen/Qwen2.5-72B-Instruct",
+  "benches": "quality,contract_nli,bamboo_paperqa,longbench_v2", "n": 500,
+  "ns": {"quality": 2086, "contract_nli": 1037, "bamboo_paperqa": 84, "longbench_v2": 97}, "gpu_util": 0.88}
+]

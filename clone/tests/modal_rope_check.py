@@ -1,11 +1,12 @@
 """CPU-only check (no GPU): connector target_cos_sin == HF rotary embedding, incl. YaRN and llama3 scaling.
 modal run tests/modal_rope_check.py"""
+import os
 import ast, modal
 
 image = (modal.Image.debian_slim(python_version="3.11")
          .pip_install("torch==2.8.0", "transformers==4.56.2", "numpy")
          .add_local_file("kvx/vllm_connector.py", "/root/vllm_connector.py"))
-app = modal.App("kvx-ropecheck-cpu", image=image)
+app = modal.App(os.environ.get("KVX_APP", "kvx-ropecheck-cpu"), image=image)
 
 
 @app.function(cpu=4.0, memory=16384, timeout=900)

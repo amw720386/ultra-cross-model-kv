@@ -1,0 +1,45 @@
+[
+ {
+  "arm": "chat_sink",
+  "script": [
+   "kvx.evals.chat_sink",
+   "--model",
+   "Qwen/Qwen3-8B",
+   "--out",
+   "/vol/runs/evals-q17-q8-c/chat_sink/chat_sink.pt"
+  ]
+ },
+ {
+  "arm": "map8-short-full",
+  "model": "Qwen/Qwen3-8B",
+  "benches": "piqa,arc_c,hellaswag",
+  "n": 500,
+  "ns": {
+   "piqa": 1838,
+   "arc_c": 1172,
+   "hellaswag": 2000
+  },
+  "connector": {
+   "src": "Qwen/Qwen3-1.7B",
+   "maps": "/vol/runs/pairs-q17-q8/maps_k24.pt",
+   "tail": 16,
+   "min_len": 64,
+   "restore": "rms",
+   "src_sdpa": "cudnn",
+   "sink_template": "/vol/runs/evals-q17-q8-c/chat_sink/chat_sink.pt"
+  },
+  "gpu_util": 0.55
+ },
+ {
+  "arm": "nat8-short-full",
+  "model": "Qwen/Qwen3-8B",
+  "benches": "piqa,arc_c,hellaswag",
+  "n": 500,
+  "ns": {
+   "piqa": 1838,
+   "arc_c": 1172,
+   "hellaswag": 2000
+  },
+  "gpu_util": 0.85
+ }
+]

@@ -1,0 +1,32 @@
+[
+ {
+  "arm": "map32-think-t16",
+  "model": "Qwen/Qwen3-32B",
+  "benches": "zebralogic,math500",
+  "n": 500,
+  "ns": {
+   "zebralogic": 200
+  },
+  "thinking": true,
+  "connector": {
+   "src": "Qwen/Qwen3-1.7B",
+   "maps": "/vol/runs/q17-q32-mix-fw1k/maps_k24.pt",
+   "tail": 16,
+   "min_len": 64,
+   "restore": "rms",
+   "src_sdpa": "cudnn"
+  },
+  "gpu_util": 0.85
+ },
+ {
+  "arm": "nat32-think",
+  "model": "Qwen/Qwen3-32B",
+  "benches": "zebralogic,math500",
+  "n": 500,
+  "ns": {
+   "zebralogic": 200
+  },
+  "thinking": true,
+  "gpu_util": 0.88
+ }
+]

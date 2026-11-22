@@ -1,0 +1,18 @@
+{"pair": 0, "winner": "B", "why": "Translates full text faithfully; A drops the instruction sentence"}
+{"pair": 1, "winner": "B", "why": "Full faithful translation in clean JSON; A drops text"}
+{"pair": 2, "winner": "B", "why": "Answers in Russian: Beschichtung; A ignores actual question"}
+{"pair": 3, "winner": "B", "why": "Gives Beschichtung in Russian; A misses question, wrong language"}
+{"pair": 4, "winner": "A", "why": "Analyzes actual JS code; B rewrites it as Python"}
+{"pair": 5, "winner": "B", "why": "Analyzes actual JS code; A calls it Fibonacci, uses Python"}
+{"pair": 6, "winner": "A", "why": "Directly answers how, with practical example scripts"}
+{"pair": 7, "winner": "B", "why": "Addresses returning-home scenario; A misreads as trip abroad"}
+{"pair": 8, "winner": "A", "why": "No question given; A covers whole context more usefully"}
+{"pair": 9, "winner": "B", "why": "No question given; B covers whole context more usefully"}
+{"pair": 10, "winner": "A", "why": "Clean correct answer; B leaks rambling reasoning"}
+{"pair": 11, "winner": "tie", "why": "Both give an A-word and correct sum 30"}
+{"pair": 12, "winner": "A", "why": "Both fail; A at least finds Los Angeles"}
+{"pair": 13, "winner": "A", "why": "B degenerates into repetitive loop with no answer"}
+{"pair": 14, "winner": "B", "why": "Accurate traditional rhyme; A invents wrong eleven-twelve line"}
+{"pair": 15, "winner": "B", "why": "A fabricates repeated hen lines and wrong attribution"}
+{"pair": 16, "winner": "A", "why": "A names Macron; B badly misidentifies last king"}
+{"pair": 17, "winner": "A", "why": "B fabricates a current king Carlos III"}

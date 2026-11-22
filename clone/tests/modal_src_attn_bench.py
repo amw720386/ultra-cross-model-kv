@@ -8,8 +8,8 @@ image = (modal.Image.from_registry("nvidia/cuda:12.8.1-devel-ubuntu22.04", add_p
          .pip_install("vllm==0.34.0", "hf_transfer")
          .env({"HF_HUB_CACHE": "/hf/hub", "HF_HUB_OFFLINE": "1"})
          .add_local_python_source("kvx"))
-hf_shared = modal.Volume.from_name("gap-push-models-xl-hf")
-app = modal.App("kvx-srcattn", image=image)
+hf_shared = modal.Volume.from_name(os.environ.get("KVX_WEIGHTS_VOLUME", "kvx-hf"))
+app = modal.App(os.environ.get("KVX_APP", "kvx-srcattn"), image=image)
 
 
 @app.function(gpu=GPU, timeout=1500, volumes={"/hf": hf_shared.read_only()})

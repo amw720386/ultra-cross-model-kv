@@ -471,6 +471,7 @@ def test_connector_tp2_ranks_concat_to_tp1(tmp_path):
         c.src_name, c.tgt_name, c.maps_path = str(d), str(d), str(tmp_path / "maps.pt")
         c.restore, c.src_device, c.fp8, c.sink_path, c.chunk, c.max_len = "rms", None, False, str(tmp_path / "sink.pt"), 2, 64
         c.yarn, c.orig_ctx, c.fp8_source, c.src_sdpa, c.tp_override = 0.0, 32768, False, "cudnn", tp
+        c.src_tp = False  # mapper column split only; the sharded source prefill is tests/test_tp_source_cpu.py
         c._init_worker(torch.device("cpu"))
         return {l: (K.clone(), V.clone()) for l, K, V in c._map_layers(ids)}
     full = run((0, 1))
@@ -480,3 +481,74 @@ def test_connector_tp2_ranks_concat_to_tp1(tmp_path):
         V = torch.cat([r0[l][1], r1[l][1]], 1)
         assert r0[l][0].shape == (24, 1, D)
         assert torch.allclose(K, full[l][0], atol=1e-5) and torch.allclose(V, full[l][1], atol=1e-5)
+
+
+def _tiny_qwen3_yarn(factor=64.0):
+    from transformers import Qwen3Config, Qwen3ForCausalLM
+    from kvx.models import apply_yarn
+    torch.manual_seed(3)
+    cfg = Qwen3Config(vocab_size=97, hidden_size=64, intermediate_size=128, num_hidden_layers=2, num_attention_heads=4,
+                      num_key_value_heads=2, head_dim=16, max_position_embeddings=64, rope_theta=1e6)
+    apply_yarn(cfg, factor, 16)
+    m = Qwen3ForCausalLM(cfg).eval()
+    m.config._attn_implementation = "sdpa"
+    return m
+
+
+def test_unrope_exact_with_yarn_attention_factor():
+    m = _tiny_qwen3_yarn(64.0)
+    T = 40
+    cos, sin = core.rope_cos_sin(m, T, "cpu")
+    mm = (cos * cos + sin * sin).sqrt()
+    assert abs(mm.mean().item() - (0.1 * math.log(64.0) + 1)) < 1e-3  # YaRN m really is in the tables
+    k = torch.randn(1, 2, T, 16)
+    assert torch.allclose(core.unrope(core.rope(k, cos, sin), cos, sin), k, atol=1e-5)
+
+
+def test_capture_kv_yarn_returns_true_pre_rope_keys():
+    m = _tiny_qwen3_yarn(64.0)
+    ids = torch.randint(0, 97, (1, 24))
+    grab = {}
+    a = m.model.layers[1].self_attn
+    a.k_norm.register_forward_hook(lambda mod, i, o: grab.__setitem__("k", o.detach()))  # [B,T,H,D] pre-RoPE
+    cos, sin = core.rope_cos_sin(m, 24, "cpu")
+    K, V, _ = core.capture_kv(m, ids, cos, sin)
+    ref = grab["k"].transpose(1, 2)  # [B,H,T,D]
+    rel = ((K[1].float() - ref).norm() / ref.norm()).item()
+    assert rel < 1e-2, rel  # bf16 storage; the old unrope gave m^2 = 2.0x keys (rel ~1.0)
+
+
+@pytest.mark.parametrize("layout", ["fa", "split5", "split4", "lead2"])
+def test_write_kv_every_layout_matches_reference(layout):
+    """ROCm backends (ROCM_ATTN, TRITON_ATTN, ROCM_AITER_FA) use [blocks, 2, block, ...]: the generic writer must put
+    token t's K/V at (block bids[t//bs], offset t%bs) in each layout."""
+    vc = _import_connector_with_stub_vllm()
+    nb, H, bs, D, n = 9, 4, 16, 8, 40
+    bids = [7, 2, 5]
+    slots = _slots(bids, bs, n)
+    bi, off = slots // bs, slots % bs
+    K, V = torch.randn(n, H, D), torch.randn(n, H, D)
+    shape = dict(fa=(nb, H, bs, 2 * D), split5=(nb, 2, bs, H, D), split4=(nb, 2, bs, H * D), lead2=(2, nb, bs, H, D))[layout]
+    kv = torch.zeros(shape)
+    assert vc.kv_layout(kv, H, D, "FLASH_ATTN" if layout == "fa" else "ROCM") == layout
+    vc.write_kv(kv, bi, off, K, V, bs, layout)
+    for t in range(n):
+        b, o = bids[t // bs], t % bs
+        if layout == "fa":
+            got_k, got_v = kv[b, :, o, :D], kv[b, :, o, D:]
+        elif layout == "split5":
+            got_k, got_v = kv[b, 0, o], kv[b, 1, o]
+        elif layout == "split4":
+            got_k, got_v = kv[b, 0, o].view(H, D), kv[b, 1, o].view(H, D)
+        else:
+            got_k, got_v = kv[0, b, o], kv[1, b, o]
+        assert torch.equal(got_k, K[t]) and torch.equal(got_v, V[t])
+    untouched = [b for b in range(nb) if b not in bids]
+    idx = dict(fa=0, split5=0, split4=0, lead2=1)[layout]
+    assert float(kv.select(idx, untouched[0]).abs().sum()) == 0.0
+
+
+def test_kv_layout_rejects_unknown():
+    vc = _import_connector_with_stub_vllm()
+    with pytest.raises(RuntimeError):
+        vc.kv_layout(torch.zeros(3, 5, 16, 7), 4, 8, "X")

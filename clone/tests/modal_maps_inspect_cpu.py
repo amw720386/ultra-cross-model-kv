@@ -1,9 +1,10 @@
 """CPU: per-layer / per-KV-head R^2 and bias statistics of a saved map file. modal run tests/modal_maps_inspect_cpu.py --run q25-3b-72b --k 16"""
+import os
 import modal
 
 image = modal.Image.debian_slim(python_version="3.11").pip_install("torch==2.8.0", "numpy")
-vol = modal.Volume.from_name("kvx")
-app = modal.App("kvx-mapsinspect-cpu", image=image)
+vol = modal.Volume.from_name(os.environ.get("KVX_VOLUME", "kvx"))
+app = modal.App(os.environ.get("KVX_APP", "kvx-mapsinspect-cpu"), image=image)
 
 
 @app.function(cpu=2.0, memory=16384, timeout=900, volumes={"/vol": vol})

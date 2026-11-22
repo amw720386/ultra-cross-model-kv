@@ -1,0 +1,93 @@
+[
+ {
+  "arm": "chat_sink",
+  "script": [
+   "kvx.evals.chat_sink",
+   "--model",
+   "Qwen/Qwen3-4B",
+   "--out",
+   "/vol/runs/evals-q17-q4-a/chat_sink/chat_sink.pt"
+  ]
+ },
+ {
+  "arm": "map4-short-t16-sink",
+  "model": "Qwen/Qwen3-4B",
+  "benches": "arc_c,math500",
+  "n": 500,
+  "ns": {
+   "arc_c": 1172
+  },
+  "connector": {
+   "src": "Qwen/Qwen3-1.7B",
+   "maps": "/vol/runs/pairs-q17-q4/maps_k24.pt",
+   "tail": 16,
+   "min_len": 64,
+   "restore": "rms",
+   "src_sdpa": "cudnn",
+   "sink_template": "/vol/runs/evals-q17-q4-a/chat_sink/chat_sink.pt"
+  },
+  "gpu_util": 0.5
+ },
+ {
+  "arm": "map4-long-qtail-sink",
+  "model": "Qwen/Qwen3-4B",
+  "benches": "quality,longbench_v2",
+  "n": 500,
+  "ns": {
+   "quality": 2086,
+   "longbench_v2": 97
+  },
+  "connector": {
+   "src": "Qwen/Qwen3-1.7B",
+   "maps": "/vol/runs/pairs-q17-q4/maps_k24.pt",
+   "tail": 64,
+   "min_len": 64,
+   "restore": "rms",
+   "src_sdpa": "cudnn",
+   "sink_template": "/vol/runs/evals-q17-q4-a/chat_sink/chat_sink.pt"
+  },
+  "question_tail": true,
+  "gpu_util": 0.5
+ },
+ {
+  "arm": "map4-long-t256-sink",
+  "model": "Qwen/Qwen3-4B",
+  "benches": "quality,longbench_v2",
+  "n": 500,
+  "ns": {
+   "quality": 2086,
+   "longbench_v2": 97
+  },
+  "connector": {
+   "src": "Qwen/Qwen3-1.7B",
+   "maps": "/vol/runs/pairs-q17-q4/maps_k24.pt",
+   "tail": 256,
+   "min_len": 64,
+   "restore": "rms",
+   "src_sdpa": "cudnn",
+   "sink_template": "/vol/runs/evals-q17-q4-a/chat_sink/chat_sink.pt"
+  },
+  "gpu_util": 0.5
+ },
+ {
+  "arm": "nat4-short",
+  "model": "Qwen/Qwen3-4B",
+  "benches": "arc_c,math500",
+  "n": 500,
+  "ns": {
+   "arc_c": 1172
+  },
+  "gpu_util": 0.85
+ },
+ {
+  "arm": "nat4-long",
+  "model": "Qwen/Qwen3-4B",
+  "benches": "quality,longbench_v2",
+  "n": 500,
+  "ns": {
+   "quality": 2086,
+   "longbench_v2": 97
+  },
+  "gpu_util": 0.85
+ }
+]

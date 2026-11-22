@@ -1,0 +1,18 @@
+{"pair": 36, "winner": "A", "why": "A finds the real AND/OR logic bug; B invents false syntax errors"}
+{"pair": 37, "winner": "tie", "why": "Both correctly identify the AND-vs-OR bug with the same fix"}
+{"pair": 38, "winner": "A", "why": "Both wrong about Hoenn; A coherent, cites real Hoenn locations; B contradictory"}
+{"pair": 39, "winner": "B", "why": "B correctly names Hoenn starters; A invents cities and game mapping"}
+{"pair": 40, "winner": "B", "why": "B follows requested bracket format exactly; A deviates with extra text"}
+{"pair": 41, "winner": "B", "why": "B correct category in exact format; A misclassifies as Location"}
+{"pair": 42, "winner": "A", "why": "A answers correctly in Russian; B replies in English"}
+{"pair": 43, "winner": "tie", "why": "Both correct Russian answers with comparable depth"}
+{"pair": 44, "winner": "A", "why": "B fabricates Finnish preposition and letters-as-words; A less wrong"}
+{"pair": 45, "winner": "B", "why": "A fabricates preposition and nonsense ih entry; B less incorrect"}
+{"pair": 46, "winner": "B", "why": "B exact format and clear reason; A rambles, calls prompt ambiguous"}
+{"pair": 47, "winner": "A", "why": "A correct FALSE, exact format; B wrongly answers TRUE, misreads dialogue"}
+{"pair": 48, "winner": "B", "why": "Both invent owners; A also renumbers AS32787 to AS3278"}
+{"pair": 49, "winner": "A", "why": "Both invent owners; B also renumbers AS32787 to AS32778"}
+{"pair": 50, "winner": "A", "why": "A plays along cleanly; B leaks verbose internal monologue"}
+{"pair": 51, "winner": "B", "why": "B invites continuation; A roleplays both sides, hijacking the joke"}
+{"pair": 52, "winner": "B", "why": "B answers correctly; A evades the question entirely"}
+{"pair": 53, "winner": "B", "why": "A answers in Portuguese to Italian prompt; B responds in Italian"}

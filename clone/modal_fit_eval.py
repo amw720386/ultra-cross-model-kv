@@ -24,8 +24,8 @@ image = (
     .env({"HF_HOME": "/vol/hf", "HF_HUB_ENABLE_HF_TRANSFER": "1"})
     .add_local_python_source("kvx")
 )
-vol = modal.Volume.from_name("kvx", create_if_missing=True)
-hf_shared = modal.Volume.from_name("gap-push-models-xl-hf")  # shared weights (ops/rsi-weights), read-only
+vol = modal.Volume.from_name(os.environ.get("KVX_VOLUME", "kvx"), create_if_missing=True)
+hf_shared = modal.Volume.from_name(os.environ.get("KVX_WEIGHTS_VOLUME", "kvx-hf"))  # shared weights volume (KVX_WEIGHTS_VOLUME), read-only
 app = modal.App(APP, image=image)
 
 
@@ -286,8 +286,15 @@ def fit_eval_impl(src: str, tgt: str, n_calib: int = 500, L: int = 1024, stride:
         sk = tail_k or klist[min(3, len(klist) - 1)]
         cpu = lambda ms: [{k: (v.cpu() if torch.is_tensor(v) else v) for k, v in m.items()} for m in ms]
         os.makedirs(f"/vol/runs/{run_id}", exist_ok=True)
-        torch.save({"k": cpu(maps[("k", sk)]), "v": cpu(maps[("v", sk)]), "src": src, "tgt": tgt, "k_layers": sk, "feat": feat},
-                   f"/vol/runs/{run_id}/maps_k{sk}.pt")
+        # save_maps=2: every k of --ks (same Gram stats, free), e.g. small-k maps for the fast serving mapper;
+        # the tail k keeps the plain name maps_k{sk}.pt, others go to maps_all/ so --maps-from still finds one file
+        for kk in ([sk] + [x for x in klist if x != sk and isinstance(x, int)] if save_maps >= 2 else [sk]):
+            if ("k", kk) not in maps:
+                continue
+            path = f"/vol/runs/{run_id}/maps_k{kk}.pt" if kk == sk else f"/vol/runs/{run_id}/maps_all/maps_k{kk}.pt"
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            torch.save({"k": cpu(maps[("k", kk)]), "v": cpu(maps[("v", kk)]), "src": src, "tgt": tgt, "k_layers": kk,
+                        "feat": feat}, path)
         _commit()
     res["r2"] = r2sum
     kw = None

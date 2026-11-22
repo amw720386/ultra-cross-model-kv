@@ -1,0 +1,18 @@
+{"pair": 36, "winner": "A", "why": "A finds the real AND/OR bug; B invents syntax errors"}
+{"pair": 37, "winner": "B", "why": "Same correct fix; B quotes the original condition exactly"}
+{"pair": 38, "winner": "tie", "why": "Both badly wrong; neither names Treecko, Torchic, Mudkip"}
+{"pair": 39, "winner": "B", "why": "B names the correct Hoenn starters; A invents cities"}
+{"pair": 40, "winner": "B", "why": "Both correct; B uses the requested [Category] format"}
+{"pair": 41, "winner": "B", "why": "A picks the wrong category, Location"}
+{"pair": 42, "winner": "A", "why": "A answers in Russian; B switches to English"}
+{"pair": 43, "winner": "A", "why": "B wrongly says electrons feel the strong force"}
+{"pair": 44, "winner": "A", "why": "Both poor; B claims single letters are valid words"}
+{"pair": 45, "winner": "B", "why": "Both wrong; A has more fabrications and the Ih nonsense"}
+{"pair": 46, "winner": "B", "why": "Same verdict; B is clean and follows the format"}
+{"pair": 47, "winner": "A", "why": "A is correctly FALSE; B misreads the conversation"}
+{"pair": 48, "winner": "B", "why": "A changes AS32787 to AS3278; both misidentify operators"}
+{"pair": 49, "winner": "A", "why": "B changes AS32787 to AS32778; both have wrong operators"}
+{"pair": 50, "winner": "A", "why": "A plays along correctly; B leaks its reasoning"}
+{"pair": 51, "winner": "B", "why": "B gives the expected 'Who's there?'; A rambles in roleplay"}
+{"pair": 52, "winner": "B", "why": "B answers, though it has a Berghof error; A deflects"}
+{"pair": 53, "winner": "B", "why": "A replies in Portuguese with factual errors; B uses Italian"}

@@ -1,0 +1,64 @@
+[
+ {
+  "tgt": "Qwen/Qwen3-32B",
+  "fp8": 1,
+  "yarn": 4,
+  "lens": "8192,32768,130816",
+  "tok_chunk": 32768,
+  "maps": "/vol/runs/pairs-q17-q32/maps_all/maps_k8.pt",
+  "name": "q32-group4-k8-tp2-fused",
+  "mapper": "group",
+  "group": 4,
+  "tp": 2,
+  "verify": 1
+ },
+ {
+  "tgt": "Qwen/Qwen3-32B",
+  "fp8": 1,
+  "yarn": 4,
+  "lens": "8192,32768,130816",
+  "tok_chunk": 32768,
+  "maps": "/vol/runs/pairs-q17-q32/maps_all/maps_k8.pt",
+  "name": "q32-group4-k8-tp2-torchbuild",
+  "mapper": "group",
+  "group": 4,
+  "tp": 2,
+  "fused_build": 0
+ },
+ {
+  "tgt": "Qwen/Qwen3-32B",
+  "fp8": 1,
+  "yarn": 4,
+  "lens": "8192,32768,130816",
+  "tok_chunk": 32768,
+  "maps": "/vol/runs/pairs-q17-q32/maps_all/maps_k8.pt",
+  "name": "q32-group4-k8-tp4-fused",
+  "mapper": "group",
+  "group": 4,
+  "tp": 4
+ },
+ {
+  "tgt": "Qwen/Qwen3-32B",
+  "fp8": 1,
+  "yarn": 4,
+  "lens": "8192,32768,130816",
+  "tok_chunk": 32768,
+  "maps": "/vol/runs/pairs-q17-q32/maps_k24.pt",
+  "name": "q32-dense-k24-tp2-fused",
+  "mapper": "dense",
+  "tp": 2,
+  "verify": 1
+ },
+ {
+  "tgt": "Qwen/Qwen3-8B",
+  "fp8": 1,
+  "yarn": 4,
+  "lens": "8192,32768,130816",
+  "tok_chunk": 32768,
+  "maps": "/vol/runs/pairs-q17-q8/maps_all/maps_k8.pt",
+  "name": "q8-group4-k8-tp2-fused",
+  "mapper": "group",
+  "group": 4,
+  "tp": 2
+ }
+]

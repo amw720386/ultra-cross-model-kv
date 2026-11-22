@@ -38,7 +38,9 @@ def _cs(cos, sin, l, T):
 
 
 def unrope(k, cos, sin):  # k [B,H,T,D] post-RoPE -> pre-RoPE
-    return k * cos - rotate_half(k) * sin
+    # YaRN tables carry the attention factor m (cos^2 + sin^2 = m^2); the cache holds m*R(k), so divide by m^2.
+    # Exact for any m, unchanged when m = 1. rope() keeps m: the target expects m*R(k).
+    return (k * cos - rotate_half(k) * sin) / (cos * cos + sin * sin)
 
 
 def rope(k, cos, sin):

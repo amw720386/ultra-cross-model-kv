@@ -1,0 +1,18 @@
+{"pair": 18, "winner": "tie", "why": "Both correct and equally clear per-ounce comparison"}
+{"pair": 19, "winner": "tie", "why": "Both correct, same conclusion, equally clear"}
+{"pair": 20, "winner": "B", "why": "B reads user input; A hardcodes text, wrong example output"}
+{"pair": 21, "winner": "A", "why": "A takes user-supplied input; B hardcodes text, wrong output"}
+{"pair": 22, "winner": "A", "why": "A closer to 5-7-5; B syllables off, extra commentary"}
+{"pair": 23, "winner": "A", "why": "A closer to 5-7-5 form; B lines too short"}
+{"pair": 24, "winner": "A", "why": "B degenerates into endless nested loop; A at least structured"}
+{"pair": 25, "winner": "tie", "why": "Both degenerate into repetition loops, no usable config"}
+{"pair": 26, "winner": "B", "why": "Both correct; A invents nonexistent song Hey, Leader"}
+{"pair": 27, "winner": "tie", "why": "Both correctly name Hayley Williams concisely"}
+{"pair": 28, "winner": "A", "why": "A expands EAS/EPF correctly; B expansions wrong"}
+{"pair": 29, "winner": "A", "why": "A correct urine/stool exams; B invents wrong expansions"}
+{"pair": 30, "winner": "A", "why": "A runs; B crashes on undefined stages variable"}
+{"pair": 31, "winner": "A", "why": "B truncated degenerate art; A complete though buggy"}
+{"pair": 32, "winner": "tie", "why": "Both appropriate friendly greetings offering Python help"}
+{"pair": 33, "winner": "A", "why": "A adopts Python bot persona; B ignores it"}
+{"pair": 34, "winner": "A", "why": "Both 99; B leaks English chain-of-thought"}
+{"pair": 35, "winner": "B", "why": "Both 99; B answers in German as asked"}

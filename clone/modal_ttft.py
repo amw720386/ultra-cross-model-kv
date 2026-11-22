@@ -10,8 +10,8 @@ image = (
     .env({"HF_HOME": "/vol/hf", "HF_HUB_CACHE": "/hf/hub", "HF_HUB_OFFLINE": "1", "HF_HUB_ENABLE_HF_TRANSFER": "1"})
     .add_local_python_source("kvx")
 )
-vol = modal.Volume.from_name("kvx", create_if_missing=True)
-hf_shared = modal.Volume.from_name("gap-push-models-xl-hf")  # shared weights (ops/rsi-weights), read-only
+vol = modal.Volume.from_name(os.environ.get("KVX_VOLUME", "kvx"), create_if_missing=True)
+hf_shared = modal.Volume.from_name(os.environ.get("KVX_WEIGHTS_VOLUME", "kvx-hf"))  # shared weights volume (KVX_WEIGHTS_VOLUME), read-only
 app = modal.App(os.environ.get("KVX_APP", "kvx-ttft"), image=image)
 
 

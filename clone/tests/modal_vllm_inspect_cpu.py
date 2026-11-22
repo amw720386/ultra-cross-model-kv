@@ -1,6 +1,7 @@
+import os
 import modal
 image = (modal.Image.from_registry("nvidia/cuda:12.8.1-devel-ubuntu22.04", add_python="3.12").pip_install("vllm==0.34.0", "hf_transfer"))
-app = modal.App("kvx-vllminspect-cpu", image=image)
+app = modal.App(os.environ.get("KVX_APP", "kvx-vllminspect-cpu"), image=image)
 @app.function(cpu=2.0, memory=8192, timeout=600)
 def run():
     import inspect, subprocess

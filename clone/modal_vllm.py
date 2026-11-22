@@ -14,16 +14,17 @@ image = (
     .pip_install("vllm==0.34.0", "hf_transfer")
     # flash-attn backend: predictable paged layout [2, blocks, block_size, H, D] for the connector
     .env({"HF_HOME": "/vol/hf", "HF_HUB_CACHE": "/hf/hub", "HF_HUB_OFFLINE": "1", "HF_HUB_ENABLE_HF_TRANSFER": "1", "VLLM_ATTENTION_BACKEND_UNUSED": "set via attention_backend"})
-    .add_local_python_source("kvx")
+    .add_local_python_source("kvx", "modal_vllm")
 )
-vol = modal.Volume.from_name("kvx", create_if_missing=True)
-hf_shared = modal.Volume.from_name("gap-push-models-xl-hf")  # shared weights (ops/rsi-weights), read-only
+vol = modal.Volume.from_name(os.environ.get("KVX_VOLUME", "kvx"), create_if_missing=True)
+hf_shared = modal.Volume.from_name(os.environ.get("KVX_WEIGHTS_VOLUME", "kvx-hf"))  # shared weights volume (KVX_WEIGHTS_VOLUME), read-only
 app = modal.App(os.environ.get("KVX_APP", "kvx-vllm"), image=image)
 
 
 def serve_impl(mode: str, src: str, tgt: str, maps: str, lens: str, tail: int, reps: int = 3, fp8: int = -1, tag: str = "",
                util: float = 0.72, restore: str = "rms", sink: str = "", backend: str = "FLASH_ATTN",
-               yarn: float = 0.0, orig_ctx: int = 32768, quality_long: int = 0, maxlen: int = 0, src_sdpa: str = "cudnn", tp: int = 1):
+               yarn: float = 0.0, orig_ctx: int = 32768, quality_long: int = 0, maxlen: int = 0, src_sdpa: str = "cudnn", tp: int = 1, src_tp: int = 1, lens_quality: int = 1,
+               long_from: int = 0, reps_long: int = 1, extra: dict = None):
     try:
         import torch
         from vllm import LLM, SamplingParams
@@ -43,7 +44,7 @@ def serve_impl(mode: str, src: str, tgt: str, maps: str, lens: str, tail: int, r
                 kv_connector_extra_config={"src": src, "maps": maps, "tail": tail, "min_len": 512, "restore": restore,
                                            **({"sink_template": sink} if sink else {}),
                                            **({"yarn": yarn, "orig_ctx": orig_ctx} if yarn > 0 else {}),
-                                           "src_sdpa": src_sdpa,
+                                           "src_sdpa": src_sdpa, "src_tp": src_tp, **(extra or {}),
                                            **({"src_device": os.environ["KVX_SRC_DEVICE"]} if os.environ.get("KVX_SRC_DEVICE") else {}),
                                            **({"fp8": True} if (fp8 == 1 or (fp8 < 0 and os.environ.get("KVX_FP8") == "1")) else {})})
         llm = LLM(**kw)
@@ -54,20 +55,22 @@ def serve_impl(mode: str, src: str, tgt: str, maps: str, lens: str, tail: int, r
         g = torch.Generator().manual_seed(0)
         for n in [int(x) for x in lens.split(",")]:
             ts = []
-            for r in range(reps + 1):
+            lng = long_from and n >= long_from  # 256K-1M: a native request takes minutes; the engine is warm from the
+            nrep = reps_long if lng else reps      # shorter lengths, so no warm-up request and fewer reps
+            for r in range(nrep + (0 if lng else 1)):
                 ids = torch.randint(1000, 30000, (n,), generator=g).tolist()
                 t = time.perf_counter()
                 llm.generate([{"prompt_token_ids": ids}], sp, use_tqdm=False)
-                if r > 0:
+                if r > 0 or lng:
                     ts.append(time.perf_counter() - t)
             ts.sort()
-            rows.append(dict(len=n, ttft_s=ts[len(ts) // 2]))
+            rows.append(dict(len=n, ttft_s=ts[len(ts) // 2], reps=len(ts), all_s=[round(x, 4) for x in ts]))
             print(json.dumps(rows[-1]), flush=True)
         # quality: first-token top-20 logprobs on 16 real FineWeb-Edu prefixes (eval token cache), compared offline
         import glob
         out = {}
         fs = sorted(glob.glob("/vol/data/eval_64x1024_bos0_*.pt"))
-        if fs:
+        if fs and lens_quality:
             ev = torch.load(fs[0])[:16]
             spq = SamplingParams(max_tokens=1, temperature=0.0, logprobs=20)
             outs = llm.generate([{"prompt_token_ids": list(x[:1024 - 64 + 1])} for x in ev], spq, use_tqdm=False)
@@ -85,7 +88,7 @@ def serve_impl(mode: str, src: str, tgt: str, maps: str, lens: str, tail: int, r
                 out["long_len"] = quality_long
                 out["long_first_token_top20"] = [{int(t): float(lp.logprob) for t, lp in o.outputs[0].logprobs[0].items()}
                                                  for o in outs]
-        res = dict(mode=mode, src=src, tgt=tgt, gpu=torch.cuda.get_device_name(0), tail=tail, rows=rows, concurrency=1, backend=backend, src_sdpa=src_sdpa, tp=tp,
+        res = dict(mode=mode, src=src, tgt=tgt, maps=maps, tag=tag, yarn=yarn, tp_=tp, gpu=torch.cuda.get_device_name(0), tail=tail, rows=rows, concurrency=1, backend=backend, src_sdpa=src_sdpa, tp=tp, src_tp=src_tp,
                    fp8=fp8, restore=restore, sink=sink, util=util, **out)
         os.makedirs("/vol/runs/vllm", exist_ok=True)
         json.dump(res, open(f"/vol/runs/vllm/{mode}_{tgt.split('/')[-1]}{tag or os.environ.get('KVX_TAG', '')}.json", "w"), indent=1)
@@ -96,7 +99,8 @@ def serve_impl(mode: str, src: str, tgt: str, maps: str, lens: str, tail: int, r
         return res
     except Exception:
         import traceback
-        raise RuntimeError(traceback.format_exc()[-3000:]) from None
+        part = json.dumps(locals().get("rows", []))  # rows measured before the failure are still results
+        raise RuntimeError(traceback.format_exc()[-3000:] + "\nPARTIAL_ROWS=" + part) from None
 
 
 serve = app.function(gpu=GPU.split(",") if "," in GPU else GPU, volumes={"/vol": vol, "/hf": hf_shared.read_only()}, timeout=3000)(serve_impl)

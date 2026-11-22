@@ -81,3 +81,70 @@ def restore_rope_(Y, kw, cos, sin, rows=32):
     _restore_rope_rows_kernel[grid](Y, kw if kw is not None else Y, cos, sin, n, Lt * H, H=H, D=D, HALF=D // 2,
                                     DO_RMS=kw is not None, ROWS=rows, num_warps=4)
     return Y
+
+
+@triton.jit
+def _build_x8_kernel(SRC, s_h, s_t, COS, SIN, MU, ROWMAX, X8, n, NCOL, col0,
+                     HS: tl.constexpr, D: tl.constexpr, HALF: tl.constexpr, ROWS: tl.constexpr,
+                     UNROPE: tl.constexpr, PASS: tl.constexpr, F32: tl.constexpr):
+    """One source segment ([HS, n, D] post-RoPE K or V of one layer, any head/token strides) -> mapper input columns
+    [col0, col0 + HS*D) of every token row: unrope (exact for YaRN's attention factor: divide by cos^2 + sin^2),
+    subtract the centering vector, then PASS 0: row amax (atomic max over segments), PASS 1: e4m3 with the row scale."""
+    pid = tl.program_id(0).to(tl.int64)
+    t = pid * ROWS + tl.arange(0, ROWS).to(tl.int64)          # [ROWS]
+    h = tl.arange(0, HS).to(tl.int64)                          # [HS]
+    d = tl.arange(0, HALF).to(tl.int64)                        # [HALF]
+    m = (t < n)[:, None, None]
+    src = SRC + t[:, None, None] * s_t + h[None, :, None] * s_h + d[None, None, :]
+    x1 = tl.load(src, mask=m, other=0.0).to(tl.float32)
+    x2 = tl.load(src + HALF, mask=m, other=0.0).to(tl.float32)
+    if UNROPE:
+        cb = t[:, None, None] * D + d[None, None, :]
+        c1 = tl.load(COS + cb, mask=m, other=1.0)
+        c2 = tl.load(COS + cb + HALF, mask=m, other=1.0)
+        s1 = tl.load(SIN + cb, mask=m, other=0.0)
+        s2 = tl.load(SIN + cb + HALF, mask=m, other=0.0)
+        # unrope(k) = (k*cos - rotate_half(k)*sin) / (cos^2 + sin^2), rotate_half(k) = [-k2, k1]
+        y1 = (x1 * c1 + x2 * s1) / (c1 * c1 + s1 * s1)
+        y2 = (x2 * c2 - x1 * s2) / (c2 * c2 + s2 * s2)
+    else:
+        y1 = x1
+        y2 = x2
+    mb = col0 + h[None, :, None] * D + d[None, None, :]
+    y1 = y1 - tl.load(MU + mb)
+    y2 = y2 - tl.load(MU + mb + HALF)
+    if PASS == 0:
+        a = tl.maximum(tl.max(tl.max(tl.abs(y1), 2), 1), tl.max(tl.max(tl.abs(y2), 2), 1))
+        tl.atomic_max(ROWMAX + t, a, mask=t < n)
+    else:
+        s = tl.maximum(tl.load(ROWMAX + t, mask=t < n, other=1.0), 1e-12) / 448.0
+        s = s[:, None, None]
+        dst = X8 + t[:, None, None] * NCOL + mb
+        if F32:  # debug/CPU: scaled values unrounded (the Triton interpreter's e4m3 cast is wrong near +-128)
+            tl.store(dst, y1 / s, mask=m)
+            tl.store(dst + HALF, y2 / s, mask=m)
+        else:
+            tl.store(dst, (y1 / s).to(X8.dtype.element_ty), mask=m)
+            tl.store(dst + HALF, (y2 / s).to(X8.dtype.element_ty), mask=m)
+
+
+def build_x8(segments, cos, sin, mu, n, rows=4, f32=False):
+    """Fused mapper-input build + centered row-wise e4m3 quantization.
+    segments: list of (src [HS, n, D] post-RoPE view (token stride arbitrary, D contiguous), col0, unrope: bool),
+    covering the columns of the mapper input; cos/sin [n, D] fp32 at the chunk's absolute positions; mu [NCOL] fp32.
+    Returns X8 [n, NCOL] float8_e4m3fn and sx [n, 1] fp32 (X ~= X8 * sx + mu), the operands of quant8 in the connector."""
+    NCOL = mu.numel()
+    dev = mu.device
+    rowmax = torch.zeros(n, dtype=torch.float32, device=dev)
+    X8 = torch.empty(n, NCOL, dtype=torch.float32 if f32 else torch.float8_e4m3fn, device=dev)
+    cos, sin = cos.float().contiguous(), sin.float().contiguous()
+    grid = (triton.cdiv(n, rows),)
+    for p in (0, 1):
+        for src, col0, unrope in segments:
+            HS, n_, D = src.shape
+            assert n_ == n and src.stride(2) == 1, (src.shape, src.stride())
+            _build_x8_kernel[grid](src, src.stride(0), src.stride(1), cos, sin, mu, rowmax, X8, n, NCOL, col0,
+                                   HS=HS, D=D, HALF=D // 2, ROWS=rows, UNROPE=bool(unrope), PASS=p, F32=f32,
+                                   num_warps=4)
+    sx = (rowmax.clamp(min=1e-12) / 448.0)[:, None]
+    return X8, sx

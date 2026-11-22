@@ -1,13 +1,14 @@
 """CPU: how much does fp8 (e4m3, per-output-channel) quantization of the SOURCE model's linear weights change its KV?
 Compare with the mapper's own error (sqrt(1 - R^2) ~ 0.5-0.7 relative). modal run tests/modal_fp8_source_cpu.py"""
+import os
 import modal
 
 image = (modal.Image.debian_slim(python_version="3.11")
          .pip_install("torch==2.8.0", "transformers==4.56.2", "accelerate", "numpy")
          .add_local_python_source("kvx"))
-vol = modal.Volume.from_name("kvx")
-hf_shared = modal.Volume.from_name("gap-push-models-xl-hf")
-app = modal.App("kvx-fp8src-cpu", image=image)
+vol = modal.Volume.from_name(os.environ.get("KVX_VOLUME", "kvx"))
+hf_shared = modal.Volume.from_name(os.environ.get("KVX_WEIGHTS_VOLUME", "kvx-hf"))
+app = modal.App(os.environ.get("KVX_APP", "kvx-fp8src-cpu"), image=image)
 
 
 @app.function(cpu=8.0, memory=32768, timeout=2400, volumes={"/vol": vol, "/hf": hf_shared.read_only()})

@@ -1,0 +1,125 @@
+[
+ {
+  "arm": "chat_sink",
+  "script": [
+   "kvx.evals.chat_sink",
+   "--model",
+   "Qwen/Qwen3-32B",
+   "--out",
+   "/vol/runs/evals-q17-q32-c/chat_sink/chat_sink.pt"
+  ]
+ },
+ {
+  "arm": "map32-long-qtail-sink",
+  "model": "Qwen/Qwen3-32B",
+  "benches": "quality,longbench_v2",
+  "n": 500,
+  "ns": {
+   "longbench_v2": 97
+  },
+  "connector": {
+   "src": "Qwen/Qwen3-1.7B",
+   "maps": "/vol/runs/q17-q32-mix-fw1k/maps_k24.pt",
+   "tail": 64,
+   "min_len": 64,
+   "restore": "rms",
+   "src_sdpa": "cudnn",
+   "sink_template": "/vol/runs/evals-q17-q32-c/chat_sink/chat_sink.pt"
+  },
+  "question_tail": true,
+  "gpu_util": 0.85
+ },
+ {
+  "arm": "map32-long-qtail",
+  "model": "Qwen/Qwen3-32B",
+  "benches": "quality,longbench_v2",
+  "n": 500,
+  "ns": {
+   "longbench_v2": 97
+  },
+  "connector": {
+   "src": "Qwen/Qwen3-1.7B",
+   "maps": "/vol/runs/q17-q32-mix-fw1k/maps_k24.pt",
+   "tail": 64,
+   "min_len": 64,
+   "restore": "rms",
+   "src_sdpa": "cudnn"
+  },
+  "question_tail": true,
+  "gpu_util": 0.85
+ },
+ {
+  "arm": "map32-long-t64-sink",
+  "model": "Qwen/Qwen3-32B",
+  "benches": "quality,longbench_v2",
+  "n": 500,
+  "ns": {
+   "longbench_v2": 97
+  },
+  "connector": {
+   "src": "Qwen/Qwen3-1.7B",
+   "maps": "/vol/runs/q17-q32-mix-fw1k/maps_k24.pt",
+   "tail": 64,
+   "min_len": 64,
+   "restore": "rms",
+   "src_sdpa": "cudnn",
+   "sink_template": "/vol/runs/evals-q17-q32-c/chat_sink/chat_sink.pt"
+  },
+  "gpu_util": 0.85
+ },
+ {
+  "arm": "map32-long-t256-sink",
+  "model": "Qwen/Qwen3-32B",
+  "benches": "quality,longbench_v2",
+  "n": 500,
+  "ns": {
+   "longbench_v2": 97
+  },
+  "connector": {
+   "src": "Qwen/Qwen3-1.7B",
+   "maps": "/vol/runs/q17-q32-mix-fw1k/maps_k24.pt",
+   "tail": 256,
+   "min_len": 64,
+   "restore": "rms",
+   "src_sdpa": "cudnn",
+   "sink_template": "/vol/runs/evals-q17-q32-c/chat_sink/chat_sink.pt"
+  },
+  "gpu_util": 0.85
+ },
+ {
+  "arm": "map32-short-t16-sink",
+  "model": "Qwen/Qwen3-32B",
+  "benches": "arc_c,math500",
+  "n": 500,
+  "connector": {
+   "src": "Qwen/Qwen3-1.7B",
+   "maps": "/vol/runs/q17-q32-mix-fw1k/maps_k24.pt",
+   "tail": 16,
+   "min_len": 64,
+   "restore": "rms",
+   "src_sdpa": "cudnn",
+   "sink_template": "/vol/runs/evals-q17-q32-c/chat_sink/chat_sink.pt"
+  },
+  "gpu_util": 0.85
+ },
+ {
+  "arm": "map32-think-t16-sink",
+  "model": "Qwen/Qwen3-32B",
+  "benches": "zebralogic,math500",
+  "n": 500,
+  "ns": {
+   "zebralogic": 200
+  },
+  "thinking": true,
+  "connector": {
+   "src": "Qwen/Qwen3-1.7B",
+   "maps": "/vol/runs/q17-q32-mix-fw1k/maps_k24.pt",
+   "tail": 16,
+   "min_len": 64,
+   "restore": "rms",
+   "src_sdpa": "cudnn",
+   "sink_template": "/vol/runs/evals-q17-q32-c/chat_sink/chat_sink.pt"
+  },
+  "gpu_util": 0.85
+ }
+]

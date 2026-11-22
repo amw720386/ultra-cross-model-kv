@@ -1,11 +1,12 @@
 """Run tests/test_core_cpu.py on a Modal CPU container (no GPU). modal run tests/modal_unit_cpu.py"""
+import os
 import modal
 
 image = (modal.Image.debian_slim(python_version="3.11")
          .pip_install("torch==2.8.0", "transformers==4.56.2", "numpy", "pytest", "triton==3.4.0")
          .env({"TRITON_INTERPRET": "1"})
          .add_local_python_source("kvx").add_local_dir("tests", "/root/tests"))
-app = modal.App("kvx-unit-cpu", image=image)
+app = modal.App(os.environ.get("KVX_APP", "kvx-unit-cpu"), image=image)
 
 
 @app.function(cpu=2.0, memory=4096, timeout=600)

@@ -1,13 +1,14 @@
 """CPU-only: load a model + tokenizer from the shared weights volume via kvx.models (no GPU).
 modal run tests/modal_shared_load_check.py --name Qwen/Qwen3-0.6B"""
+import os
 import modal
 
 image = (modal.Image.debian_slim(python_version="3.11")
          .pip_install("torch==2.8.0", "transformers==4.56.2", "accelerate", "numpy")
          .add_local_python_source("kvx"))
-hf_shared = modal.Volume.from_name("gap-push-models-xl-hf")
+hf_shared = modal.Volume.from_name(os.environ.get("KVX_WEIGHTS_VOLUME", "kvx-hf"))
 
-app = modal.App("kvx-sharedload-cpu", image=image)
+app = modal.App(os.environ.get("KVX_APP", "kvx-sharedload-cpu"), image=image)
 
 
 @app.function(cpu=4.0, memory=16384, timeout=900, volumes={"/hf": hf_shared.read_only()})

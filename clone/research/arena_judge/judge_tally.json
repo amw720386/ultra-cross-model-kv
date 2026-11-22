@@ -1,0 +1,24 @@
+{
+ "annot36|ours_mapped": {
+  "better": 11,
+  "same": 3,
+  "worse": 22
+ },
+ "annot36|theirs_KVLingo": {
+  "better": 8,
+  "same": 4,
+  "worse": 24
+ },
+ "glm_half": {
+  "annot36|ours_mapped": {
+   "better": 5,
+   "same": 0,
+   "worse": 13
+  },
+  "annot36|theirs_KVLingo": {
+   "better": 5,
+   "same": 2,
+   "worse": 11
+  }
+ }
+}

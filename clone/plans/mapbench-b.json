@@ -1,0 +1,106 @@
+[
+ {
+  "tgt": "Qwen/Qwen3-32B",
+  "fp8": 1,
+  "yarn": 4,
+  "lens": "32768,130816",
+  "tok_chunk": 32768,
+  "name": "q32-dense-k24-tp2",
+  "maps": "/vol/runs/pairs-q17-q32/maps_k24.pt",
+  "mapper": "dense",
+  "tp": 2
+ },
+ {
+  "tgt": "Qwen/Qwen3-32B",
+  "fp8": 1,
+  "yarn": 4,
+  "lens": "32768,130816",
+  "tok_chunk": 32768,
+  "name": "q32-sparse-k8-rowgather-tp2",
+  "maps": "/vol/runs/pairs-q17-q32/maps_all/maps_k8.pt",
+  "mapper": "sparse",
+  "tp": 2
+ },
+ {
+  "tgt": "Qwen/Qwen3-32B",
+  "fp8": 1,
+  "yarn": 4,
+  "lens": "32768,130816",
+  "tok_chunk": 32768,
+  "name": "q32-group4-k8-tp2",
+  "maps": "/vol/runs/pairs-q17-q32/maps_all/maps_k8.pt",
+  "mapper": "group",
+  "group": 4,
+  "tp": 2
+ },
+ {
+  "tgt": "Qwen/Qwen3-32B",
+  "fp8": 1,
+  "yarn": 4,
+  "lens": "32768,130816",
+  "tok_chunk": 32768,
+  "name": "q32-group8-k8-tp2",
+  "maps": "/vol/runs/pairs-q17-q32/maps_all/maps_k8.pt",
+  "mapper": "group",
+  "group": 8,
+  "tp": 2
+ },
+ {
+  "tgt": "Qwen/Qwen3-32B",
+  "fp8": 1,
+  "yarn": 4,
+  "lens": "32768,130816",
+  "tok_chunk": 32768,
+  "name": "q32-group4-k12-tp2",
+  "maps": "/vol/runs/pairs-q17-q32/maps_all/maps_k12.pt",
+  "mapper": "group",
+  "group": 4,
+  "tp": 2
+ },
+ {
+  "tgt": "Qwen/Qwen3-32B",
+  "fp8": 1,
+  "yarn": 4,
+  "lens": "32768,130816",
+  "tok_chunk": 32768,
+  "name": "q32-group4-k8-tp4",
+  "maps": "/vol/runs/pairs-q17-q32/maps_all/maps_k8.pt",
+  "mapper": "group",
+  "group": 4,
+  "tp": 4
+ },
+ {
+  "tgt": "Qwen/Qwen3-32B",
+  "fp8": 1,
+  "yarn": 4,
+  "lens": "32768,130816",
+  "tok_chunk": 32768,
+  "name": "q32-dense-k24-tp4",
+  "maps": "/vol/runs/pairs-q17-q32/maps_k24.pt",
+  "mapper": "dense",
+  "tp": 4
+ },
+ {
+  "tgt": "Qwen/Qwen3-8B",
+  "fp8": 1,
+  "yarn": 4,
+  "lens": "32768,130816",
+  "tok_chunk": 32768,
+  "name": "q8-group4-k8-tp2",
+  "maps": "/vol/runs/pairs-q17-q8/maps_all/maps_k8.pt",
+  "mapper": "group",
+  "group": 4,
+  "tp": 2
+ },
+ {
+  "tgt": "Qwen/Qwen3-8B",
+  "fp8": 1,
+  "yarn": 4,
+  "lens": "32768,130816",
+  "tok_chunk": 32768,
+  "name": "q8-dense-k24-tp2",
+  "maps": "/vol/runs/pairs-q17-q8/maps_k24.pt",
+  "mapper": "dense",
+  "tp": 2
+ }
+]

@@ -1,0 +1,13 @@
+[
+ {
+  "arm": "nat8-think-short",
+  "model": "Qwen/Qwen3-8B",
+  "benches": "zebralogic,math500",
+  "n": 500,
+  "ns": {
+   "zebralogic": 200
+  },
+  "thinking": true,
+  "gpu_util": 0.85
+ }
+]

@@ -33,7 +33,7 @@ class TextLM(torch.nn.Module):
         self._cg.set_attn_implementation(impl)
 
 
-SHARED_HUB = "/hf/hub"  # Modal volume gap-push-models-xl-hf mounted read-only at /hf (ops/rsi-weights)
+SHARED_HUB = "/hf/hub"  # the shared weights volume (KVX_WEIGHTS_VOLUME) mounted read-only at /hf
 
 
 def model_path(name):

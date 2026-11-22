@@ -1,0 +1,52 @@
+[
+ {
+  "arm": "map32-short-t16",
+  "model": "Qwen/Qwen3-32B",
+  "benches": "arc_c,math500",
+  "n": 500,
+  "connector": {
+   "src": "Qwen/Qwen3-1.7B",
+   "maps": "/vol/runs/q17-q32-mix-fw1k/maps_k24.pt",
+   "tail": 16,
+   "min_len": 64,
+   "restore": "rms",
+   "src_sdpa": "cudnn"
+  },
+  "gpu_util": 0.85
+ },
+ {
+  "arm": "map32-long-t64",
+  "model": "Qwen/Qwen3-32B",
+  "benches": "quality,longbench_v2",
+  "n": 500,
+  "ns": {
+   "longbench_v2": 97
+  },
+  "connector": {
+   "src": "Qwen/Qwen3-1.7B",
+   "maps": "/vol/runs/q17-q32-mix-fw1k/maps_k24.pt",
+   "tail": 64,
+   "min_len": 64,
+   "restore": "rms",
+   "src_sdpa": "cudnn"
+  },
+  "gpu_util": 0.85
+ },
+ {
+  "arm": "nat32-short",
+  "model": "Qwen/Qwen3-32B",
+  "benches": "arc_c,math500",
+  "n": 500,
+  "gpu_util": 0.88
+ },
+ {
+  "arm": "nat32-long",
+  "model": "Qwen/Qwen3-32B",
+  "benches": "quality,longbench_v2",
+  "n": 500,
+  "ns": {
+   "longbench_v2": 97
+  },
+  "gpu_util": 0.88
+ }
+]

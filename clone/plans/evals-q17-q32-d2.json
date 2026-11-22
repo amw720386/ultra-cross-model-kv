@@ -1,0 +1,10 @@
+[
+ {
+  "arm": "nat32-think-math",
+  "model": "Qwen/Qwen3-32B",
+  "benches": "math500",
+  "n": 500,
+  "thinking": true,
+  "gpu_util": 0.88
+ }
+]

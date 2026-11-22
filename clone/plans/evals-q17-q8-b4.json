@@ -1,0 +1,15 @@
+[
+ {
+  "arm": "nat8-think-long",
+  "model": "Qwen/Qwen3-8B",
+  "benches": "quality,contract_nli,bamboo_paperqa,longbench_v2,longhealth",
+  "n": 500,
+  "ns": {
+   "longbench_v2": 97,
+   "bamboo_paperqa": 99,
+   "longhealth": 200
+  },
+  "thinking": true,
+  "gpu_util": 0.85
+ }
+]

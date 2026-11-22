@@ -1,0 +1,117 @@
+[
+ {
+  "name": "q32-dense-k24-fp8-tp2",
+  "tgt": "Qwen/Qwen3-32B",
+  "maps": "/vol/runs/q17-q32-mix-fw1k/maps_k24.pt",
+  "mapper": "dense",
+  "fp8": 1,
+  "tp": 2,
+  "lens": "32768,65536",
+  "yarn": 4
+ },
+ {
+  "name": "q32-dense-k24-bf16-tp2",
+  "tgt": "Qwen/Qwen3-32B",
+  "maps": "/vol/runs/q17-q32-mix-fw1k/maps_k24.pt",
+  "mapper": "dense",
+  "fp8": 0,
+  "tp": 2,
+  "lens": "32768",
+  "yarn": 4
+ },
+ {
+  "name": "q8-dense-k24-fp8-tp2",
+  "tgt": "Qwen/Qwen3-8B",
+  "maps": "/vol/runs/pairs-q17-q8/maps_k24.pt",
+  "mapper": "dense",
+  "fp8": 1,
+  "tp": 2,
+  "lens": "32768,65536",
+  "yarn": 4
+ },
+ {
+  "name": "q8-sparse-k8-fp8-tp2",
+  "tgt": "Qwen/Qwen3-8B",
+  "maps": "/vol/runs/pairs-q17-q8/maps_all/maps_k8.pt",
+  "mapper": "sparse",
+  "fp8": 1,
+  "tp": 2,
+  "lens": "32768,65536",
+  "yarn": 4
+ },
+ {
+  "name": "q8-sparse-k4-fp8-tp2",
+  "tgt": "Qwen/Qwen3-8B",
+  "maps": "/vol/runs/pairs-q17-q8/maps_all/maps_k4.pt",
+  "mapper": "sparse",
+  "fp8": 1,
+  "tp": 2,
+  "lens": "32768,65536",
+  "yarn": 4
+ },
+ {
+  "name": "q32-sparse-k8-fp8-tp2",
+  "tgt": "Qwen/Qwen3-32B",
+  "maps": "/vol/runs/pairs-q17-q32/maps_all/maps_k8.pt",
+  "mapper": "sparse",
+  "fp8": 1,
+  "tp": 2,
+  "lens": "32768,65536",
+  "yarn": 4
+ },
+ {
+  "name": "q32-sparse-k4-fp8-tp2",
+  "tgt": "Qwen/Qwen3-32B",
+  "maps": "/vol/runs/pairs-q17-q32/maps_all/maps_k4.pt",
+  "mapper": "sparse",
+  "fp8": 1,
+  "tp": 2,
+  "lens": "32768,65536",
+  "yarn": 4
+ },
+ {
+  "name": "q32-sparse-k8-fp8-tp4",
+  "tgt": "Qwen/Qwen3-32B",
+  "maps": "/vol/runs/pairs-q17-q32/maps_all/maps_k8.pt",
+  "mapper": "sparse",
+  "fp8": 1,
+  "tp": 4,
+  "lens": "65536,130816",
+  "yarn": 4
+ },
+ {
+  "name": "q32-sparse-k8-vllmfa-bf16attn-tp2",
+  "tgt": "Qwen/Qwen3-32B",
+  "maps": "/vol/runs/pairs-q17-q32/maps_all/maps_k8.pt",
+  "mapper": "sparse",
+  "fp8": 1,
+  "tp": 2,
+  "lens": "32768,130816",
+  "yarn": 4,
+  "src_sdpa": "vllm_fa"
+ },
+ {
+  "name": "q32-sparse-k8-vllmfa-fp8attn-tp2",
+  "tgt": "Qwen/Qwen3-32B",
+  "maps": "/vol/runs/pairs-q17-q32/maps_all/maps_k8.pt",
+  "mapper": "sparse",
+  "fp8": 1,
+  "tp": 2,
+  "lens": "32768,130816",
+  "yarn": 4,
+  "src_sdpa": "vllm_fa",
+  "src_fp8_attn": 1
+ },
+ {
+  "name": "q32-sparse-k8-vllmfa-chunk32k-tp2",
+  "tgt": "Qwen/Qwen3-32B",
+  "maps": "/vol/runs/pairs-q17-q32/maps_all/maps_k8.pt",
+  "mapper": "sparse",
+  "fp8": 1,
+  "tp": 2,
+  "lens": "130816",
+  "yarn": 4,
+  "src_sdpa": "vllm_fa",
+  "src_chunk": 32768
+ }
+]
