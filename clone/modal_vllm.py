@@ -26,7 +26,8 @@ app = modal.App(os.environ.get("KVX_APP", "kvx-vllm"), image=image)
 def serve_impl(mode: str, src: str, tgt: str, maps: str, lens: str, tail: int, reps: int = 3, fp8: int = -1, tag: str = "",
                util: float = 0.72, restore: str = "rms", sink: str = "", backend: str = "FLASH_ATTN",
                yarn: float = 0.0, orig_ctx: int = 32768, quality_long: int = 0, maxlen: int = 0, src_sdpa: str = "cudnn", tp: int = 1, src_tp: int = 1, lens_quality: int = 1,
-               long_from: int = 0, reps_long: int = 1, extra: dict = None, long_n: int = 4, needle_n: int = 0):
+               long_from: int = 0, reps_long: int = 1, extra: dict = None, long_n: int = 4, needle_n: int = 0,
+               max_num_seqs: int = 0):
     try:
         import torch
         from vllm import LLM, SamplingParams
@@ -40,6 +41,8 @@ def serve_impl(mode: str, src: str, tgt: str, maps: str, lens: str, tail: int, r
             tc = apply_yarn(AutoConfig.from_pretrained(tgt), yarn, orig_ctx)
             kw["hf_overrides"] = {"rope_parameters": tc.rope_parameters, "rope_scaling": tc.rope_scaling,
                                   "max_position_embeddings": tc.max_position_embeddings}
+        if max_num_seqs:  # hybrid (GatedDeltaNet) targets: vLLM refuses the default 256 state slots on 80 GB
+            kw["max_num_seqs"] = max_num_seqs
         if mode == "mapped":
             extra = dict(extra or {})
             # extra["connector"] = "hybrid": the GatedDeltaNet-target connector (kvx/vllm_hybrid_connector.py)
