@@ -46,6 +46,11 @@ def main():
     ap.add_argument("--r2", nargs="+", default=[])
     ap.add_argument("--cost", type=float, required=True)
     ap.add_argument("--decontam", default="")
+    ap.add_argument("--benches", default="", help="comma list: only these rows (default: every bench in the file)")
+    ap.add_argument("--alt", nargs="+", default=[], help="another map's gen_evals files: its transfer@cap in the note")
+    ap.add_argument("--alt-label", default="plain distilled map")
+    ap.add_argument("--note", default="", help="extra note text, first (e.g. the router label)")
+    ap.add_argument("--decontam-text", default="", help="decontam note text (replaces --decontam's line)")
     ap.add_argument("--dry", action="store_true")
     a = ap.parse_args()
     mp = json.load(open(a.mapped))
@@ -54,7 +59,11 @@ def main():
     dc = json.load(open(a.decontam))["benches"] if a.decontam else {}
     ours = json.load(open(OURS))
     out = {}
+    alt = arms(a.alt)
+    only = set(x for x in a.benches.split(",") if x)
     for b, rid in ROWS.items():
+        if only and b not in only:
+            continue
         x = m.get((b, "transfer@cap"))
         if not x:
             continue
@@ -64,17 +73,26 @@ def main():
         pt = x["prompt_tokens"]
         th = THEIRS[b]
         verdict = "BEATEN" if lo > th else ("behind" if hi < th else "tie (theirs inside our CI)")
-        note = [f"xkv engine, mapper {mapper} (FineWeb-distilled), strategy transfer@cap: the last min(256, n//4) "
+        note = [f"xkv engine, mapper {mapper} ({'code-mix-distilled: 60% code + 40% FineWeb' if 'code' in mapper else 'FineWeb-distilled'}), strategy transfer@cap: the last min(256, n//4) "
                 f"prompt tokens native, the rest mapped from Qwen3.5-4B; {verdict} vs theirs {th}"]
         if nat:
             note.append(f"native 27B (target arm, same seeded items) {nat['score']:.4f}, retention "
                         f"{p / nat['score']:.3f}")
+        if a.note:
+            note.insert(0, a.note)
+        for (bb, s), y in m.items():  # other strategies of the same run (e.g. transfer@cap:s3): note only
+            if bb == b and s not in ("transfer@cap", "target"):
+                note.append(f"same map, {s}: {y['score']:.4f} (note only)")
+        if (b, "transfer@cap") in alt:
+            note.append(f"{a.alt_label} transfer@cap: {alt[(b, 'transfer@cap')]['score']:.4f}")
         for (bb, s), y in r2.items():
             if bb == b and s != "target":
                 note.append(f"r2 (non-distilled) map {s}: {y['score']:.4f}")
         note.append(f"prompt tokens min/median/max {pt['min']}/{pt['median']}/{pt['max']}; mapped_token_frac >= "
                     f"{frac(pt['min']):.3f} per prompt (median-length prompt {frac(pt['median']):.3f})")
-        if b in dc:
+        if a.decontam_text:
+            note.append(a.decontam_text)
+        elif b in dc:
             note.append(f"decontam: {dc[b]['items_with_13gram_overlap']}/{dc[b]['items']} items share a 13-gram with "
                         f"the distillation data (FineWeb-Edu, {1500} x 4224 tokens)")
         out[rid] = dict(value=round(p, 4), n=n, ci=round((hi - lo) / 2, 4), native_value=round(nat["score"], 4)
