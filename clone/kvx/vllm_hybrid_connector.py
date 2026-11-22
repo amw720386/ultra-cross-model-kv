@@ -284,7 +284,7 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
         else:
             self.kinds = {t: x["kind"] for t, x in enumerate(self.mf["tgt_taps"])}
         from .fast_gdn import patch as _fast_gdn  # HF Qwen3.5 GDN -> vLLM's FLA Triton kernel (torch fallback was ~2x slower)
-        if os.environ.get("KVX_FAST_GDN", "1") == "1":
+        if int(self._kv_transfer_config.get_from_extra_config("fast_gdn", 1)):  # extra_config fast_gdn=0: torch path
             _fast_gdn()
         self.S = hybrid.load(self.src_name).model.to(device)
         self.Sdec = hybrid.Dec(self.S)
