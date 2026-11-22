@@ -110,11 +110,16 @@ def main():
             qn = f"; quality NOT compared ({e})"
         note = (f"mapped {t:.3f} s vs native vLLM {nat[L]:.3f} s ({tag}); src_tp={best.get('src_tp')}, tail={best['tail']}, "
                 f"fp8 mapper={best.get('fp8')}, YaRN-served; maps {best.get('maps')}; extra {best.get('extra_cfg')}" + qn)
+        g_m = best.get("gpu")
+        g_n = next((r.get("gpu") for r in native if r.get("gpu")), None)
+        if g_m != g_n:  # rig-h200-hold: never compare across GPU classes
+            print(f"SKIP {hid} {lab}: mapped gpu {g_m} != native gpu {g_n}")
+            continue
         for rid, val in ((f"{hid}-{lab}-ttft", t), (f"{hid}-{lab}-speedup", sp)):
             if rid not in byid:
                 print("no scoreboard row", rid); continue
             out[rid] = dict(value=round(val, 4), rig=a.rig, run_id=f"{run_id}{tag}", baseline_vllm=round(nat[L], 4),
-                            cost_usd=a.cost, note=note)
+                            cost_usd=a.cost, note=note, gpu_measured=g_m)
             hf = byid.get(rid.replace("-speedup", "-ttft"), {}).get("their_baseline_native_s")
             if rid.endswith("-speedup") and hf:  # ours against THEIR HF-forwards native number (their own baseline)
                 out[rid]["value_hf_baseline"] = round(float(hf) / t, 3)
@@ -123,7 +128,7 @@ def main():
         if pk and lab == pk[0] and f"{hid}-peak" in byid:  # the headline peak row: our speedup at THEIR peak context
             beyond = L > pk[1]
             base = out.get(f"{hid}-{lab}-speedup") or dict(rig=a.rig, run_id=f"{run_id}{tag}", baseline_vllm=round(nat[L], 4),
-                                                         cost_usd=a.cost, note=note)
+                                                         cost_usd=a.cost, note=note, gpu_measured=g_m)
             out[f"{hid}-peak"] = dict(base, value=round(sp, 4), note=(("BEYOND MODEL SPEC (card max %d tokens; RoPE/YaRN "
                                       "extended, same for native and mapped); " % pk[1]) if beyond else "") + f"measured at {L} tokens; " + note)
             print(f"{hid + '-peak':45s} ours {sp:8.3f}  theirs {byid[hid + '-peak']['their_value']}")
@@ -140,6 +145,7 @@ def main():
                     print("no component row", comp_pair, phrase, lab); continue
                 r0 = cr[0]
                 out[r0["id"]] = dict(value=round(comp[key], 1), rig=a.rig, run_id=f"{run_id}{tag}", cost_usd=a.cost,
+                                     gpu_measured=best.get("gpu"),
                                      note=f"connector log median of {comp['n_req']} requests at n={n_m} mapped tokens; "
                                           f"TTFT {t:.3f} s; components synced at boundaries")
                 print(f"{r0['id']:45s} ours {comp[key]:8.1f}  theirs {r0['their_value']}")
@@ -150,7 +156,9 @@ def main():
         for rid, v in out.items():  # keep the better measurement per row (rows carry their own rig and run_id)
             old = cur.get(rid)
             higher = byid[rid].get("direction") == "higher"
-            if old and old.get("quality_ok") is not False and old.get("run_id") != v["run_id"] and (
+            # keep the old row only if it was measured on the same GPU class (an H200 row never beats an H100 one)
+            if old and old.get("quality_ok") is not False and old.get("run_id") != v["run_id"] and \
+                    old.get("gpu_measured") == v.get("gpu_measured") and (
                     old["value"] > v["value"] if higher else old["value"] < v["value"]):
                 kept += 1
                 continue

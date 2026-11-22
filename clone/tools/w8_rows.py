@@ -79,7 +79,11 @@ def main(d, write=False, cost=None):
         rig = (f"8xH100 SXM (Modal), vLLM 0.34 TP=8, {c['extra'].get('connector')} connector, source TP-split"
                + (", YaRN x4 from 262144 on the target (both arms)" if c.get("yarn") else ""))
         share = round(cost / len(ents), 2) if cost else None
-        base = dict(n=1, ci=None, rig=rig, run_id="w8-peaks-1m-r2", value_hf_baseline=None, cost_usd=share, blocked=None)
+        g_m, g_n = (e.get("result") or {}).get("gpu"), (ne.get("result") or {}).get("gpu")
+        if g_m and g_n and g_m != g_n:
+            print("SKIP", c["tag"], "gpu mismatch", g_m, g_n); continue
+        base = dict(n=1, ci=None, rig=rig, run_id=os.path.basename(os.path.normpath(d)), value_hf_baseline=None,
+                    cost_usd=share, blocked=None, gpu_measured=g_m or g_n)
         if L256 in rm and L256 in rn:
             out[f"{pid}-256K-ttft"] = dict(base, value=round(rm[L256], 4), baseline_vllm=round(rn[L256], 4), context=L256,
                                            quality_ok=q is not None,
