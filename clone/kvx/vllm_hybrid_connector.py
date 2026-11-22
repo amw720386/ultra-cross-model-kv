@@ -120,6 +120,8 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
                     st["later_n"] += 1
                     st["later_prompt"] += n
                     st["later_mapped"] += L
+                    if st["later_n"] % 10 == 0:
+                        self._log_mstats()
                     return L
         m = self._n_mapped(n, tail)
         if m > 0:
@@ -131,12 +133,17 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
         st["first_n"] += 1
         st["first_prompt"] += n
         st["first_mapped"] += m
-        if st["first_n"] % 10 == 0 or (st["later_n"] and st["later_n"] % 50 == 0):
-            logger.info("kvx map_once: first requests %d mapped %.4f of their prompts; later requests %d mapped "
-                        "%.4f; all %.4f", st["first_n"], st["first_mapped"] / max(1, st["first_prompt"]),
-                        st["later_n"], st["later_mapped"] / max(1, st["later_prompt"]),
-                        (st["first_mapped"] + st["later_mapped"]) / max(1, st["first_prompt"] + st["later_prompt"]))
+        self._log_mstats()
         return m
+
+    def _log_mstats(self):
+        """Cumulative map_once counters (every first request, every 10th later one); the multi-turn row guard
+        (tools/agentic_rows.py) reads the last line."""
+        st = self._mstats
+        logger.info("kvx map_once: first requests %d mapped %.4f of their prompts; later requests %d mapped "
+                    "%.4f; all %.4f", st["first_n"], st["first_mapped"] / max(1, st["first_prompt"]),
+                    st["later_n"], st["later_mapped"] / max(1, st["later_prompt"]),
+                    (st["first_mapped"] + st["later_mapped"]) / max(1, st["first_prompt"] + st["later_prompt"]))
 
     def get_num_new_matched_tokens(self, request, num_computed_tokens):
         mr = self.__dict__.setdefault("_m_req", {})
