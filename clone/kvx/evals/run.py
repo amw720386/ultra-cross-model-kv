@@ -65,6 +65,7 @@ def main():
     ap.add_argument("--max-model-len", type=int, default=65536)
     ap.add_argument("--tp", type=int, default=1)
     ap.add_argument("--gpu-util", type=float, default=0.90)
+    ap.add_argument("--max-num-seqs", type=int, default=0, help="cap (hybrid GatedDeltaNet models need state per seq)")
     ap.add_argument("--thinking", action="store_true")
     ap.add_argument("--connector", default=None, help="JSON kv_connector_extra_config for kvx.vllm_connector")
     ap.add_argument("--attn-backend", default=None)
@@ -95,7 +96,7 @@ def main():
     from vllm.inputs import TokensPrompt
     from transformers import AutoConfig
     kw = dict(model=a.model, max_model_len=a.max_model_len, tensor_parallel_size=a.tp,
-              gpu_memory_utilization=a.gpu_util, seed=0)
+              gpu_memory_utilization=a.gpu_util, seed=0, **({"max_num_seqs": a.max_num_seqs} if a.max_num_seqs else {}))
     if getattr(AutoConfig.from_pretrained(a.model), "vision_config", None) is not None:
         kw["limit_mm_per_prompt"] = {"image": 0, "video": 0}  # text-only use of a VL checkpoint (Qwen3.5/3.8)
     if a.attn_backend:

@@ -30,7 +30,7 @@ app = modal.App(os.environ.get("KVX_APP", "kvx-quality-tau2"), image=image)
 
 def _serve_cmd(model, connector, max_len, gpu_util):
     c = ["vllm", "serve", model, "--port", "8000", "--max-model-len", str(max_len), "--gpu-memory-utilization",
-         str(gpu_util), "--enable-auto-tool-choice", "--tool-call-parser", "qwen3_coder", "--reasoning-parser", "qwen3",
+         str(gpu_util), "--max-num-seqs", "64", "--enable-auto-tool-choice", "--tool-call-parser", "qwen3_coder", "--reasoning-parser", "qwen3",
          "--served-model-name", "agent", "--limit-mm-per-prompt", json.dumps({"image": 0, "video": 0})]
     if connector:
         c += ["--no-enable-prefix-caching", "--kv-transfer-config", json.dumps(dict(

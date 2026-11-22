@@ -10,11 +10,16 @@ import sys
 
 import modal
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from modal_evals import image, vol, hf_shared  # noqa: E402
-
 GPU = os.environ.get("KVXQ_GPU", "L40S").split(",")
-image = image.add_local_python_source("modal_evals")  # the container imports this file's module top too
+# self-contained (importing modal_evals failed inside the container): same image as modal_evals
+image = (
+    modal.Image.from_registry("nvidia/cuda:12.8.1-devel-ubuntu22.04", add_python="3.12")
+    .pip_install("vllm==0.34.0", "hf_transfer", "pyarrow")
+    .env({"HF_HOME": "/vol/hf", "HF_HUB_CACHE": "/hf/hub", "HF_HUB_OFFLINE": "1"})
+    .add_local_python_source("kvx")
+)
+vol = modal.Volume.from_name(os.environ.get("KVX_VOLUME", "kvx"))
+hf_shared = modal.Volume.from_name(os.environ.get("KVX_WEIGHTS_VOLUME", "kvx-hf"))
 app = modal.App(os.environ.get("KVX_APP", "kvx-quality-hybrid-oracle"), image=image)
 MODEL = "Qwen/Qwen3.5-4B"
 
@@ -50,7 +55,7 @@ from vllm import LLM, SamplingParams
 from vllm.inputs import TokensPrompt
 mode, maps, out = sys.argv[1], sys.argv[2], sys.argv[3]
 kw = dict(model="%s", max_model_len=8192, gpu_memory_utilization=0.55, enable_prefix_caching=False,
-          limit_mm_per_prompt={"image": 0, "video": 0}, seed=0, enforce_eager=True)
+          limit_mm_per_prompt={"image": 0, "video": 0}, seed=0, enforce_eager=True, max_num_seqs=32)
 if mode == "mapped":
     from vllm.config import KVTransferConfig
     kw["kv_transfer_config"] = KVTransferConfig(kv_connector="HybridCrossModelConnector",

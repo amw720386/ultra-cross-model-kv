@@ -33,6 +33,8 @@ def _arm_cmd(arm, out_dir):
         c.append("--thinking")
     if arm.get("connector"):
         c += ["--connector", json.dumps(arm["connector"]), "--attn-backend", arm.get("backend", "FLASH_ATTN")]
+    if arm.get("max_num_seqs"):
+        c += ["--max-num-seqs", str(arm["max_num_seqs"])]
     if arm.get("question_tail"):
         c.append("--question-tail")
     if arm.get("ns"):
