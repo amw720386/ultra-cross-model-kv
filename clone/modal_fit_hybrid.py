@@ -99,7 +99,7 @@ def fit_impl(src: str, tgt: str, run_id: str, n_calib: int = 4000, L: int = 1024
              lam_rels: str = "1e-3", n_eval: int = 64, P: int = 960, sinks: str = "4", tails: str = "64,256",
              bs: int = 4, mem_frac: float = 0.80, save: int = 1, oracle: int = 1, stride: int = 4, tf32: int = 0,
              split_kv: int = 0, maps_from: str = "", ebs: int = 2, eval_l: int = 0, tgt_device_map: str = "",
-             gpu0_gib: int = 60, per_gpu_gib: int = 130, xkv_maps: str = ""):
+             gpu0_gib: int = 60, per_gpu_gib: int = 130, xkv_maps: str = "", emb_feats: int = 0):
     import torch
     from transformers import AutoTokenizer
     from kvx import hybrid
@@ -135,11 +135,12 @@ def fit_impl(src: str, tgt: str, run_id: str, n_calib: int = 4000, L: int = 1024
     kinds_t = [k for k, _ in hybrid.layer_taps(T)]
     widths = hybrid.tap_widths(T)
     Ls, Lt = len(kinds_s), len(kinds_t)
-    us, ut = hybrid.units(S, bool(split_kv)), hybrid.units(T, bool(split_kv))
+    us, ut = hybrid.units(S, bool(split_kv), emb=bool(emb_feats)), hybrid.units(T, bool(split_kv))
     win = hybrid.unit_windows(us, ut, Ls, Lt, w)
     ugroups = hybrid.unit_groups(T, ut)
     # source unit widths from one tiny forward
-    f0 = hybrid.unit_feats(S, hybrid.source_features(S, calib[:1, :8].to(dev), drop_q=bool(drop_q)), us, bool(drop_q))
+    f0 = hybrid.unit_feats(S, hybrid.source_features(S, calib[:1, :8].to(dev), drop_q=bool(drop_q), emb=bool(emb_feats)),
+                           us, bool(drop_q))
     ds = [0 if f is None else f.shape[1] for f in f0]
     dt = [sum(x for _, x in g) for g in ugroups]
     din = lambda j: sum(ds[i] for i in win[j])
@@ -188,7 +189,7 @@ def fit_impl(src: str, tgt: str, run_id: str, n_calib: int = 4000, L: int = 1024
         tg = time.time()
         batches = (calib[i:i + bs].to(dev) for i in range(0, len(calib), bs))
         rr = hybrid.calibrate(S, T, batches, w=w, targets=grp, drop_q=bool(drop_q), device=dev, stride=stride,
-                              split_kv=bool(split_kv))
+                              split_kv=bool(split_kv), emb=bool(emb_feats))
         m0 = torch.cuda.memory_allocated() / 1e9 if dev == "cuda" else 0
         rr.offload()  # stats to host RAM; solve streams one window at a time (the in-GPU solve OOMed on 4B->27B)
         if dev == "cuda":
@@ -239,7 +240,7 @@ def fit_impl(src: str, tgt: str, run_id: str, n_calib: int = 4000, L: int = 1024
                     torch.save(cm, f"/vol/runs/{run_id}/maps_core{tag}.pt")
             else:
                 out = hybrid.maps_file(S, T, maps_by_lam[lam], src=src, tgt=tgt, lam_rel=lam, w=w, drop_q=bool(drop_q),
-                                       sinks=A_, sink_template=tmpl, n_calib=len(calib),
+                                       sinks=A_, sink_template=tmpl, n_calib=len(calib), emb_feats=bool(emb_feats),
                                        calib="mix fineweb-edu+pg19-train 1024")
                 torch.save(out, f"/vol/runs/{run_id}/hybrid_maps{tag}.pt")
         _commit()
@@ -278,7 +279,7 @@ def fit_impl(src: str, tgt: str, run_id: str, n_calib: int = 4000, L: int = 1024
                 sc(f"map_xkv_tail{N}", T.forward(ids[:, P - N:], cache=hybrid.mapped_cache(T, ids[:, :P - N], gx))[0][:, N:])
             del gx
             continue
-        feats = hybrid.source_features(S, ids[:, :P], drop_q=bool(drop_q))
+        feats = hybrid.source_features(S, ids[:, :P], drop_q=bool(drop_q), emb=bool(emb_feats))
         for lam in lams:
             lt = "" if lam == lam0 else f"_lam{lam:g}"
             given = hybrid.apply_units(maps_by_lam[lam], feats, B, P, T, us, ut, drop_q=bool(drop_q), src=S,
@@ -356,12 +357,12 @@ def main(src: str = "Qwen/Qwen3.5-4B", tgt: str = "Qwen/Qwen3.8-27B", run_id: st
          w: int = 3, drop_q: int = 1, lam_rels: str = "1e-3", n_eval: int = 64, sinks: str = "4", tails: str = "64,256",
          bs: int = 4, oracle: int = 1, save: int = 1, stride: int = 4, tf32: int = 0, split_kv: int = 0,
          maps_from: str = "", prefix: int = 960, eval_l: int = 0, ebs: int = 2, tgt_device_map: str = "",
-         gpu0_gib: int = 60, per_gpu_gib: int = 130, xkv_maps: str = ""):
+         gpu0_gib: int = 60, per_gpu_gib: int = 130, xkv_maps: str = "", emb_feats: int = 0):
     run_id = run_id or time.strftime("pairs-%Y%m%dT%H%M%SZ", time.gmtime())
     r = fit.remote(src=src, tgt=tgt, run_id=run_id, n_calib=n_calib, w=w, drop_q=drop_q, lam_rels=lam_rels,
                    n_eval=n_eval, sinks=sinks, tails=tails, bs=bs, oracle=oracle, save=save, stride=stride, tf32=tf32, split_kv=split_kv,
                    maps_from=maps_from, P=prefix, eval_l=eval_l, ebs=ebs, tgt_device_map=tgt_device_map,
-                   gpu0_gib=gpu0_gib, per_gpu_gib=per_gpu_gib, xkv_maps=xkv_maps)
+                   gpu0_gib=gpu0_gib, per_gpu_gib=per_gpu_gib, xkv_maps=xkv_maps, emb_feats=emb_feats)
     os.makedirs(f"out/{run_id}", exist_ok=True)
     json.dump(r, open(f"out/{run_id}/result.json", "w"), indent=1)
     print(json.dumps(r.get("eval", r), indent=1))

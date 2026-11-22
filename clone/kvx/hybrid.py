@@ -192,8 +192,10 @@ class Taps:
 
 # ---------------------------------------------------------------- features
 
-def source_features(src, ids, drop_q=True):
-    """Per source layer: [B*T, d_l] float32 features (concatenated taps; GatedDeltaNet q dropped by default)."""
+def source_features(src, ids, drop_q=True, emb=False):
+    """Per source layer: [B*T, d_l] float32 features (concatenated taps; GatedDeltaNet q dropped by default).
+    emb: append one extra entry (index = number of layers): [token embedding | previous token's embedding]
+    (token identity as a map input: amw's attention map, Kvedaras & Rasymas 2611.12062)."""
     feats = {}
     qw = lin_q_width(src) if any(k == "lin" for k, _ in layer_taps(src)) else 0
     taps_s = layer_taps(src)
@@ -209,7 +211,13 @@ def source_features(src, ids, drop_q=True):
 
     with Taps(src).record(on_layer):
         src.forward(ids, keep=1, use_cache=False)
-    return [feats.get(l) for l in range(len(kinds))]  # None for KV-shared layers
+    out = [feats.get(l) for l in range(len(kinds))]  # None for KV-shared layers
+    if emb:
+        with torch.no_grad():
+            E = src.text.get_input_embeddings()(ids.to(src.device0))
+            Ep = torch.cat([torch.zeros_like(E[:, :1]), E[:, :-1]], 1)
+            out.append(torch.cat([E, Ep], -1).reshape(-1, 2 * E.shape[-1]).to(torch.bfloat16))
+    return out
 
 
 def windows(Ls, Lt, w, kinds_s, kinds_t, same_kind=True):
@@ -387,7 +395,7 @@ def _rows(x, B, stride):  # [B*T, d] -> every stride-th position of each sequenc
     return x.view(B, -1, x.shape[-1])[:, ::stride].reshape(-1, x.shape[-1])
 
 
-def units(dec, split_kv):
+def units(dec, split_kv, emb=False):
     """Fit units: one per layer, or (split_kv) two per attention layer: K taps and V taps separately.
     Returns [(layer, kind, [tap names])]; kind attn_k / attn_v for split attention units."""
     out = []
@@ -397,6 +405,8 @@ def units(dec, split_kv):
             out += [(l, "attn_k", ["k"]), (l, "attn_v", ["v"])]
         else:
             out.append((l, kind, names))
+    if emb:  # token-identity unit (source_features(..., emb=True) puts its feature after the layers)
+        out.append((len(dec.layers), "emb", ["emb"]))
     return out
 
 
@@ -409,13 +419,14 @@ def unit_windows(us, ut, nls, nlt, w):
             res.append(())
             continue
         c = (t + 0.5) * nls / nlt - 0.5
-        cand = [i for i, (s, ks, _) in enumerate(us) if ks != "none" and (not kt.startswith("attn_") or ks == kt)]
+        cand = [i for i, (s, ks, _) in enumerate(us) if ks not in ("none", "emb") and (not kt.startswith("attn_") or ks == kt)]
         layers = sorted({us[i][0] for i in cand}, key=lambda s: (abs(s - c), s))
         keep = set(layers if w <= 0 else layers[:w])
         sel = {i for i in cand if us[i][0] in keep}
         same = [i for i in cand if us[i][1] == kt]
         if same and not any(us[i][1] == kt for i in sel):
             sel.add(min(same, key=lambda i: (abs(us[i][0] - c), us[i][0])))
+        sel |= {i for i, (_, ks, _) in enumerate(us) if ks == "emb"}  # every target sees the token identity
         res.append(tuple(sorted(sel)))
     return res
 
@@ -436,13 +447,13 @@ def unit_feats(src, feats, us, drop_q=True):
     return out
 
 
-def calibrate(src, tgt, batches, w=3, targets=None, drop_q=True, device="cuda", stride=1, split_kv=False):
+def calibrate(src, tgt, batches, w=3, targets=None, drop_q=True, device="cuda", stride=1, split_kv=False, emb=False):
     """batches: iterable of id tensors [B, T] (on device), or (ids_s, ids_t, idx) for cross-tokenizer pairs.
     stride: use every stride-th position for the statistics (paper / modal_fit_eval: 4).
     split_kv: separate K and V maps per attention layer (K from source K, V from source V, the modal_fit_eval "kv"
     recipe; half the input width). Maps are then keyed by unit index; rr.units = (source units, target units).
     targets: target LAYER ids. Returns WindowRidge."""
-    us, ut = units(src, split_kv), units(tgt, split_kv)
+    us, ut = units(src, split_kv, emb=emb), units(tgt, split_kv)
     nls, nlt = len(src.layers), len(tgt.layers)
     win = unit_windows(us, ut, nls, nlt, w)
     tl = set(range(nlt) if targets is None else targets)
@@ -456,9 +467,9 @@ def calibrate(src, tgt, batches, w=3, targets=None, drop_q=True, device="cuda", 
     for ids in batches:
         if isinstance(ids, tuple):  # cross-tokenizer: (ids_s [B,Ts], ids_t [B,Tt], idx [B,Tt])
             ids_s, ids, idx = ids
-            feats = source_features_aligned(src, ids_s, idx, drop_q=drop_q)
+            feats = source_features_aligned(src, ids_s, idx, drop_q=drop_q, emb=emb)
         else:
-            feats = source_features(src, ids, drop_q=drop_q)
+            feats = source_features(src, ids, drop_q=drop_q, emb=emb)
         B = ids.shape[0]
         feats = unit_feats(src, [_rows(f, B, stride) for f in feats], us, drop_q)
         if rr is None:
@@ -653,11 +664,11 @@ def align(text, tok_s, tok_t, n_t, bos_s=False, bos_t=False, mode="cover"):
     return torch.tensor(ids_s), torch.tensor(ids_t), torch.tensor(idx)
 
 
-def source_features_aligned(src, ids_s, idx, drop_q=True):
+def source_features_aligned(src, ids_s, idx, drop_q=True, emb=False):
     """ids_s [B, Ts] (right-padded ok), idx [B, Tt]: source features gathered to target positions, [B*Tt, d]."""
     B, Ts = ids_s.shape
     Tt = idx.shape[1]
-    feats = source_features(src, ids_s, drop_q=drop_q)
+    feats = source_features(src, ids_s, drop_q=drop_q, emb=emb)
     out = []
     for f in feats:
         if f is None:

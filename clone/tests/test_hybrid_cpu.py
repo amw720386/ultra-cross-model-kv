@@ -407,3 +407,20 @@ def test_xkv_adapter_reproduces_gdn_taps_with_exact_linear_maps(tmp_path):
     for j in W:
         for tap in ("qkv", "a", "b"):
             assert torch.allclose(given[j][tap], ref[j][tap].float(), atol=1e-4), (j, tap)
+
+
+def test_emb_feature_unit_fit_and_apply():
+    S, T = _tiny(4, layers=4, hidden=48, vh=2), _tiny(5, layers=8, hidden=64, vh=4)
+    batches = [torch.randint(0, 101, (4, 48)) for _ in range(6)]
+    rr = hybrid.calibrate(S, T, batches, w=1, device="cpu", emb=True)
+    us, ut = rr.units
+    e = [i for i, u in enumerate(us) if u[1] == "emb"]
+    assert e == [len(S.layers)]
+    maps = rr.solve(lam_rel=1e-3, groups=hybrid.unit_groups(T, ut))
+    assert all(e[0] in m["sel"] for m in maps.values())
+    ids = torch.randint(0, 101, (1, 30))
+    feats = hybrid.source_features(S, ids[:, :22], emb=True)
+    assert feats[-1].shape == (22, 2 * S.cfg.hidden_size)
+    g = hybrid.apply_units(maps, feats, 1, 22, T, us, ut, src=S)
+    lg, _ = T.forward(ids[:, 22:], cache=hybrid.mapped_cache(T, ids[:, :22], g))
+    assert torch.isfinite(lg).all()
