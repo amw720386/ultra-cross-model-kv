@@ -131,8 +131,8 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
         m = self._n_mapped(n, tail)
         if self._recent:  # diagnose a "first" request that may be a missed later turn: best LCP with stored ones
             best = max(self._recent, key=lambda q: _lcp(q, ids))
-            logger.info("kvx map_once: new first request n=%d; best common prefix with a stored first prompt %d "
-                        "(that prompt n=%d)", n, _lcp(best, ids), len(best))
+            print("[kvx] map_once: new first request n=%d; best common prefix with a stored first prompt %d (that prompt "
+                  "n=%d)" % (n, _lcp(best, ids), len(best)), flush=True)
         self._recent = (self._recent + [tuple(ids)])[-32:]
         if m > 0:
             K = n - min(16, n - m)
@@ -150,10 +150,11 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
         """Cumulative map_once counters (logged on every request); the multi-turn row guard
         (tools/agentic_rows.py) reads the last line."""
         st = self._mstats
-        logger.info("kvx map_once: first requests %d mapped %.4f of their prompts; later requests %d mapped "
-                    "%.4f; all %.4f", st["first_n"], st["first_mapped"] / max(1, st["first_prompt"]),
-                    st["later_n"], st["later_mapped"] / max(1, st["later_prompt"]),
-                    (st["first_mapped"] + st["later_mapped"]) / max(1, st["first_prompt"] + st["later_prompt"]))
+        # print, not logger: vLLM's logger kept ONE of ~90 identical-format lines in a tau2 run
+        print("[kvx] map_once: first requests %d mapped %.4f of their prompts; later requests %d mapped %.4f; all %.4f"
+              % (st["first_n"], st["first_mapped"] / max(1, st["first_prompt"]), st["later_n"],
+                 st["later_mapped"] / max(1, st["later_prompt"]),
+                 (st["first_mapped"] + st["later_mapped"]) / max(1, st["first_prompt"] + st["later_prompt"])), flush=True)
 
     def get_num_new_matched_tokens(self, request, num_computed_tokens):
         mr = self.__dict__.setdefault("_m_req", {})
