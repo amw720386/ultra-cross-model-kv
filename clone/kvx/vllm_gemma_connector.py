@@ -86,6 +86,7 @@ class GemmaCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
         self.min_len = int(g("min_len", 512))
         self.src_name, self.maps_path, self.sink_path = g("src", None), g("maps", None), g("sink_template", None)
         self.src_sdpa = str(g("src_sdpa", "vllm_fa"))
+        self.dump_path = g("dump_path", None)  # debug: save the first request's written K/V (rank 0) for an HF check
         self.tgt_name = vllm_config.model_config.model
         self.max_len = vllm_config.model_config.max_model_len
         if vllm_config.cache_config.enable_prefix_caching:
@@ -254,8 +255,12 @@ class GemmaCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
             ids = torch.tensor([r.token_ids], device=device)
             feats = self._features(ids)
             t1 = _t.perf_counter()
+            dump = {} if (getattr(self, "dump_path", None) and not getattr(self, "_dumped", False)
+                          and getattr(self, "tp_rank", 0) == 0) else None
             for t in sorted(self.maps):
                 K, V = self._map_layer(t, feats, T)
+                if dump is not None:
+                    dump[t] = (K.to(torch.bfloat16).cpu(), V.to(torch.bfloat16).cpu())
                 bs = self.groups[self.layer_group[t]][0]
                 blocks = torch.tensor(r.block_ids[self.layer_group[t]], dtype=torch.long)
                 pos = torch.arange(T)
@@ -274,6 +279,12 @@ class GemmaCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
                 pd = pos.to(device)
                 write_kv(kv, bi.to(device), off.to(device), K[pd].to(torch.bfloat16), V[pd].to(torch.bfloat16), bs,
                          self._layouts[key])
+            if dump is not None:
+                os.makedirs(os.path.dirname(self.dump_path), exist_ok=True)
+                torch.save(dict(token_ids=list(r.token_ids), kv=dump, tp_size=self.tp_size,
+                                note="rank 0 heads; K post-RoPE (target tables), V unit-RMS; all mapped rows"), self.dump_path)
+                self._dumped = True
+                logger.info("kvx gemma: dumped %d layers to %s", len(dump), self.dump_path)
             if device.type == "cuda":
                 torch.cuda.synchronize(device)
             logger.info("kvx gemma: n=%d src_ms=%.1f map+write_ms=%.1f", T, 1e3 * (t1 - t0), 1e3 * (_t.perf_counter() - t1))

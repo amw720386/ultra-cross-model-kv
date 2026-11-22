@@ -1,0 +1,33 @@
+[
+ {
+  "src": "google/gemma-4-E4B",
+  "tgt": "google/gemma-4-31B",
+  "maps": "/vol/runs/pairs-g4e4bB-g4-31bB/maps_core.pt",
+  "lens": "2048",
+  "reps": 1,
+  "restore": "rms",
+  "backend": "FLASH_ATTN",
+  "yarn": 0.0,
+  "orig_ctx": 32768,
+  "maxlen": 4096,
+  "src_sdpa": "vllm_fa",
+  "tp": 1,
+  "fp8": 0,
+  "sink": "/vol/runs/pairs-g4e4bB-g4-31bB/sink_template.pt",
+  "quality_long": 0,
+  "long_n": 4,
+  "needle_n": 0,
+  "src_tp": 0,
+  "util": 0.8,
+  "lens_quality": 0,
+  "max_num_seqs": 64,
+  "mode": "mapped",
+  "tail": 256,
+  "extra": {
+   "connector": "gemma",
+   "min_len": 512,
+   "dump_path": "/vol/runs/kvx-speed-g4-dump/e4b_2048_tp1.pt"
+  },
+  "tag": "-h100x1-tp1-g4-e4b-dump"
+ }
+]
