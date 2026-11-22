@@ -41,8 +41,12 @@ def serve_impl(mode: str, src: str, tgt: str, maps: str, lens: str, tail: int, r
             kw["hf_overrides"] = {"rope_parameters": tc.rope_parameters, "rope_scaling": tc.rope_scaling,
                                   "max_position_embeddings": tc.max_position_embeddings}
         if mode == "mapped":
+            extra = dict(extra or {})
+            # extra["connector"] = "hybrid": the GatedDeltaNet-target connector (kvx/vllm_hybrid_connector.py)
+            hyb = extra.pop("connector", "") == "hybrid"
             kw["kv_transfer_config"] = KVTransferConfig(
-                kv_connector="CrossModelConnector", kv_connector_module_path="kvx.vllm_connector", kv_role="kv_both",
+                kv_connector="HybridCrossModelConnector" if hyb else "CrossModelConnector",
+                kv_connector_module_path="kvx.vllm_hybrid_connector" if hyb else "kvx.vllm_connector", kv_role="kv_both",
                 kv_connector_extra_config={"src": src, "maps": maps, "tail": tail, "min_len": 512, "restore": restore,
                                            **({"sink_template": sink} if sink else {}),
                                            **({"yarn": yarn, "orig_ctx": orig_ctx} if yarn > 0 else {}),
