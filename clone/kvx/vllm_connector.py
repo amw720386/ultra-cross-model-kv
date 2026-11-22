@@ -133,6 +133,7 @@ def write_kv_fa(kv, bi, off, K, V, block):
 
 def target_cos_sin(cfg, T, device):
     """cos/sin [T, D] for a target config, matching HF's rotary embedding (incl. attention_scaling)."""
+    cfg = getattr(cfg, "text_config", None) or cfg  # multimodal checkpoints (Mistral-Medium 3.5, Gemma): the text decoder
     from transformers.modeling_rope_utils import ROPE_INIT_FUNCTIONS
     rs = getattr(cfg, "rope_scaling", None) or getattr(cfg, "rope_parameters", None) or {}
     rope_type = (rs.get("rope_type") or rs.get("type") or "default") if isinstance(rs, dict) else "default"
