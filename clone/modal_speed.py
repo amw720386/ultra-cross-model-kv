@@ -26,13 +26,21 @@ TIMEOUT = int(os.environ.get("KVX_PLAN_TIMEOUT", "3300"))  # long windows (8xH10
 
 
 @app.function(gpu=GPU, volumes={"/vol": vol, "/hf": hf_shared.read_only()}, timeout=TIMEOUT)
-def run_plan(configs: list, deadline_s: int = 3000, hard_s: int = 0, res_dir: str = ""):
+def run_plan(configs: list, deadline_s: int = 3000, hard_s: int = 0, res_dir: str = "", require_gpu: str = ""):
     """deadline_s: start no new config after this; hard_s > 0: kill the config in flight at this wall time (cost cap),
     keeping what finished. res_dir: each config's entry is written to /vol/<res_dir>/<i>.json and committed as soon as
     it ends, so results are pulled per config, not only at the end."""
     hf_shared.reload()
     t0 = time.time()
     out = []
+    if require_gpu:  # decision rig-h200-hold: Modal may serve "H100" as H200; never time on the wrong class
+        names = subprocess.run(["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"], capture_output=True,
+                               text=True).stdout.strip().splitlines()
+        if not names or not all(require_gpu in n for n in names):
+            msg = f"ABORT: require_gpu={require_gpu!r} but the container has {names}"
+            print(msg, flush=True)
+            return [dict(cfg=c, error=msg, gpu_names=names) for c in configs]
+        print(f"gpu check ok: {names}", flush=True)
     for i, cfg in enumerate(configs):
         if time.time() - t0 > deadline_s:
             out.append(dict(cfg=cfg, error="skipped: deadline"))
@@ -86,7 +94,9 @@ def run_plan(configs: list, deadline_s: int = 3000, hard_s: int = 0, res_dir: st
 def main(plan: str, tag: str = ""):
     configs = json.load(open(plan))
     r = run_plan.remote(configs, deadline_s=int(os.environ.get("KVX_PLAN_DEADLINE", "3000")),
-                        hard_s=int(os.environ.get("KVX_PLAN_HARD", "0")), res_dir=os.environ.get("KVX_PLAN_RESDIR", ""))
+                        hard_s=int(os.environ.get("KVX_PLAN_HARD", "0")), res_dir=os.environ.get("KVX_PLAN_RESDIR", ""),
+                        # an "H100" request (pinned or not) must really be an H100: abort before timing otherwise
+                        require_gpu="H100" if GPU.upper().startswith("H100") else "")
     os.makedirs("out/speed", exist_ok=True)
     name = f"out/speed/{os.path.basename(plan).rsplit('.', 1)[0]}{tag}.json"
     json.dump(r, open(name, "w"), indent=1)
