@@ -50,6 +50,7 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
         super().__init__(vllm_config=vllm_config, role=role, kv_cache_config=kv_cache_config)
         cfg = self._kv_transfer_config
         self.tail = int(cfg.get_from_extra_config("tail", 256))
+        self.align = int(cfg.get_from_extra_config("align", 1))
         self.min_len = int(cfg.get_from_extra_config("min_len", 512))
         self.src_name = cfg.get_from_extra_config("src", None)
         self.maps_path = cfg.get_from_extra_config("maps", None)
@@ -73,10 +74,14 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
 
     # ---------------- scheduler side
     def _n_mapped(self, n, tail=None):
+        """Mapped prefix length. align=1 (default): exactly n - tail (attention KV may end inside a block; the GDN state
+        covers exactly the first m tokens). Hybrid attention blocks are large (e.g. 528-576 tokens), so block alignment
+        mapped NOTHING on prompts shorter than a block (short benchmarks ran fully native)."""
         if n < self.min_len:
             return 0
         t = self.tail if tail is None else max(1, int(tail))
-        return max(0, ((n - t) // self.block) * self.block)
+        a = max(1, self.align)
+        return max(0, ((n - t) // a) * a)
 
     @staticmethod
     def _req_tail(request):
@@ -202,11 +207,13 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
             ids = torch.tensor([r.token_ids], device=device)
             T = len(r.token_ids)
             feats = hybrid.source_features(self.Sdec, ids, drop_q=self.mf.get("drop_q", True))
-            given = taps_from_feats(self.mf, self.maps, feats, T, self.knw, sinks=self.sinks, recolor=self.recolor)
-            del feats
-            states = caches_from_taps(self.params, self.kinds, given)
-            del given
-            for t, st in states.items():
+            # one target layer at a time: taps -> state -> write -> free (all 64 layers' fp32 taps of a 27K-token
+            # prompt at once ran an H200 out of memory)
+            for t in sorted(self.maps):
+                given = taps_from_feats(self.mf, {t: self.maps[t]}, feats, T, self.knw, sinks=self.sinks,
+                                        recolor=self.recolor)
+                st = caches_from_taps(self.params, self.kinds, given)[t]
+                del given
                 st = slice_for_rank(self.params, st, self.tp_rank, self.tp_size)
                 cache = self._kv.get(t)
                 if cache is None:

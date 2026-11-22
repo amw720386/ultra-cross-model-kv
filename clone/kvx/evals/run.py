@@ -72,6 +72,8 @@ def main():
     ap.add_argument("--dry", action="store_true", help="build prompts only (CPU check), no vLLM")
     ap.add_argument("--question-tail", action="store_true", help="mapped arm: native tail = question tokens (+extra)")
     ap.add_argument("--question-tail-extra", type=int, default=16)
+    ap.add_argument("--tail-cap", type=int, default=256, help="native tail cap in tokens")
+    ap.add_argument("--tail-frac", type=float, default=0.25, help="native tail cap as a fraction of the prompt")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
 
@@ -114,20 +116,26 @@ def main():
     llm = LLM(**kw)
     t_load = time.time() - t0
     sps = [sampling(SamplingParams, it["bench"], a.thinking, seed=i) for i, it in enumerate(items)]
-    if a.connector and a.question_tail:  # map the document, read the question natively (per-request tail)
-        for sp, (_, _, qt) in zip(sps, prompts):
-            sp.extra_args = {"kv_transfer_params": {"kvx_tail": qt + a.question_tail_extra}}
+    tails = []
+    if a.connector:  # per-request native tail, capped (bundle rule): min(base, tail_cap, 25% of the prompt)
+        base_t = int(json.loads(a.connector).get("tail", 64))
+        for sp, (p_ids, _, qt) in zip(sps, prompts):
+            base = qt + a.question_tail_extra if a.question_tail else base_t
+            t = max(1, min(base, a.tail_cap, int(a.tail_frac * len(p_ids))))
+            tails.append(t)
+            sp.extra_args = {"kv_transfer_params": {"kvx_tail": t}}
     t0 = time.time()
     outs = llm.generate([TokensPrompt(prompt_token_ids=p) for p, _, _ in prompts], sps)
     t_gen = time.time() - t0
 
     by = {}
     with open(os.path.join(a.out, "gens.jsonl"), "w") as f:
-        for it, (p, cut, qt), o in zip(items, prompts, outs):
+        for k_i, (it, (p, cut, qt), o) in enumerate(zip(items, prompts, outs)):
             text = o.outputs[0].text
             s = score.score_item(it, text)
             row = dict(id=it["id"], bench=it["bench"], arm=a.arm, kind=it["kind"], answer=it["answer"], text=text,
                        n_prompt=len(p), n_gen=len(o.outputs[0].token_ids), cut=cut, q_tail=qt,
+                       native_tail=tails[k_i] if tails else None,
                        finish=o.outputs[0].finish_reason, **s)
             if it["kind"] == "code":
                 row["meta"] = it["meta"]
@@ -141,8 +149,8 @@ def main():
         if a.connector:  # tokens the connector maps (kvx.vllm_connector._n_mapped, block 16) / prompt tokens
             cc = json.loads(a.connector)
             t, ml = int(cc.get("tail", 64)), int(cc.get("min_len", 1024))
-            tt = [(r["q_tail"] + a.question_tail_extra) if a.question_tail else t for r in rows]
-            mp = [0 if r["n_prompt"] < ml else max(0, (r["n_prompt"] - x) // 16 * 16) for r, x in zip(rows, tt)]
+            al = int(cc.get("align", 1 if cc.get("_class") == "HybridCrossModelConnector" else 16))
+            mp = [0 if r["n_prompt"] < ml else max(0, (r["n_prompt"] - r["native_tail"]) // al * al) for r in rows]
             ent["mapped_frac"] = sum(mp) / max(1, sum(r["n_prompt"] for r in rows))
         if sc and rows[0]["kind"] in ("letter", "label", "math", "zebra"):
             k = int(sum(sc))
