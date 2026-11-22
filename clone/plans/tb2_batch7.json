@@ -1,0 +1,7 @@
+{
+ "rule": "TB2 top-up: the 2 fitting tasks (timeout <= 1800 s) left unscored when I stopped the b6 app by mistake (18:05Z)",
+ "tasks": [
+  "headless-terminal",
+  "rstan-to-pystan"
+ ]
+}
