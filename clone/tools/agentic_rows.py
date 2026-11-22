@@ -107,7 +107,7 @@ def tb2(jobs, logdir, fit_file=None):
     fit = set(json.load(open(fit_file))["tasks"]) if fit_file else None
     total_tasks = len(fit) + len(json.load(open(fit_file))["excluded_long"]) if fit_file else None
     k = n = k_all = 0
-    names, per_batch = [], {}
+    names, per_batch, long_solved = [], {}, []
     for f in glob.glob(f"{jobs}/xkvcode27mo2-b*/*/*/result.json"):
         r = json.load(open(f))
         rew = ((r.get("verifier_result") or {}).get("rewards") or {}).get("reward")
@@ -117,6 +117,8 @@ def tb2(jobs, logdir, fit_file=None):
         b = f.split("xkvcode27mo2-")[1].split("/")[0]
         k_all += rew >= 1.0
         if fit is not None and t not in fit:
+            if rew >= 1.0:
+                long_solved.append(t)
             continue
         n += 1
         k += rew >= 1.0
@@ -129,7 +131,7 @@ def tb2(jobs, logdir, fit_file=None):
     if fit is not None:
         lo, hi = wilson(k_all, total_tasks)
         out["worst_case"] = dict(passed=k_all, n=total_tasks, value=round(k_all / total_tasks, 4), lo=round(lo, 4),
-                                 hi=round(hi, 4))
+                                 hi=round(hi, 4), long_solved=sorted(long_solved))
         out["fit_tasks"], out["unscored_fit"] = len(fit), len(fit) - n
     return dict(tb2=out)
 
