@@ -14,6 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from modal_evals import image, vol, hf_shared  # noqa: E402
 
 GPU = os.environ.get("KVXQ_GPU", "L40S").split(",")
+image = image.add_local_python_source("modal_evals")  # the container imports this file's module top too
 app = modal.App(os.environ.get("KVX_APP", "kvx-quality-hybrid-oracle"), image=image)
 MODEL = "Qwen/Qwen3.5-4B"
 
