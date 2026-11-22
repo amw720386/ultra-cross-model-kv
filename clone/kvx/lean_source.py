@@ -87,7 +87,6 @@ class LeanSource:
         outs = [(torch.empty(1, l["Hk"], T, l["D"], dtype=dt, device=dev), torch.empty(1, l["Hk"], T, l["D"], dtype=dt, device=dev))
                 for l in self.layers]
         chunked = bool(chunk) and T > chunk
-        kr_buf = [torch.empty(T, l["Hk"], l["D"], dtype=dt, device=dev) for l in self.layers] if chunked else None
         step = chunk if chunked else T
         for a in range(0, T, step):
             b_ = min(T, a + step)
@@ -98,9 +97,8 @@ class LeanSource:
                 K, V = outs[li]
                 K[0, :, a:b_] = k.transpose(0, 1)
                 V[0, :, a:b_] = v.transpose(0, 1)
-                if chunked:
-                    kr_buf[li][a:b_] = kr
-                    kk = kr_buf[li][:b_]
+                if chunked:  # earlier chunks' keys re-roped on the fly: no post-RoPE key buffer (7.5 GB/rank at 1M)
+                    kk = torch.cat([_rope(K[0, :, :a].transpose(0, 1), cos[:a].to(dt), sin[:a].to(dt)), kr]) if a else kr
                     vv = V[0, :, :b_].transpose(0, 1)
                 else:
                     kk, vv = kr, v

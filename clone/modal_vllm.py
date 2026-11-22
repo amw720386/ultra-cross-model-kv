@@ -96,7 +96,7 @@ def serve_impl(mode: str, src: str, tgt: str, maps: str, lens: str, tail: int, r
                 fc = sorted(glob.glob("/vol/data/calib_4000x1024_bos0_*.pt"))
                 if long_n > n_pg and fc:
                     fw = torch.load(fc[0])
-                    dper = -(-quality_long // fw.shape[1])
+                    dper = -(-quality_long // len(fw[0]))  # token caches are tensors or lists of lists
                     prompts += [sum((list(fw[j]) for j in range(i * dper, (i + 1) * dper)), [])[:quality_long]
                                 for i in range(long_n - n_pg)]
                 spq = SamplingParams(max_tokens=1, temperature=0.0, logprobs=20)
@@ -109,7 +109,7 @@ def serve_impl(mode: str, src: str, tgt: str, maps: str, lens: str, tail: int, r
                   try:
                     import random
                     rng = random.Random(0)
-                    hay_chunks = list(range(pg.shape[0] - 1, -1, -1))  # haystack from the far end of the PG19 cache
+                    hay_chunks = list(range(len(pg) - 1, -1, -1))  # haystack from the far end of the PG19 cache
                     items, nprompts = [], []
                     for i in range(needle_n):
                         key = "".join(rng.choice("abcdefghijklmnopqrstuvwxyz") for _ in range(8))
@@ -118,7 +118,7 @@ def serve_impl(mode: str, src: str, tgt: str, maps: str, lens: str, tail: int, r
                         q = tok.encode(f"\nWhat is the special magic number for {key} mentioned in the provided text? "
                                        f"The special magic number for {key} is:", add_special_tokens=False)
                         nh = quality_long - len(needle) - len(q)
-                        c0 = (i * per) % max(1, pg.shape[0] - per)
+                        c0 = (i * per) % max(1, len(pg) - per)
                         hay = sum((list(pg[hay_chunks[(c0 + j) % len(hay_chunks)]]) for j in range(per)), [])[:nh]
                         depth = 0.1 + 0.8 * (i % 9) / 8
                         at = int(depth * nh)

@@ -45,15 +45,16 @@
   "tp": 8,
   "mode": "mapped",
   "tail": 64,
-  "util": 0.57,
+  "util": 0.56,
   "src_tp": 1,
   "tag": "-h100x8-tp8-srctp-fa-group4k8-tail64-win8k-1m",
   "extra": {
-   "map_chunk_tokens": 32768,
+   "map_chunk_tokens": 16384,
    "src_chunk": 262144,
    "mapper": "group",
    "group": 4,
-   "src_window": 8192
+   "src_window": 8192,
+   "src_lean": 1
   },
   "lens_quality": 1,
   "long_n": 32,
@@ -79,14 +80,15 @@
   "tp": 8,
   "mode": "mapped",
   "tail": 64,
-  "util": 0.57,
+  "util": 0.56,
   "src_tp": 1,
   "tag": "-h100x8-tp8-srctp-fa-group4k8-tail64-1m",
   "extra": {
-   "map_chunk_tokens": 32768,
+   "map_chunk_tokens": 16384,
    "src_chunk": 262144,
    "mapper": "group",
-   "group": 4
+   "group": 4,
+   "src_lean": 1
   },
   "lens_quality": 1,
   "long_n": 32,

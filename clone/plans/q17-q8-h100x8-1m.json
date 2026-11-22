@@ -42,15 +42,16 @@
   "tp": 8,
   "mode": "mapped",
   "tail": 64,
-  "util": 0.6,
+  "util": 0.36,
   "src_tp": 1,
   "tag": "-h100x8-tp8-srctp-fa3fp8-group4k8-tail64-8b-1m",
   "extra": {
-   "map_chunk_tokens": 32768,
+   "map_chunk_tokens": 16384,
    "src_chunk": 262144,
    "mapper": "group",
    "group": 4,
-   "src_fp8_attn": 1
+   "src_fp8_attn": 1,
+   "src_lean": 1
   }
  },
  {
@@ -73,16 +74,17 @@
   "tp": 8,
   "mode": "mapped",
   "tail": 64,
-  "util": 0.6,
+  "util": 0.36,
   "src_tp": 1,
   "tag": "-h100x8-tp8-srctp-fa3fp8-group4k8-tail64-win8k-8b-1m",
   "extra": {
-   "map_chunk_tokens": 32768,
+   "map_chunk_tokens": 16384,
    "src_chunk": 262144,
    "mapper": "group",
    "group": 4,
    "src_fp8_attn": 1,
-   "src_window": 8192
+   "src_window": 8192,
+   "src_lean": 1
   },
   "lens_quality": 1
  },
@@ -106,14 +108,15 @@
   "tp": 8,
   "mode": "mapped",
   "tail": 64,
-  "util": 0.6,
+  "util": 0.36,
   "src_tp": 1,
   "tag": "-h100x8-tp8-srctp-fa-group4k8-tail64-8b-1m",
   "extra": {
-   "map_chunk_tokens": 32768,
+   "map_chunk_tokens": 16384,
    "src_chunk": 262144,
    "mapper": "group",
-   "group": 4
+   "group": 4,
+   "src_lean": 1
   },
   "lens_quality": 0
  }
