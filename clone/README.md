@@ -31,55 +31,55 @@ This repo rebuilds, from public material only, the method that OneTriangle (YC S
 
 | id | pair | metric | context / benchmark | theirs | ours | owner | status |
 |---|---|---|---|---|---|---|---|
-| home-ministral-3-3b-mistral-medium-3-5-128b-8K-ttft | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT s (mapped) | 8K | 0.36 |  | kvx-speed | open |
-| home-ministral-3-3b-mistral-medium-3-5-128b-16K-ttft | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT s (mapped) | 16K | 0.64 |  | kvx-speed | open |
-| home-ministral-3-3b-mistral-medium-3-5-128b-32K-ttft | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT s (mapped) | 32K | 1.45 |  | kvx-speed | open |
-| home-ministral-3-3b-mistral-medium-3-5-128b-64K-ttft | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT s (mapped) | 64K | 4.01 |  | kvx-speed | open |
-| home-ministral-3-3b-mistral-medium-3-5-128b-peak | Ministral-3-3B -> Mistral-Medium-3.5-128B | peak speedup x (headline) | 32K | 12.6 |  | kvx-speed | open |
-| home-qwen3-1-7b-qwen3-32b-8K-ttft | Qwen3-1.7B -> Qwen3-32B | TTFT s (mapped) | 8K | 0.21 | 0.1077 | kvx-speed | beaten |
-| home-qwen3-1-7b-qwen3-32b-16K-ttft | Qwen3-1.7B -> Qwen3-32B | TTFT s (mapped) | 16K | 0.4 | 0.154 | kvx-speed | beaten |
-| home-qwen3-1-7b-qwen3-32b-32K-ttft | Qwen3-1.7B -> Qwen3-32B | TTFT s (mapped) | 32K | 0.87 | 0.2952 | kvx-speed | beaten |
-| home-qwen3-1-7b-qwen3-32b-peak | Qwen3-1.7B -> Qwen3-32B | peak speedup x (headline) | 1M | 11.0 |  | kvx-speed | open |
-| home-qwen2-5-3b-qwen2-5-72b-32K-ttft | Qwen2.5-3B -> Qwen2.5-72B | TTFT s (mapped) | 32K | 1.46 |  | kvx-speed | open |
-| home-qwen2-5-3b-qwen2-5-72b-64K-ttft | Qwen2.5-3B -> Qwen2.5-72B | TTFT s (mapped) | 64K | 3.46 |  | kvx-speed | open |
-| home-qwen2-5-3b-qwen2-5-72b-127K-ttft | Qwen2.5-3B -> Qwen2.5-72B | TTFT s (mapped) | 127K | 9.74 |  | kvx-speed | open |
-| home-qwen2-5-3b-qwen2-5-72b-262K-ttft | Qwen2.5-3B -> Qwen2.5-72B | TTFT s (mapped) | 262K | 36.45 |  | kvx-speed | open |
-| home-qwen2-5-3b-qwen2-5-72b-524K-ttft | Qwen2.5-3B -> Qwen2.5-72B | TTFT s (mapped) | 524K | 136.7 |  | kvx-speed | open |
-| home-qwen2-5-3b-qwen2-5-72b-peak | Qwen2.5-3B -> Qwen2.5-72B | peak speedup x (headline) | 127K | 9.6 |  | kvx-speed | open |
-| home-gemma-4-e2b-gemma-4-31b-peak | Gemma-4-E2B -> Gemma-4-31B | peak speedup x (headline) | 1M | 9.4 |  | kvx-speed | open |
-| home-qwen3-5-2b-qwen3-8-27b-peak | Qwen3.5-2B -> Qwen3.8-27B | peak speedup x (headline) | 1M | 7.7 |  | kvx-speed | open |
-| home-gemma-4-e4b-gemma-4-31b-peak | Gemma-4-E4B -> Gemma-4-31B | peak speedup x (headline) | 1M | 4.7 |  | kvx-speed | open |
-| home-qwen3-5-4b-qwen3-8-27b-8K-ttft | Qwen3.5-4B -> Qwen3.8-27B | TTFT s (mapped) | 8K | 0.63 |  | kvx-speed | open |
-| home-qwen3-5-4b-qwen3-8-27b-16K-ttft | Qwen3.5-4B -> Qwen3.8-27B | TTFT s (mapped) | 16K | 1.25 |  | kvx-speed | open |
-| home-qwen3-5-4b-qwen3-8-27b-32K-ttft | Qwen3.5-4B -> Qwen3.8-27B | TTFT s (mapped) | 32K | 2.81 |  | kvx-speed | open |
-| home-qwen3-5-4b-qwen3-8-27b-64K-ttft | Qwen3.5-4B -> Qwen3.8-27B | TTFT s (mapped) | 64K | 6.33 |  | kvx-speed | open |
-| home-qwen3-5-4b-qwen3-8-27b-peak | Qwen3.5-4B -> Qwen3.8-27B | peak speedup x (headline) | 1M | 3.9 |  | kvx-speed | open |
-| home-glm-4-7-flash-glm-5-3-peak | GLM-4.7-Flash -> GLM-5.3 | peak speedup x (headline) | 1M | 3.9 |  | kvx-speed | open |
-| home-qwen3-1-7b-qwen3-8b-8K-ttft | Qwen3-1.7B -> Qwen3-8B | TTFT s (mapped) | 8K | 0.17 | 0.1044 | kvx-speed | beaten |
-| home-qwen3-1-7b-qwen3-8b-16K-ttft | Qwen3-1.7B -> Qwen3-8B | TTFT s (mapped) | 16K | 0.34 | 0.1847 | kvx-speed | beaten |
-| home-qwen3-1-7b-qwen3-8b-32K-ttft | Qwen3-1.7B -> Qwen3-8B | TTFT s (mapped) | 32K | 0.79 | 0.3769 | kvx-speed | beaten |
-| home-qwen3-1-7b-qwen3-8b-peak | Qwen3-1.7B -> Qwen3-8B | peak speedup x (headline) | 1M | 3.0 |  | kvx-speed | open |
-| bundle-arc-chat-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | ARC-Chat | 0.97 |  | kvx-quality | open |
-| bundle-contractnli-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | ContractNLI | 0.61 |  | kvx-quality | open |
-| bundle-bamboo-paperqa-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | BAMBOO PaperQA | 0.893 |  | kvx-quality | open |
-| bundle-longhealth-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | LongHealth | 0.76 |  | kvx-quality | open |
-| bundle-qmsum-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | QMSum | 0.4065 |  | kvx-quality | open |
-| bundle-cowtext-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | CowText | 0.65 | None | kvx-quality | blocked |
-| bundle-humaneval-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | HumanEval | 0.91 |  | kvx-quality | open |
-| bundle-mbpp-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | MBPP | 0.88 |  | kvx-quality | open |
-| bundle-bigcodebench-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | BigCodeBench | 0.55 |  | kvx-quality | open |
-| bundle-math-500-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | MATH-500 | 0.59 |  | kvx-quality | open |
-| bundle-tau2-airline-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | tau2 Airline | 0.5882352941 |  | kvx-quality | open |
-| bundle-tau2-retail-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | tau2 Retail | 0.4117647059 |  | kvx-quality | open |
-| bundle-tau2-telecom-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | tau2 Telecom | 0.4705882353 |  | kvx-quality | open |
-| bundle-tau2-overall-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | tau2 Overall | 0.4901960784 |  | kvx-quality | open |
-| bundle-terminal-bench-2-0-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | Terminal-Bench 2.0 | 0.1 |  | kvx-quality | open |
-| x-ml-ttft-8k-speedup | Llama-3.1-Minitron-4B-Width-Base -> Llama-3.1-8B | TTFT speedup x [mapped_direct+rank8_residual] | 8K, resident source cache | 7.91 |  | kvx-speed | open |
-| x-tb-qwen-72-sq-3b-72b-cache-transfer-x | Qwen2.5-3B -> Qwen2.5-72B | TTFT speedup relative to native 72B @32K [mapped] | quality vs TTFT @32K; pooled QuALITY + ContractNLI slice | 8.69 |  | kvx-speed | open |
+| home-ministral-3-3b-mistral-medium-3-5-128b-8K-ttft | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT s (mapped) | 8K | 0.36 |  | speed | open |
+| home-ministral-3-3b-mistral-medium-3-5-128b-16K-ttft | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT s (mapped) | 16K | 0.64 |  | speed | open |
+| home-ministral-3-3b-mistral-medium-3-5-128b-32K-ttft | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT s (mapped) | 32K | 1.45 |  | speed | open |
+| home-ministral-3-3b-mistral-medium-3-5-128b-64K-ttft | Ministral-3-3B -> Mistral-Medium-3.5-128B | TTFT s (mapped) | 64K | 4.01 |  | speed | open |
+| home-ministral-3-3b-mistral-medium-3-5-128b-peak | Ministral-3-3B -> Mistral-Medium-3.5-128B | peak speedup x (headline) | 32K | 12.6 |  | speed | open |
+| home-qwen3-1-7b-qwen3-32b-8K-ttft | Qwen3-1.7B -> Qwen3-32B | TTFT s (mapped) | 8K | 0.21 | 0.1077 | speed | beaten |
+| home-qwen3-1-7b-qwen3-32b-16K-ttft | Qwen3-1.7B -> Qwen3-32B | TTFT s (mapped) | 16K | 0.4 | 0.154 | speed | beaten |
+| home-qwen3-1-7b-qwen3-32b-32K-ttft | Qwen3-1.7B -> Qwen3-32B | TTFT s (mapped) | 32K | 0.87 | 0.2952 | speed | beaten |
+| home-qwen3-1-7b-qwen3-32b-peak | Qwen3-1.7B -> Qwen3-32B | peak speedup x (headline) | 1M | 11.0 |  | speed | open |
+| home-qwen2-5-3b-qwen2-5-72b-32K-ttft | Qwen2.5-3B -> Qwen2.5-72B | TTFT s (mapped) | 32K | 1.46 |  | speed | open |
+| home-qwen2-5-3b-qwen2-5-72b-64K-ttft | Qwen2.5-3B -> Qwen2.5-72B | TTFT s (mapped) | 64K | 3.46 |  | speed | open |
+| home-qwen2-5-3b-qwen2-5-72b-127K-ttft | Qwen2.5-3B -> Qwen2.5-72B | TTFT s (mapped) | 127K | 9.74 |  | speed | open |
+| home-qwen2-5-3b-qwen2-5-72b-262K-ttft | Qwen2.5-3B -> Qwen2.5-72B | TTFT s (mapped) | 262K | 36.45 |  | speed | open |
+| home-qwen2-5-3b-qwen2-5-72b-524K-ttft | Qwen2.5-3B -> Qwen2.5-72B | TTFT s (mapped) | 524K | 136.7 |  | speed | open |
+| home-qwen2-5-3b-qwen2-5-72b-peak | Qwen2.5-3B -> Qwen2.5-72B | peak speedup x (headline) | 127K | 9.6 |  | speed | open |
+| home-gemma-4-e2b-gemma-4-31b-peak | Gemma-4-E2B -> Gemma-4-31B | peak speedup x (headline) | 1M | 9.4 |  | speed | open |
+| home-qwen3-5-2b-qwen3-8-27b-peak | Qwen3.5-2B -> Qwen3.8-27B | peak speedup x (headline) | 1M | 7.7 |  | speed | open |
+| home-gemma-4-e4b-gemma-4-31b-peak | Gemma-4-E4B -> Gemma-4-31B | peak speedup x (headline) | 1M | 4.7 |  | speed | open |
+| home-qwen3-5-4b-qwen3-8-27b-8K-ttft | Qwen3.5-4B -> Qwen3.8-27B | TTFT s (mapped) | 8K | 0.63 |  | speed | open |
+| home-qwen3-5-4b-qwen3-8-27b-16K-ttft | Qwen3.5-4B -> Qwen3.8-27B | TTFT s (mapped) | 16K | 1.25 |  | speed | open |
+| home-qwen3-5-4b-qwen3-8-27b-32K-ttft | Qwen3.5-4B -> Qwen3.8-27B | TTFT s (mapped) | 32K | 2.81 |  | speed | open |
+| home-qwen3-5-4b-qwen3-8-27b-64K-ttft | Qwen3.5-4B -> Qwen3.8-27B | TTFT s (mapped) | 64K | 6.33 |  | speed | open |
+| home-qwen3-5-4b-qwen3-8-27b-peak | Qwen3.5-4B -> Qwen3.8-27B | peak speedup x (headline) | 1M | 3.9 |  | speed | open |
+| home-glm-4-7-flash-glm-5-3-peak | GLM-4.7-Flash -> GLM-5.3 | peak speedup x (headline) | 1M | 3.9 |  | speed | open |
+| home-qwen3-1-7b-qwen3-8b-8K-ttft | Qwen3-1.7B -> Qwen3-8B | TTFT s (mapped) | 8K | 0.17 | 0.1044 | speed | beaten |
+| home-qwen3-1-7b-qwen3-8b-16K-ttft | Qwen3-1.7B -> Qwen3-8B | TTFT s (mapped) | 16K | 0.34 | 0.1847 | speed | beaten |
+| home-qwen3-1-7b-qwen3-8b-32K-ttft | Qwen3-1.7B -> Qwen3-8B | TTFT s (mapped) | 32K | 0.79 | 0.3769 | speed | beaten |
+| home-qwen3-1-7b-qwen3-8b-peak | Qwen3-1.7B -> Qwen3-8B | peak speedup x (headline) | 1M | 3.0 |  | speed | open |
+| bundle-arc-chat-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | ARC-Chat | 0.97 |  | quality | open |
+| bundle-contractnli-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | ContractNLI | 0.61 |  | quality | open |
+| bundle-bamboo-paperqa-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | BAMBOO PaperQA | 0.893 |  | quality | open |
+| bundle-longhealth-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | LongHealth | 0.76 |  | quality | open |
+| bundle-qmsum-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | QMSum | 0.4065 |  | quality | open |
+| bundle-cowtext-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | CowText | 0.65 | None | quality | blocked |
+| bundle-humaneval-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | HumanEval | 0.91 |  | quality | open |
+| bundle-mbpp-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | MBPP | 0.88 |  | quality | open |
+| bundle-bigcodebench-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | BigCodeBench | 0.55 |  | quality | open |
+| bundle-math-500-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | MATH-500 | 0.59 |  | quality | open |
+| bundle-tau2-airline-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | tau2 Airline | 0.5882352941 |  | quality | open |
+| bundle-tau2-retail-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | tau2 Retail | 0.4117647059 |  | quality | open |
+| bundle-tau2-telecom-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | tau2 Telecom | 0.4705882353 |  | quality | open |
+| bundle-tau2-overall-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | tau2 Overall | 0.4901960784 |  | quality | open |
+| bundle-terminal-bench-2-0-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | Terminal-Bench 2.0 | 0.1 |  | quality | open |
+| x-ml-ttft-8k-speedup | Llama-3.1-Minitron-4B-Width-Base -> Llama-3.1-8B | TTFT speedup x [mapped_direct+rank8_residual] | 8K, resident source cache | 7.91 |  | speed | open |
+| x-tb-qwen-72-sq-3b-72b-cache-transfer-x | Qwen2.5-3B -> Qwen2.5-72B | TTFT speedup relative to native 72B @32K [mapped] | quality vs TTFT @32K; pooled QuALITY + ContractNLI slice | 8.69 |  | speed | open |
 
 All rows (Tier 2 and untracked included):
 
-**Beaten 132 of 1143** published OneTriangle numbers (tied 23, behind 51, blocked 1, open 839). Full row table: [docs/SCOREBOARD.md](docs/SCOREBOARD.md). Rules: same pair, context/benchmark and N or more; TTFT on their GPU class (H100) and speedups against native vLLM/SGLang.
+**Beaten 132 of 1143** published OneTriangle numbers (tied 24, behind 54, blocked 1, open 835). Full row table: [docs/SCOREBOARD.md](docs/SCOREBOARD.md). Rules: same pair, context/benchmark and N or more; TTFT on their GPU class (H100) and speedups against native vLLM/SGLang.
 
 | pair | category | rows | beaten | tied | behind | blocked | open |
 |---|---|---|---|---|---|---|---|
@@ -115,7 +115,7 @@ All rows (Tier 2 and untracked included):
 | Qwen3-4B -> Ministral-3-14B | quality | 14 | 0 | 0 | 0 | 0 | 10 |
 | Qwen3-30B-A3B-Instruct-2507 -> Qwen3-30B-A3B-Thinking | quality | 13 | 3 | 0 | 3 | 0 | 6 |
 | Qwen3-4B -> Ministral-3-14B | speed/cost | 13 | 0 | 0 | 0 | 0 | 13 |
-| Qwen2.5-3B -> Qwen2.5-72B | quality | 12 | 0 | 0 | 0 | 0 | 12 |
+| Qwen2.5-3B -> Qwen2.5-72B | quality | 12 | 0 | 1 | 3 | 0 | 8 |
 | Qwen2.5-3B -> Qwen2.5-72B | TTFT table | 11 | 0 | 0 | 0 | 0 | 11 |
 | Qwen3-1.7B -> Qwen3-0.6B | diagnostic | 9 | 3 | 2 | 1 | 0 | 0 |
 | Qwen3-1.7B -> Qwen3-4B | diagnostic | 9 | 6 | 0 | 0 | 0 | 0 |

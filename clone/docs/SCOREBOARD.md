@@ -644,10 +644,10 @@
 | x-tb-qwen-72-v0-hellaswag-1-mapped-routed | Qwen2.5-3B -> Qwen2.5-72B | accuracy (0-1) [mapped_routed] | HellaSwag (native route; section: native route) | 0.82 | yes |  | open |
 | x-tb-qwen-72-v0-piqa-2-mapped-routed | Qwen2.5-3B -> Qwen2.5-72B | accuracy (0-1) [mapped_routed] | PIQA (native route; section: native route) | 0.96 | yes |  | open |
 | x-tb-qwen-72-v0-zebralogic-3-mapped-routed | Qwen2.5-3B -> Qwen2.5-72B | accuracy (0-1) [mapped_routed] | ZebraLogic (native route; section: native route) | 0.46 | yes |  | open |
-| x-tb-qwen-72-v0-quality-4-mapped-routed | Qwen2.5-3B -> Qwen2.5-72B | accuracy (0-1) [mapped_routed] | QuALITY (transfer route; section: transfer route) | 0.75 | yes |  | open |
-| x-tb-qwen-72-v0-contractnli-5-mapped-routed | Qwen2.5-3B -> Qwen2.5-72B | accuracy (0-1) [mapped_routed] | ContractNLI (transfer route; section: transfer route) | 0.69 | yes |  | open |
-| x-tb-qwen-72-v0-bamboo-paperqa-6-mapped-routed | Qwen2.5-3B -> Qwen2.5-72B | accuracy (0-1) [mapped_routed] | BAMBOO PaperQA (transfer route; section: transfer route) | 0.81 | yes |  | open |
-| x-tb-qwen-72-v0-longbench-v2-7-mapped-routed | Qwen2.5-3B -> Qwen2.5-72B | accuracy (0-1) [mapped_routed] | LongBench v2 (transfer route; section: transfer route) | 0.39 | yes |  | open |
+| x-tb-qwen-72-v0-quality-4-mapped-routed | Qwen2.5-3B -> Qwen2.5-72B | accuracy (0-1) [mapped_routed] | QuALITY (transfer route; section: transfer route) | 0.75 | yes | 0.5642 | behind |
+| x-tb-qwen-72-v0-contractnli-5-mapped-routed | Qwen2.5-3B -> Qwen2.5-72B | accuracy (0-1) [mapped_routed] | ContractNLI (transfer route; section: transfer route) | 0.69 | yes | 0.4137 | behind |
+| x-tb-qwen-72-v0-bamboo-paperqa-6-mapped-routed | Qwen2.5-3B -> Qwen2.5-72B | accuracy (0-1) [mapped_routed] | BAMBOO PaperQA (transfer route; section: transfer route) | 0.81 | yes | 0.631 | behind |
+| x-tb-qwen-72-v0-longbench-v2-7-mapped-routed | Qwen2.5-3B -> Qwen2.5-72B | accuracy (0-1) [mapped_routed] | LongBench v2 (transfer route; section: transfer route) | 0.39 | yes | 0.3814 | tied |
 | x-tb-qwen-72-ttft-prefill-32k | Qwen2.5-3B -> Qwen2.5-72B | TTFT component: source-model prefill (ms) [mapped] | context 32K; p50 | 885 | yes |  | open |
 | x-tb-qwen-72-ttft-map-32k | Qwen2.5-3B -> Qwen2.5-72B | TTFT component: KV map (ms) [mapped] | context 32K; p50 | 357 | yes |  | open |
 | x-tb-qwen-72-ttft-move-32k | Qwen2.5-3B -> Qwen2.5-72B | TTFT component: cache move (ms) [mapped] | context 32K; p50 | 0 | yes |  | open |

@@ -171,9 +171,9 @@ OWNERS = {}  # explicit owner overrides by row id
 
 def owner_default(r):
     if r["id"].startswith("bundle-"):
-        return "kvx-quality"
+        return "quality"
     if r["id"].endswith("-peak") or str(r.get("metric", "")).startswith("TTFT"):
-        return "kvx-speed"
+        return "speed"
     return "-"
 
 
