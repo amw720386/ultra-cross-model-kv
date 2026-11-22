@@ -2,7 +2,7 @@
 mapped fractions from the connector's "kvx map_once" log lines (first requests, all request tokens).
 
 python tools/agentic_rows.py tau2 <dir with <domain>-<half>/{summary.json,vllm.log}>
-python tools/agentic_rows.py tb2 <harbor jobs root with xkvdistill27mo-b*/> <dir with b*/vllm.log>
+python tools/agentic_rows.py tb2 <harbor jobs root with xkvdistill27mo2-b*/> <dir with b*/vllm.log>
 Prints JSON per row (value, n, ci, passed, mapped fractions); the caller writes ours.json.
 """
 import glob
@@ -70,7 +70,7 @@ def tau2(d):
 def tb2(jobs, logdir):
     k = n = 0
     names = []
-    for f in glob.glob(f"{jobs}/xkvdistill27mo-b*/*/*/result.json"):
+    for f in glob.glob(f"{jobs}/xkvdistill27mo2-b*/*/*/result.json"):
         r = json.load(open(f))
         rew = ((r.get("verifier_result") or {}).get("rewards") or {}).get("reward")
         if rew is None:
