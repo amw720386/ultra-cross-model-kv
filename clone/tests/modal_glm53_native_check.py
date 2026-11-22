@@ -1,5 +1,5 @@
 """CPU check for tests/modal_glm53_native_probe.py (no GPU): vLLM resolves GLM-5.3's config at 1M with the probe's
-settings, and kvx-pairs' gate command starts (--help). modal run tests/modal_glm53_native_check.py [--gate-cmd '<json>']"""
+settings, and kvx-pairs' gate command passes --help and --selfcheck (tiny random GLMs on CPU). modal run tests/modal_glm53_native_check.py [--gate-cmd '<json>']"""
 import json
 import os
 import subprocess
@@ -15,7 +15,7 @@ TGT = "zai-org/GLM-5.3"
 MAXLEN = 1048576
 
 
-@app.function(cpu=4.0, memory=32768, timeout=900, volumes={"/vol": vol, "/hf": hf_shared.read_only()})
+@app.function(cpu=4.0, memory=32768, timeout=1800, volumes={"/vol": vol, "/hf": hf_shared.read_only()})
 def dry(gate_cmd: str = ""):
     """vLLM resolves GLM-5.3's config at 1M with the probe's settings; the gate command at least starts (--help)."""
     import traceback
@@ -38,6 +38,8 @@ def dry(gate_cmd: str = ""):
         argv = json.loads(gate_cmd)
         p = subprocess.run(argv + ["--help"], capture_output=True, text=True)
         out.update(gate_help_rc=p.returncode, gate_help=(p.stdout + p.stderr)[-1500:])
+        p = subprocess.run(argv + ["--selfcheck"], capture_output=True, text=True, timeout=1200)  # tiny random GLMs, CPU
+        out.update(gate_selfcheck_rc=p.returncode, gate_selfcheck=(p.stdout + p.stderr)[-2500:])
     return out
 
 
