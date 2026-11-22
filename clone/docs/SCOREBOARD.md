@@ -135,16 +135,16 @@
 | home-qwen3-1-7b-qwen3-8b-512K-ttft | Qwen3-1.7B -> Qwen3-8B | TTFT s (mapped) | 512K | 86.62 | est. |  | open |
 | home-qwen3-1-7b-qwen3-8b-512K-speedup | Qwen3-1.7B -> Qwen3-8B | speedup x vs their native | 512K | 3.012 | est. |  | open |
 | home-qwen3-1-7b-qwen3-8b-peak | Qwen3-1.7B -> Qwen3-8B | peak speedup x (headline) | 1M | 3.0 | est. |  | open |
-| bundle-arc-chat-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | ARC-Chat | 0.97 | yes |  | open |
-| bundle-contractnli-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | ContractNLI | 0.61 | yes |  | open |
-| bundle-bamboo-paperqa-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | BAMBOO PaperQA | 0.893 | yes |  | open |
-| bundle-longhealth-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | LongHealth | 0.76 | yes |  | open |
-| bundle-qmsum-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | QMSum | 0.4065 | yes |  | open |
+| bundle-arc-chat-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | ARC-Chat | 0.97 | yes | 0.96 | tied |
+| bundle-contractnli-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | ContractNLI | 0.61 | yes | 0.77 | beaten |
+| bundle-bamboo-paperqa-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | BAMBOO PaperQA | 0.893 | yes | 0.881 | tied |
+| bundle-longhealth-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | LongHealth | 0.76 | yes | 0.88 | beaten |
+| bundle-qmsum-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | QMSum | 0.4065 | yes | 0.468 | beaten |
 | bundle-cowtext-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | CowText | 0.65 | yes | None | blocked(dataset and judge not public: CowText is the only bundle benchmark with no paper/dataset link; definition is only 'long-form response quality scored by the campaign's canonical language-model judge' (kvx-research 2026-11-22, transfer-benchmarks bundle)) |
-| bundle-humaneval-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | HumanEval | 0.91 | yes |  | open |
-| bundle-mbpp-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | MBPP | 0.88 | yes |  | open |
+| bundle-humaneval-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | HumanEval | 0.91 | yes | 0.87 | tied |
+| bundle-mbpp-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | MBPP | 0.88 | yes | 0.75 | behind |
 | bundle-bigcodebench-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | BigCodeBench | 0.55 | yes |  | open |
-| bundle-math-500-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | MATH-500 | 0.59 | yes |  | open |
+| bundle-math-500-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | MATH-500 | 0.59 | yes | 0.9 | beaten |
 | bundle-tau2-airline-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | tau2 Airline | 0.5882352941 | yes |  | open |
 | bundle-tau2-retail-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | tau2 Retail | 0.4117647059 | yes |  | open |
 | bundle-tau2-telecom-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | tau2 Telecom | 0.4705882353 | yes |  | open |
