@@ -132,9 +132,9 @@
 | home-qwen3-1-7b-qwen3-8b-128K-speedup | Qwen3-1.7B -> Qwen3-8B | speedup x vs their native | 128K | 2.872 | est. | 2.4973 | behind |
 | home-qwen3-1-7b-qwen3-8b-256K-ttft | Qwen3-1.7B -> Qwen3-8B | TTFT s (mapped) | 256K | 23.46 | est. |  | open |
 | home-qwen3-1-7b-qwen3-8b-256K-speedup | Qwen3-1.7B -> Qwen3-8B | speedup x vs their native | 256K | 2.962 | est. |  | open |
-| home-qwen3-1-7b-qwen3-8b-512K-ttft | Qwen3-1.7B -> Qwen3-8B | TTFT s (mapped) | 512K | 86.62 | est. |  | open |
-| home-qwen3-1-7b-qwen3-8b-512K-speedup | Qwen3-1.7B -> Qwen3-8B | speedup x vs their native | 512K | 3.012 | est. |  | open |
-| home-qwen3-1-7b-qwen3-8b-peak | Qwen3-1.7B -> Qwen3-8B | peak speedup x (headline) | 1M | 3.0 | est. |  | open |
+| home-qwen3-1-7b-qwen3-8b-512K-ttft | Qwen3-1.7B -> Qwen3-8B | TTFT s (mapped) | 512K | 86.62 | est. | 8.3396 | beaten |
+| home-qwen3-1-7b-qwen3-8b-512K-speedup | Qwen3-1.7B -> Qwen3-8B | speedup x vs their native | 512K | 3.012 | est. | 2.4981 | behind |
+| home-qwen3-1-7b-qwen3-8b-peak | Qwen3-1.7B -> Qwen3-8B | peak speedup x (headline) | 1M | 3.0 | est. | 2.7794 | tied |
 | bundle-arc-chat-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | ARC-Chat | 0.97 | yes | 0.96 | tied |
 | bundle-contractnli-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | ContractNLI | 0.61 | yes | 0.77 | beaten |
 | bundle-bamboo-paperqa-mapped | Qwen3.5-4B -> Qwen3.8-27B | score (mapped) | BAMBOO PaperQA | 0.893 | yes | 0.881 | tied |
@@ -744,18 +744,18 @@
 | x-tb-qwen-hybrid-ttft-map-128k | Qwen3-1.7B -> Qwen3-8B | TTFT component: KV map (ms) [mapped] | context 128K; p50 | 61 | est. | 170.1 | behind |
 | x-tb-qwen-hybrid-ttft-move-128k | Qwen3-1.7B -> Qwen3-8B | TTFT component: cache move (ms) [mapped] | context 128K; p50 | 102 | est. | 35.1 | beaten |
 | x-tb-qwen-hybrid-ttft-decode-128k | Qwen3-1.7B -> Qwen3-8B | TTFT component: first target token (ms) [mapped] | context 128K; p50 | 170 | est. | 93.3 | beaten |
-| x-tb-qwen-hybrid-ttft-prefill-256k | Qwen3-1.7B -> Qwen3-8B | TTFT component: source-model prefill (ms) [mapped] | context 256K; p50 | 22836 | est. |  | open |
-| x-tb-qwen-hybrid-ttft-map-256k | Qwen3-1.7B -> Qwen3-8B | TTFT component: KV map (ms) [mapped] | context 256K; p50 | 121 | est. |  | open |
-| x-tb-qwen-hybrid-ttft-move-256k | Qwen3-1.7B -> Qwen3-8B | TTFT component: cache move (ms) [mapped] | context 256K; p50 | 203 | est. |  | open |
-| x-tb-qwen-hybrid-ttft-decode-256k | Qwen3-1.7B -> Qwen3-8B | TTFT component: first target token (ms) [mapped] | context 256K; p50 | 304 | est. |  | open |
-| x-tb-qwen-hybrid-ttft-prefill-512k | Qwen3-1.7B -> Qwen3-8B | TTFT component: source-model prefill (ms) [mapped] | context 512K; p50 | 85400 | est. |  | open |
-| x-tb-qwen-hybrid-ttft-map-512k | Qwen3-1.7B -> Qwen3-8B | TTFT component: KV map (ms) [mapped] | context 512K; p50 | 243 | est. |  | open |
-| x-tb-qwen-hybrid-ttft-move-512k | Qwen3-1.7B -> Qwen3-8B | TTFT component: cache move (ms) [mapped] | context 512K; p50 | 406 | est. |  | open |
-| x-tb-qwen-hybrid-ttft-decode-512k | Qwen3-1.7B -> Qwen3-8B | TTFT component: first target token (ms) [mapped] | context 512K; p50 | 572 | est. |  | open |
-| x-tb-qwen-hybrid-ttft-prefill-1m | Qwen3-1.7B -> Qwen3-8B | TTFT component: source-model prefill (ms) [mapped] | context 1M; p50 | 329710 | est. |  | open |
-| x-tb-qwen-hybrid-ttft-map-1m | Qwen3-1.7B -> Qwen3-8B | TTFT component: KV map (ms) [mapped] | context 1M; p50 | 485 | est. |  | open |
-| x-tb-qwen-hybrid-ttft-move-1m | Qwen3-1.7B -> Qwen3-8B | TTFT component: cache move (ms) [mapped] | context 1M; p50 | 813 | est. |  | open |
-| x-tb-qwen-hybrid-ttft-decode-1m | Qwen3-1.7B -> Qwen3-8B | TTFT component: first target token (ms) [mapped] | context 1M; p50 | 1107 | est. |  | open |
+| x-tb-qwen-hybrid-ttft-prefill-256k | Qwen3-1.7B -> Qwen3-8B | TTFT component: source-model prefill (ms) [mapped] | context 256K; p50 | 22836 | est. | 2903.0 | beaten |
+| x-tb-qwen-hybrid-ttft-map-256k | Qwen3-1.7B -> Qwen3-8B | TTFT component: KV map (ms) [mapped] | context 256K; p50 | 121 | est. | 1191.8 | behind |
+| x-tb-qwen-hybrid-ttft-move-256k | Qwen3-1.7B -> Qwen3-8B | TTFT component: cache move (ms) [mapped] | context 256K; p50 | 203 | est. | 80.3 | beaten |
+| x-tb-qwen-hybrid-ttft-decode-256k | Qwen3-1.7B -> Qwen3-8B | TTFT component: first target token (ms) [mapped] | context 256K; p50 | 304 | est. | 6013.3 | behind |
+| x-tb-qwen-hybrid-ttft-prefill-512k | Qwen3-1.7B -> Qwen3-8B | TTFT component: source-model prefill (ms) [mapped] | context 512K; p50 | 85400 | est. | 7339.1 | beaten |
+| x-tb-qwen-hybrid-ttft-map-512k | Qwen3-1.7B -> Qwen3-8B | TTFT component: KV map (ms) [mapped] | context 512K; p50 | 243 | est. | 535.2 | behind |
+| x-tb-qwen-hybrid-ttft-move-512k | Qwen3-1.7B -> Qwen3-8B | TTFT component: cache move (ms) [mapped] | context 512K; p50 | 406 | est. | 132.8 | beaten |
+| x-tb-qwen-hybrid-ttft-decode-512k | Qwen3-1.7B -> Qwen3-8B | TTFT component: first target token (ms) [mapped] | context 512K; p50 | 572 | est. | 332.4 | beaten |
+| x-tb-qwen-hybrid-ttft-prefill-1m | Qwen3-1.7B -> Qwen3-8B | TTFT component: source-model prefill (ms) [mapped] | context 1M; p50 | 329710 | est. | 26017.8 | beaten |
+| x-tb-qwen-hybrid-ttft-map-1m | Qwen3-1.7B -> Qwen3-8B | TTFT component: KV map (ms) [mapped] | context 1M; p50 | 485 | est. | 1052.0 | behind |
+| x-tb-qwen-hybrid-ttft-move-1m | Qwen3-1.7B -> Qwen3-8B | TTFT component: cache move (ms) [mapped] | context 1M; p50 | 813 | est. | 267.6 | beaten |
+| x-tb-qwen-hybrid-ttft-decode-1m | Qwen3-1.7B -> Qwen3-8B | TTFT component: first target token (ms) [mapped] | context 1M; p50 | 1107 | est. | 632.1 | beaten |
 | x-tb-qwen-hybrid-v1-zebralogic-0-mapped-task-specific | Qwen3-1.7B -> Qwen3-8B | accuracy (0-1) [mapped_task_specific] | ZebraLogic (n=200 · task train 465 docs; section: short · reasoning on); tab: Task-specifi | 0.79 | yes |  | open |
 | x-tb-qwen-hybrid-v1-quality-1-mapped-task-specific | Qwen3-1.7B -> Qwen3-8B | accuracy (0-1) [mapped_task_specific] | QuALITY (n=500 · 209 docs; section: long · reasoning on); tab: Task-specific mapper | 0.72 | yes |  | open |
 | x-tb-qwen-hybrid-v1-contractnli-2-mapped-task-specific | Qwen3-1.7B -> Qwen3-8B | accuracy (0-1) [mapped_task_specific] | ContractNLI (n=500 · 478 docs; section: long · reasoning on); tab: Task-specific mapper | 0.74 | yes |  | open |
