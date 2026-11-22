@@ -223,3 +223,33 @@ def test_native_prefix_taps_equal_full_model(fx):
     for l in (0, 1):
         for name, v in b[l].items():
             assert torch.allclose(v, a[l][name], atol=1e-5), (l, name)
+
+
+@pytest.mark.parametrize("with_rc", [False, True])
+def test_tp_sharded_maps_equal_sliced_full(fx, with_rc):
+    """Sharded maps per TP rank give exactly slice_for_rank of the unsharded states (incl. recolor blocks)."""
+    d, p = fx
+    mf = d["maps_file"]
+    knw = hs.k_norm_weights(d["tgt_config"], d["tgt_state"])
+    maps = _fmaps(d)
+    if with_rc:
+        g = torch.Generator().manual_seed(9)
+        for t, m in maps.items():
+            w = m["W"].shape[1]
+            bd = 16
+            nb = (w // bd)
+            m["rc"] = torch.eye(bd).repeat(nb, 1, 1) + 0.05 * torch.randn(nb, bd, bd, generator=g)
+            m["mu"] = torch.randn(w, generator=g)
+    feats = [f.float() for f in d["source_feats"]]
+    kinds = {t: x["kind"] for t, x in enumerate(mf["tgt_taps"])}
+    mf0 = dict(mf, sinks=0, sink_template={})
+    full = hs.caches_from_taps(p, kinds, hs.taps_from_feats(mf0, maps, feats, d["P"], knw, recolor=with_rc))
+    kvh = d["tgt_config"]["num_key_value_heads"]
+    for rank in range(2):
+        mr, taps_r, pr = hs.shard_for_rank(mf0, maps, p, rank, 2, kvh)
+        got = hs.caches_from_taps(pr, kinds, hs.taps_from_feats(dict(mf0, tgt_taps=taps_r), mr, feats, d["P"], knw,
+                                                               recolor=with_rc))
+        for t in full:
+            ref = hs.slice_for_rank(p, full[t], rank, 2)
+            for a_, b_ in zip(got[t][1:], ref[1:]):
+                assert torch.allclose(a_, b_, atol=1e-4, rtol=1e-4), (rank, t, (a_ - b_).abs().max())

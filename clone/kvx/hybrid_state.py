@@ -390,3 +390,65 @@ def native_prefix_taps(model, ids):
         for h in hs_:
             h.remove()
     return got
+
+
+# ---------------------------------------------------------------- tensor-parallel map sharding (memory)
+
+def _rank_cols(kind, taps, p, rank, tp, kv_heads, head_dim):
+    """Column indices of one target layer's map output that this TP rank needs, and the rank-local tap widths."""
+    if kind == "attn":
+        a, b = _rank_heads(kv_heads, rank, tp)
+        kw = kv_heads * head_dim
+        k = list(range(a * head_dim, b * head_dim))
+        return k + [kw + i for i in k], [("k", len(k)), ("v", len(k))]
+    kd, vd = p.Hk * p.dk, p.Hv * p.dv
+    qk, vv = kd // tp, vd // tp
+    q = list(range(rank * qk, (rank + 1) * qk))
+    k = [kd + i for i in q]
+    v = list(range(2 * kd + rank * vv, 2 * kd + (rank + 1) * vv))
+    nv = p.Hv // tp
+    off = 2 * kd + vd
+    a = list(range(off + rank * nv, off + (rank + 1) * nv))
+    bb = [p.Hv + i for i in a]
+    return q + k + v + a + bb, [("qkv", len(q) + len(k) + len(v)), ("a", nv), ("b", nv)]
+
+
+def shard_for_rank(mf, maps, p, rank, tp, kv_heads):
+    """(maps, tgt_taps, params) holding only this rank's output columns (W, b, mu, recolor blocks) and its share of
+    the GatedDeltaNet params, so taps_from_feats + caches_from_taps directly yield the rank's slice (== slice_for_rank
+    of the full result) with 1/tp of the map memory."""
+    import copy
+    if tp == 1:
+        return maps, mf["tgt_taps"], p
+    out, taps_r = {}, [dict(x) for x in mf["tgt_taps"]]
+    for t, m in maps.items():
+        kind = mf["tgt_taps"][t]["kind"]
+        cols, widths = _rank_cols(kind, mf["tgt_taps"][t]["taps"], p, rank, tp, kv_heads, p.head_dim)
+        idx = torch.tensor(cols, device=m["W"].device)
+        r = dict(sel=m["sel"], W=m["W"].index_select(1, idx).contiguous(), b=m["b"].index_select(0, idx.to(m["b"].device)))
+        if m.get("mu") is not None:
+            r["mu"] = m["mu"].index_select(0, idx.to(m["mu"].device))
+        rc = m.get("rc")
+        if rc is not None:
+            bd = rc.shape[1]
+            span = rc.shape[0] * bd
+            inb = [c for c in cols if c < span]
+            assert all(c % bd == 0 for c in inb[::bd]) and len(inb) % bd == 0, "TP slice not aligned to recolor blocks"
+            blocks = torch.tensor(sorted({c // bd for c in inb}), device=rc.device)
+            r["rc"] = rc.index_select(0, blocks)
+        out[t] = r
+        taps_r[t] = dict(kind=kind, taps=widths)
+    pr = copy.copy(p)
+    pr.Hk, pr.Hv = p.Hk // tp, p.Hv // tp
+    kd, vd = p.Hk * p.dk, p.Hv * p.dv
+    qk, vv = kd // tp, vd // tp
+    ch = list(range(rank * qk, (rank + 1) * qk)) + list(range(kd + rank * qk, kd + (rank + 1) * qk)) + \
+        list(range(2 * kd + rank * vv, 2 * kd + (rank + 1) * vv))
+    hv = list(range(rank * pr.Hv, (rank + 1) * pr.Hv))
+    pr.lin = {}
+    for l, d in p.lin.items():
+        dev = d["conv_w"].device
+        ci, hi = torch.tensor(ch, device=dev), torch.tensor(hv, device=dev)
+        pr.lin[l] = dict(conv_w=d["conv_w"].index_select(0, ci), conv_b=None if d["conv_b"] is None else d["conv_b"].index_select(0, ci),
+                         A_log=d["A_log"].index_select(0, hi), dt_bias=d["dt_bias"].index_select(0, hi))
+    return out, taps_r, pr

@@ -158,8 +158,9 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
             if self.mf["src"] != self.src_name or self.mf["tgt"] not in (self.tgt_name, self.tgt_name.rstrip("/").split("/")[-1]):
                 logger.warning("kvx hybrid: maps file src/tgt %s/%s vs serving %s/%s", self.mf["src"], self.mf["tgt"],
                                self.src_name, self.tgt_name)
-            opt = lambda x: None if x is None else x.float().to(device)
-            self.maps = {t: dict(sel=m["sel"], W=m["W"].to(device, torch.bfloat16), b=m["b"].float().to(device),
+            # kept on CPU here: sharded per TP rank below (after the target params), then moved to the GPU
+            opt = lambda x: None if x is None else x.float()
+            self.maps = {t: dict(sel=m["sel"], W=m["W"].to(torch.bfloat16), b=m["b"].float(),
                                  rc=opt(m.get("rc")), mu=opt(m.get("mu"))) for t, m in self.maps.items()}
         else:
             self.maps = {}
@@ -183,6 +184,7 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
                     if want.search(k):
                         sd[re.sub(r"^.*?(layers\.)", "model.layers.", k)] = h.get_tensor(k)
         self.params = hs.TargetParams.from_state_dict(tcfg, sd).to(device)
+        self.full_params = self.params
         self.prefix = None
         if self.native_layers > 0:
             m_ = self.native_layers
@@ -197,6 +199,18 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
             self.prefix = hs.build_prefix_model(tcfg, psd, m_, device=device)
             del psd
         self.knw = {l: w.to(device) for l, w in k_norm_weights(tcfg, sd).items()}
+        from .vllm_connector import _tp_rank_size
+        self.tp_rank, self.tp_size = _tp_rank_size()
+        self._sharded = False
+        if self.maps and self.xm is None:
+            if self.tp_size > 1:  # each rank keeps only its heads' map columns (1/tp of the 18 GB of maps)
+                self.maps, taps_r, self.params = hs.shard_for_rank(
+                    self.mf, self.maps, self.params, self.tp_rank, self.tp_size, int(tcfg.num_key_value_heads))
+                self.mf["tgt_taps"] = taps_r
+                self._sharded = True
+            mv = lambda x: None if x is None else x.to(device)
+            self.maps = {t: dict(sel=m["sel"], W=m["W"].to(device), b=m["b"].to(device), rc=mv(m.get("rc")),
+                                 mu=mv(m.get("mu"))) for t, m in self.maps.items()}
         if self.xm is not None:
             self.kinds = {t: ("lin" if lt == "linear_attention" else "attn") for t, lt in enumerate(tcfg.layer_types)}
             self.tcfg = tcfg
@@ -211,8 +225,6 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
             for l in layers:
                 self.layer_group[l] = gi
         self._layout = None
-        from .vllm_connector import _tp_rank_size
-        self.tp_rank, self.tp_size = _tp_rank_size()  # each rank maps the whole prompt, writes only its heads/channels
         self._ready = True
         logger.info("kvx hybrid connector ready: %d mapped target layers, attn block %d, conv dim_first=%s, tp %d/%d",
                     len(self.maps), self.block, self.dim_first, self.tp_rank, self.tp_size)
@@ -261,9 +273,11 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
                 else:
                     given = taps_from_feats(self.mf, {t: self.maps[t]}, feats, T, self.knw, sinks=self.sinks,
                                             recolor=self.recolor)
-                st = caches_from_taps(self.params, self.kinds, given)[t]
+                # native-layer taps are full width: their states use the unsharded params, then get sliced
+                st = caches_from_taps(self.full_params if t in ntaps else self.params, self.kinds, given)[t]
                 del given
-                st = slice_for_rank(self.params, st, self.tp_rank, self.tp_size)
+                if not self._sharded or t in ntaps or self.xm is not None:  # sharded maps give rank-local states
+                    st = slice_for_rank(self.full_params if self._sharded else self.params, st, self.tp_rank, self.tp_size)
                 cache = self._kv.get(t)
                 if cache is None:
                     raise RuntimeError(f"kvx hybrid: target layer {t} has no cache")
