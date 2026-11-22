@@ -16,6 +16,7 @@ image = (
                  "numpy", "hf_transfer",
                  "flash-linear-attention", "einops", "kernels")
     .env({"HF_HOME": "/vol/hf", "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
+          "PYTORCH_ALLOC_CONF": "expandable_segments:True",
           "KVX_TF": os.environ.get("KVX_TF", "5.24.0"), **{k: os.environ[k] for k in ("KVX_VOLUME", "KVX_WEIGHTS_VOLUME") if k in os.environ}})  # datasets cache writable on the seat volume; weights via snapshot(cache_dir=/hf/hub)
     .add_local_python_source("kvx")
 )
@@ -108,7 +109,8 @@ def fit_impl(src: str, tgt: str, run_id: str, n_calib: int = 4000, L: int = 1024
              bs: int = 4, mem_frac: float = 0.80, save: int = 1, oracle: int = 1, stride: int = 4, tf32: int = 0,
              split_kv: int = 0, maps_from: str = "", ebs: int = 2, eval_l: int = 0, tgt_device_map: str = "",
              gpu0_gib: int = 60, per_gpu_gib: int = 130, xkv_maps: str = "", emb_feats: int = 0, niah: int = 0,
-             niah_len: int = 4096, niah_native: str = "", eval_docs: str = "", xkv_engine: int = 0):
+             niah_len: int = 4096, niah_native: str = "", eval_docs: str = "", xkv_engine: int = 0,
+             solve_device: str = "", recolor: int = 1):
     import torch
     from transformers import AutoTokenizer
     from kvx import hybrid
@@ -210,7 +212,8 @@ def fit_impl(src: str, tgt: str, run_id: str, n_calib: int = 4000, L: int = 1024
             print(f"[mem] before offload {m0:.1f} GB, after {torch.cuda.memory_allocated() / 1e9:.1f} GB, "
                   f"free {torch.cuda.mem_get_info()[0] / 1e9:.1f} GB", flush=True)
         for i_l, lam in enumerate(lams):
-            maps_by_lam[lam].update(rr.solve(lam_rel=lam, groups=ugroups, recolor=True, device=dev,
+            maps_by_lam[lam].update(rr.solve(lam_rel=lam, groups=ugroups, recolor=bool(recolor),
+                                             device=solve_device or dev,
                                              free=(i_l == len(lams) - 1)))
         del rr
         torch.cuda.empty_cache()
@@ -454,13 +457,15 @@ def main(src: str = "Qwen/Qwen3.5-4B", tgt: str = "Qwen/Qwen3.8-27B", run_id: st
          bs: int = 4, oracle: int = 1, save: int = 1, stride: int = 4, tf32: int = 0, split_kv: int = 0,
          maps_from: str = "", prefix: int = 960, eval_l: int = 0, ebs: int = 2, tgt_device_map: str = "",
          gpu0_gib: int = 60, per_gpu_gib: int = 130, xkv_maps: str = "", emb_feats: int = 0, niah: int = 0,
-         niah_len: int = 4096, niah_native: str = "", eval_docs: str = "", xkv_engine: int = 0):
+         niah_len: int = 4096, niah_native: str = "", eval_docs: str = "", xkv_engine: int = 0,
+         solve_device: str = "", recolor: int = 1):
     run_id = run_id or time.strftime("pairs-%Y%m%dT%H%M%SZ", time.gmtime())
     r = fit.remote(src=src, tgt=tgt, run_id=run_id, n_calib=n_calib, w=w, drop_q=drop_q, lam_rels=lam_rels,
                    n_eval=n_eval, sinks=sinks, tails=tails, bs=bs, oracle=oracle, save=save, stride=stride, tf32=tf32, split_kv=split_kv,
                    maps_from=maps_from, P=prefix, eval_l=eval_l, ebs=ebs, tgt_device_map=tgt_device_map,
                    gpu0_gib=gpu0_gib, per_gpu_gib=per_gpu_gib, xkv_maps=xkv_maps, emb_feats=emb_feats, niah=niah,
-                   niah_len=niah_len, niah_native=niah_native, eval_docs=eval_docs, xkv_engine=xkv_engine)
+                   niah_len=niah_len, niah_native=niah_native, eval_docs=eval_docs, xkv_engine=xkv_engine,
+                   solve_device=solve_device, recolor=recolor)
     os.makedirs(f"out/{run_id}", exist_ok=True)
     json.dump(r, open(f"out/{run_id}/result.json", "w"), indent=1)
     print(json.dumps(r.get("eval", r), indent=1))
