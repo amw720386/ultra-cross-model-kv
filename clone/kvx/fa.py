@@ -48,8 +48,15 @@ def vllm_fa_attention(module, query, key, value, attention_mask=None, scaling=No
         q, kw["q_descale"] = quant_e4m3(q, Hk)
         k, kw["k_descale"] = quant_e4m3(k, Hk)
         v, kw["v_descale"] = quant_e4m3(v, Hk)
-    if WINDOW and S > WINDOW:
-        kw["window_size"] = [WINDOW - 1, 0]
+    # the layer's own attention options (Gemma: local sliding-window layers, logit softcap); HF passes them as kwargs
+    sw = kwargs.get("sliding_window") or getattr(module, "sliding_window", None)
+    sw = int(sw) if sw else 0
+    win = min(w for w in (sw, WINDOW) if w) if (sw or WINDOW) else 0
+    if win and S > win:
+        kw["window_size"] = [win - 1, 0]
+    sc = kwargs.get("softcap") or getattr(module, "attn_logit_softcapping", None)
+    if sc:
+        kw["softcap"] = float(sc)
     if ver is not None:
         v_ = ver(head_size=D)
         if v_ is not None:
