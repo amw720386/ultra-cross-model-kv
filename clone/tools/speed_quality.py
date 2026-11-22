@@ -30,8 +30,11 @@ def main(paths):
             for key in ("first_token_top20", "long_first_token_top20"):
                 if nat.get(key) and r.get(key):
                     row[key] = cmp(nat[key], r[key])
+            if nat.get("needle") and r.get("needle"):
+                row["needle_acc"] = (round(r["needle_acc"], 3), round(nat["needle_acc"], 3), len(r["needle"]))
             out[r["tag"]] = row
-            print(tgt, r["tag"], {k: f"top1 {v[0]}/{v[1]} KL~{v[2]:.3f}" for k, v in row.items()})
+            print(tgt, r["tag"], {k: (f"top1 {v[0]}/{v[1]} KL~{v[2]:.3f}" if k != "needle_acc" else f"mapped {v[0]} native {v[1]} n={v[2]}")
+                                  for k, v in row.items()})
     return out
 
 

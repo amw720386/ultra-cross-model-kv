@@ -26,7 +26,7 @@ app = modal.App(os.environ.get("KVX_APP", "kvx-vllm"), image=image)
 def serve_impl(mode: str, src: str, tgt: str, maps: str, lens: str, tail: int, reps: int = 3, fp8: int = -1, tag: str = "",
                util: float = 0.72, restore: str = "rms", sink: str = "", backend: str = "FLASH_ATTN",
                yarn: float = 0.0, orig_ctx: int = 32768, quality_long: int = 0, maxlen: int = 0, src_sdpa: str = "cudnn", tp: int = 1, src_tp: int = 1, lens_quality: int = 1,
-               long_from: int = 0, reps_long: int = 1, extra: dict = None):
+               long_from: int = 0, reps_long: int = 1, extra: dict = None, long_n: int = 4, needle_n: int = 0):
     try:
         import torch
         from vllm import LLM, SamplingParams
@@ -84,12 +84,48 @@ def serve_impl(mode: str, src: str, tgt: str, maps: str, lens: str, tail: int, r
             if fl:
                 pg = torch.load(fl[0])
                 per = -(-quality_long // 4096)
-                prompts = [sum((list(pg[j]) for j in range(i * per, (i + 1) * per)), [])[:quality_long] for i in range(4)]
+                n_pg = min(long_n, 16) if long_n > 4 else long_n  # beyond 4: half PG19 books, half concatenated FineWeb docs
+                prompts = [sum((list(pg[j]) for j in range(i * per, (i + 1) * per)), [])[:quality_long] for i in range(n_pg)]
+                fc = sorted(glob.glob("/vol/data/calib_4000x1024_bos0_*.pt"))
+                if long_n > n_pg and fc:
+                    fw = torch.load(fc[0])
+                    dper = -(-quality_long // fw.shape[1])
+                    prompts += [sum((list(fw[j]) for j in range(i * dper, (i + 1) * dper)), [])[:quality_long]
+                                for i in range(long_n - n_pg)]
                 spq = SamplingParams(max_tokens=1, temperature=0.0, logprobs=20)
                 outs = llm.generate([{"prompt_token_ids": p} for p in prompts], spq, use_tqdm=False)
                 out["long_len"] = quality_long
                 out["long_first_token_top20"] = [{int(t): float(lp.logprob) for t, lp in o.outputs[0].logprobs[0].items()}
                                                  for o in outs]
+                out["long_n"] = len(prompts)
+                if needle_n > 0:  # RULER-style niah_single: a 7-digit magic number at depth 10-90%, asked at the end
+                  try:
+                    import random
+                    rng = random.Random(0)
+                    hay_chunks = list(range(pg.shape[0] - 1, -1, -1))  # haystack from the far end of the PG19 cache
+                    items, nprompts = [], []
+                    for i in range(needle_n):
+                        key = "".join(rng.choice("abcdefghijklmnopqrstuvwxyz") for _ in range(8))
+                        val = str(rng.randrange(1000000, 9999999))
+                        needle = tok.encode(f" The special magic number for {key} is: {val}. ", add_special_tokens=False)
+                        q = tok.encode(f"\nWhat is the special magic number for {key} mentioned in the provided text? "
+                                       f"The special magic number for {key} is:", add_special_tokens=False)
+                        nh = quality_long - len(needle) - len(q)
+                        c0 = (i * per) % max(1, pg.shape[0] - per)
+                        hay = sum((list(pg[hay_chunks[(c0 + j) % len(hay_chunks)]]) for j in range(per)), [])[:nh]
+                        depth = 0.1 + 0.8 * (i % 9) / 8
+                        at = int(depth * nh)
+                        nprompts.append(hay[:at] + needle + hay[at:] + q)
+                        items.append(dict(depth=round(depth, 2), val=val))
+                    spn = SamplingParams(max_tokens=12, temperature=0.0)
+                    outs = llm.generate([{"prompt_token_ids": p} for p in nprompts], spn, use_tqdm=False)
+                    for it, o in zip(items, outs):
+                        it["text"] = o.outputs[0].text
+                        it["correct"] = it["val"] in it["text"]
+                    out["needle"] = items
+                    out["needle_acc"] = sum(it["correct"] for it in items) / len(items)
+                  except Exception as e:  # keep the timing/quality results if the needle set breaks
+                    out["needle_error"] = repr(e)[:500]
         res = dict(mode=mode, src=src, tgt=tgt, maps=maps, tag=tag, yarn=yarn, tp_=tp, gpu=torch.cuda.get_device_name(0), tail=tail, rows=rows, concurrency=1, backend=backend, src_sdpa=src_sdpa, tp=tp, src_tp=src_tp,
                    fp8=fp8, restore=restore, sink=sink, util=util, **out)
         os.makedirs("/vol/runs/vllm", exist_ok=True)
