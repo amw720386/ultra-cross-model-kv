@@ -19,7 +19,7 @@ from typing import Any
 import torch
 
 from . import hybrid_state as hs
-from .hybrid_state import caches_from_taps, k_norm_weights, taps_from_feats, write_lin_state
+from .hybrid_state import caches_from_taps, k_norm_weights, slice_for_rank, taps_from_feats, write_lin_state
 
 _LAYER_RE = re.compile(r"layers\.(\d+)\.")
 
@@ -165,9 +165,11 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
             for l in layers:
                 self.layer_group[l] = gi
         self._layout = None
+        from .vllm_connector import _tp_rank_size
+        self.tp_rank, self.tp_size = _tp_rank_size()  # each rank maps the whole prompt, writes only its heads/channels
         self._ready = True
-        logger.info("kvx hybrid connector ready: %d mapped target layers, attn block %d, conv dim_first=%s",
-                    len(self.maps), self.block, self.dim_first)
+        logger.info("kvx hybrid connector ready: %d mapped target layers, attn block %d, conv dim_first=%s, tp %d/%d",
+                    len(self.maps), self.block, self.dim_first, self.tp_rank, self.tp_size)
 
     def start_load_kv(self, forward_context, **kwargs: Any) -> None:
         meta = self._get_connector_metadata()
@@ -191,6 +193,7 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
             states = caches_from_taps(self.params, self.kinds, given)
             del given
             for t, st in states.items():
+                st = slice_for_rank(self.params, st, self.tp_rank, self.tp_size)
                 cache = self._kv.get(t)
                 if cache is None:
                     raise RuntimeError(f"kvx hybrid: target layer {t} has no cache")

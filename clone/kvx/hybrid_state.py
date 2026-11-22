@@ -218,3 +218,32 @@ def write_lin_state(conv_cache, ssm_cache, slot, conv, S, dim_first):
     else:
         conv_cache[slot].copy_(conv.t().to(conv_cache.dtype))
     ssm_cache[slot].copy_(S.transpose(-1, -2).to(ssm_cache.dtype))
+
+
+def _rank_heads(H, rank, tp):
+    """Head range of a tensor-parallel rank; replicated heads when tp > H (vLLM's KV-head replication)."""
+    if tp <= H:
+        n = H // tp
+        return rank * n, (rank + 1) * n
+    h = rank // (tp // H)
+    return h, h + 1
+
+
+def slice_for_rank(p, st, rank, tp):
+    """One rank's share of a caches_from_taps entry under vLLM tensor parallelism.
+    attn: K/V heads of the rank. lin: conv_state rows = q|k|v sections, each split 1/tp (vLLM shards in_proj_qkv and
+    conv1d per section: rank r holds q[r], k[r], v[r]); recurrent state = the rank's v heads."""
+    if tp == 1:
+        return st
+    if st[0] == "attn":
+        _, K, V = st
+        a, b = _rank_heads(K.shape[1], rank, tp)
+        return ("attn", K[:, a:b], V[:, a:b])
+    _, conv, S = st
+    kd, vd = p.Hk * p.dk, p.Hv * p.dv
+    qk = kd // tp
+    vv = vd // tp
+    rows = torch.cat([conv[rank * qk:(rank + 1) * qk], conv[kd + rank * qk:kd + (rank + 1) * qk],
+                      conv[2 * kd + rank * vv:2 * kd + (rank + 1) * vv]], 0)
+    a, b = _rank_heads(S.shape[0], rank, tp)
+    return ("lin", rows, S[a:b])

@@ -122,3 +122,26 @@ def test_recolor_matches_kvx_pairs_apply(fx):
         for name, v in ref[t].items():
             assert torch.allclose(got[t][name], v[0], atol=1e-4, rtol=1e-4), (t, name)
         assert not torch.allclose(plain[t]["qkv"], got[t]["qkv"])
+
+
+def test_tp_slices_reassemble(fx):
+    d, p = fx
+    knw = hs.k_norm_weights(d["tgt_config"], d["tgt_state"])
+    feats = [f.float() for f in d["source_feats"]]
+    kinds = {t: x["kind"] for t, x in enumerate(d["maps_file"]["tgt_taps"])}
+    states = hs.caches_from_taps(p, kinds, hs.taps_from_feats(d["maps_file"], _fmaps(d), feats, d["P"], knw))
+    kd = p.Hk * p.dk
+    for t, st in states.items():
+        parts = [hs.slice_for_rank(p, st, r, 2) for r in range(2)]
+        if st[0] == "attn":
+            assert torch.equal(torch.cat([x[1] for x in parts], 1), st[1]) and torch.equal(torch.cat([x[2] for x in parts], 1), st[2])
+        else:
+            q = torch.cat([x[1][:kd // 2] for x in parts], 0)
+            k = torch.cat([x[1][kd // 2:kd] for x in parts], 0)
+            v = torch.cat([x[1][kd:] for x in parts], 0)
+            assert torch.equal(torch.cat([q, k, v], 0), st[1])
+            assert torch.equal(torch.cat([x[2] for x in parts], 0), st[2])
+    # tp > kv heads: replicated heads (fixture attention has 2 kv heads, tp=4 -> heads 0,0,1,1)
+    t_attn = next(t for t, s in states.items() if s[0] == "attn")
+    got = [hs.slice_for_rank(p, states[t_attn], r, 4)[1] for r in range(4)]
+    assert torch.equal(got[0], got[1]) and torch.equal(got[2], states[t_attn][1][:, 1:2])
