@@ -157,9 +157,9 @@ def test_yarn_matches_transformers():
                linear_value_head_dim=16, linear_conv_kernel_dim=4, layer_types=["full_attention"])
     p = hs.TargetParams(cfg, {}, 256)
     cos, sin, rd = hs.rope_cos_sin(p, 64, "cpu", offset=300000)
-    hc = PretrainedConfig(rope_theta=1e7, head_dim=256, partial_rotary_factor=0.25, rope_scaling=dict(rp),
-                          max_position_embeddings=1048576, hidden_size=256 * 8, num_attention_heads=8)
     try:
+        hc = PretrainedConfig(rope_theta=1e7, head_dim=256, partial_rotary_factor=0.25, rope_scaling=dict(rp),
+                              max_position_embeddings=1048576, hidden_size=256 * 8, num_attention_heads=8)
         inv, af = ROPE_INIT_FUNCTIONS["yarn"](hc, "cpu")
     except Exception as e:  # transformers API differences across versions
         pytest.skip(f"transformers yarn init unavailable: {e!r}")
@@ -208,3 +208,18 @@ def test_xkv_layer_taps_equal_adapter(fx):
         got = hs.xkv_layer_taps(xm, feats, emb, emb_prev, j, k, cfg)
         for name, v in ref[j].items():
             assert torch.allclose(got[name], v, atol=1e-4, rtol=1e-4), (j, name)
+
+
+def test_native_prefix_taps_equal_full_model(fx):
+    """The m-layer prefix model gives exactly the full target's first-m-layer taps (needs transformers >= 5)."""
+    pytest.importorskip("transformers.models.qwen3_5")
+    d, p = fx
+    torch.manual_seed(0)
+    ids = d["ids"][:, :20]
+    full = hs.build_prefix_model(d["tgt_config"], d["tgt_state"], len(d["tgt_config"]["layer_types"]), dtype=torch.float32)
+    pre = hs.build_prefix_model(d["tgt_config"], d["tgt_state"], 2, dtype=torch.float32)
+    a, b = hs.native_prefix_taps(full, ids), hs.native_prefix_taps(pre, ids)
+    assert set(b) == {0, 1}
+    for l in (0, 1):
+        for name, v in b[l].items():
+            assert torch.allclose(v, a[l][name], atol=1e-5), (l, name)

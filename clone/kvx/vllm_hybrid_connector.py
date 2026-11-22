@@ -58,6 +58,9 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
         # xkv maps (amw's recipe; kvx-pairs' kvx/xkv_adapter.py): source = input_layernorm outputs, same target taps
         self.xkv_mapper = cfg.get_from_extra_config("xkv_mapper", None)
         self.xkv_attn = cfg.get_from_extra_config("xkv_attn", None)
+        # first m target layers computed natively over the whole prompt (exact token identity; a labelled config,
+        # cost ~ m/num_layers of a target prefill, not part of the native-tail cap)
+        self.native_layers = int(cfg.get_from_extra_config("native_layers", 0))
         self.sinks = cfg.get_from_extra_config("sinks", None)  # override the file's sink count (template rows)
         self.tgt_name = vllm_config.model_config.model
         if vllm_config.cache_config.enable_prefix_caching:
@@ -180,6 +183,19 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
                     if want.search(k):
                         sd[re.sub(r"^.*?(layers\.)", "model.layers.", k)] = h.get_tensor(k)
         self.params = hs.TargetParams.from_state_dict(tcfg, sd).to(device)
+        self.prefix = None
+        if self.native_layers > 0:
+            m_ = self.native_layers
+            keep = re.compile(r"(embed_tokens\.weight|layers\.(\d+)\.)")
+            psd = {}
+            for f in sorted(glob.glob(os.path.join(path, "*.safetensors"))):
+                with safe_open(f, "pt") as h:
+                    for k in h.keys():
+                        mm = keep.search(k)
+                        if mm and "visual" not in k and (mm.group(2) is None or int(mm.group(2)) < m_):
+                            psd[k] = h.get_tensor(k)
+            self.prefix = hs.build_prefix_model(tcfg, psd, m_, device=device)
+            del psd
         self.knw = {l: w.to(device) for l, w in k_norm_weights(tcfg, sd).items()}
         if self.xm is not None:
             self.kinds = {t: ("lin" if lt == "linear_attention" else "attn") for t, lt in enumerate(tcfg.layer_types)}
@@ -235,8 +251,11 @@ class HybridCrossModelConnector(KVConnectorBase_V1, SupportsHMA):
                 layers = sorted(self.maps)
             # one target layer at a time: taps -> state -> write -> free (all 64 layers' fp32 taps of a 27K-token
             # prompt at once ran an H200 out of memory)
+            ntaps = hs.native_prefix_taps(self.prefix, ids) if self.prefix is not None else {}
             for t in layers:
-                if self.xm is not None:
+                if t in ntaps:  # native first layers override the map
+                    given = {t: ntaps[t]}
+                elif self.xm is not None:
                     tp = hs.xkv_layer_taps(self.xm, xf, emb, emb_prev, t, self.kinds[t], self.tcfg)
                     given = {t: {k: v[0] for k, v in tp.items()}}
                 else:

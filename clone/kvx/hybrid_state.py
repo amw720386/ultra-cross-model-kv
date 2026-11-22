@@ -335,3 +335,53 @@ def xkv_layer_taps(xm, feats, emb, emb_prev, j, kind, c, out_dtype=torch.float32
                 "a": y[..., kd + vd:kd + vd + nv].to(out_dtype), "b": y[..., kd + vd + nv:kd + vd + 2 * nv].to(out_dtype)}
     h = y.shape[-1] // 2
     return {"k": y[..., :h].to(out_dtype), "v": y[..., h:].to(out_dtype)}
+
+
+# ---------------------------------------------------------------- native first layers (exact token identity)
+
+def build_prefix_model(text_cfg, sd, m, device="cpu", dtype=torch.bfloat16):
+    """The target's embeddings + first m decoder layers as an HF Qwen3_5TextModel (weights from a state-dict mapping with
+    'model.[language_model.]layers.i.*' / '...embed_tokens.weight' keys). Running it over the whole prompt gives the
+    first m layers' taps NATIVELY (arXiv 2611.12062: early layers carry exact token identity, which needle retrieval
+    needs); cost ~ m / num_layers of a target prefill."""
+    import re as _re
+    from transformers.models.qwen3_5.configuration_qwen3_5 import Qwen3_5TextConfig
+    from transformers.models.qwen3_5.modeling_qwen3_5 import Qwen3_5TextModel
+    c = dict(text_cfg) if isinstance(text_cfg, dict) else text_cfg.to_dict()
+    c["num_hidden_layers"] = m
+    c["layer_types"] = list(c["layer_types"])[:m]
+    for k in ("architectures", "transformers_version", "torch_dtype", "dtype"):
+        c.pop(k, None)
+    model = Qwen3_5TextModel(Qwen3_5TextConfig(**c))
+    want = {}
+    for k, v in sd.items():
+        mm = _re.search(r"(?:^|\.)(embed_tokens\.weight|layers\.(\d+)\..*)$", k)
+        if not mm:
+            continue
+        if mm.group(2) is not None and int(mm.group(2)) >= m:
+            continue
+        want[mm.group(1)] = v
+    missing, _ = model.load_state_dict(want, strict=False)
+    bad = [k for k in missing if not k.startswith("norm.") and "rotary" not in k]
+    if bad:
+        raise RuntimeError(f"build_prefix_model: missing weights {bad[:5]}")
+    return model.to(device=device, dtype=dtype).eval()
+
+
+@torch.no_grad()
+def native_prefix_taps(model, ids):
+    """{layer: {tap: [T, w]}} float32 for the prefix model's layers (same taps as the maps predict)."""
+    got, hs_ = {}, []
+    for l, layer in enumerate(model.layers):
+        la = getattr(layer, "linear_attn", None)
+        mods = ([("qkv", la.in_proj_qkv), ("a", la.in_proj_a), ("b", la.in_proj_b)] if la is not None else
+                [("k", layer.self_attn.k_norm), ("v", layer.self_attn.v_proj)])
+        for name, mod in mods:
+            hs_.append(mod.register_forward_hook(
+                lambda m_, i_, o, l=l, name=name: got.setdefault(l, {}).__setitem__(name, o.reshape(o.shape[1], -1).float())))
+    try:
+        model(input_ids=ids, use_cache=False)
+    finally:
+        for h in hs_:
+            h.remove()
+    return got
