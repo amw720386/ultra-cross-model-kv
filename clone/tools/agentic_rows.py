@@ -101,20 +101,39 @@ def tau2(d):
     return out
 
 
-def tb2(jobs, logdir):
-    k = n = 0
-    names = []
+def tb2(jobs, logdir, fit_file=None):
+    """fit_file (decision tb2-long-excluded): the row counts only tasks listed in it (agent timeout <= 1800 s); the
+    worst case counts every other task as a failure over all TB2 tasks; retention on the batch with a native arm."""
+    fit = set(json.load(open(fit_file))["tasks"]) if fit_file else None
+    total_tasks = len(fit) + len(json.load(open(fit_file))["excluded_long"]) if fit_file else None
+    k = n = k_all = 0
+    names, per_batch = [], {}
     for f in glob.glob(f"{jobs}/xkvcode27mo2-b*/*/*/result.json"):
         r = json.load(open(f))
         rew = ((r.get("verifier_result") or {}).get("rewards") or {}).get("reward")
         if rew is None:
             continue
+        t = r.get("task_name")
+        b = f.split("xkvcode27mo2-")[1].split("/")[0]
+        k_all += rew >= 1.0
+        if fit is not None and t not in fit:
+            continue
         n += 1
         k += rew >= 1.0
+        pb = per_batch.setdefault(b, [0, 0])
+        pb[0] += rew >= 1.0
+        pb[1] += 1
         if rew >= 1.0:
-            names.append(r.get("task_name"))
-    return dict(tb2=row(k, n, dict(fracs(glob.glob(f"{logdir}/*/vllm.log")), solved=sorted(names)), n))
+            names.append(t)
+    out = row(k, n, dict(fracs(glob.glob(f"{logdir}/*/vllm.log")), solved=sorted(names), per_batch=per_batch), n)
+    if fit is not None:
+        lo, hi = wilson(k_all, total_tasks)
+        out["worst_case"] = dict(passed=k_all, n=total_tasks, value=round(k_all / total_tasks, 4), lo=round(lo, 4),
+                                 hi=round(hi, 4))
+        out["fit_tasks"], out["unscored_fit"] = len(fit), len(fit) - n
+    return dict(tb2=out)
 
 
 if __name__ == "__main__":
-    print(json.dumps(tau2(sys.argv[2]) if sys.argv[1] == "tau2" else tb2(sys.argv[2], sys.argv[3]), indent=1))
+    print(json.dumps(tau2(sys.argv[2]) if sys.argv[1] == "tau2" else
+                     tb2(sys.argv[2], sys.argv[3], sys.argv[4] if len(sys.argv) > 4 else None), indent=1))
