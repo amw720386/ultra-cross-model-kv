@@ -132,6 +132,7 @@ def start_ours(cfg, tag, mapped=True):
     json.dump(args, open(f"{OUT}/ours_cmd_{tag}.json", "w"), indent=1)
     log = open(f"{OUT}/ours_server_{tag}.log", "ab")
     p = subprocess.Popen(args, env=env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+    open(f"{OUT}/ours.pid", "w").write(str(p.pid))
     return p, wait(OURS[0] + "/health", 1800, p)
 
 
@@ -312,6 +313,28 @@ def phase_abba(cfg, calib, rounds=4):
     ours, hs = start_ours(cfg, "abba")
     mark("OURS_UP_ABBA", {"health_s": hs})
     sh(f"nvidia-smi --query-gpu=memory.used --format=csv > {OUT}/both_resident_mem.txt")
+    # lead: log GPU util AND each arm's process CPU% during every client run (two resident servers share the host CPUs)
+    arms = (["--arm", "theirs=docker:ot-runtime", "--arm", "ours=docker:ours"] if DOCKER else
+            ["--arm", f"theirs=pidfile:{OUT}/theirs.pid", "--arm", f"ours=pidfile:{OUT}/ours.pid"])
+    sampler = subprocess.Popen(["python3", f"{ROOT}/ours/h2h/arm_sampler.py", f"{OUT}/arm_samples.jsonl"] + arms,
+                               start_new_session=True)
+    # h2h lead: their side must not be memory-starved by co-residency. Their startup log (KV/context budget lines) and
+    # the 13,837-token retrieval again WITH ours resident, to compare with the theirs-only calibration phase.
+    sh(f"docker logs ot-runtime > {OUT}/evidence/their_startup.log 2>&1" if DOCKER else
+       f"cp {OUT}/theirs_server_calib.log {OUT}/evidence/their_startup.log")
+    calib_prompt = calib.get("calib_prompt")
+    if calib_prompt:
+        f = f"{ROOT}/calib/retrieval13837_{calib_prompt}.jsonl"
+        vals = []
+        for k in range(5):
+            r = client("theirs", f, f"{OUT}/calib/theirs_coresident/calib2_e2e_{k}.json", max_tokens=32, stream=False,
+                       warmup=1 if k == 0 else 0)
+            if "error" not in r:
+                vals.append(r["median_e2e_s"])
+        mark("COResident_CALIB", {"calib2_e2e_values": vals, "median": statistics.median(vals) if vals else None,
+                                  "theirs_alone_median": (calib.get("calib2_e2e") or {}).get("median")})
+    t_pids = "docker top ot-runtime -eo pid | tail -n +2" if DOCKER else f"pgrep -g $(ps -o pgid= -p $(cat {OUT}/theirs.pid))"
+    o_pids = "docker top ours -eo pid | tail -n +2" if DOCKER else f"pgrep -g $(ps -o pgid= -p $(cat {OUT}/ours.pid))"
     for L in LENGTHS:
         rd = f"{OUT}/abba_{L}"
         plan = {"run_id": f"{RUN_ID}-{L}", "metric": {"tool": "json", "key": "median_ttft_s", "direction": "lower", "unit": "s"},
@@ -324,14 +347,17 @@ def phase_abba(cfg, calib, rounds=4):
                                         f"{(calib.get('calib2_e2e') or calib['long_e2e'])['median']} s vs published 0.5465 "
                                         f"({SRC_URL}); see calib/summary.json")},
                 "frozen_config": cfg, "frozen_config_sha256": json.load(open(f"{OUT}/frozen_config.json"))["pick_sha256"],
+                "resident": True,
                 "arms": [
                     {"name": "theirs", "artifact": "OneTriangle public Docker release @8f05e5f1 (Dockerfile replayed), kvt 3efa8e6e",
-                     "port": 8000, "served_model": THEIRS[1], "start": "true", "stop": "true",
-                     "health": THEIRS[0] + "/health",
+                     "port": 8000, "served_model": THEIRS[1], "start": "true", "stop": "",
+                     "health": THEIRS[0] + "/health", "pids_cmd": t_pids,
+                     "memory": "as packaged: their runtime has no GPU-memory flag (see evidence/their_startup.log)",
                      "quality": f"{QCLIENT} --base-url {THEIRS[0]} --model {THEIRS[1]} --out-dir {{arm_dir}} {P}/needles_{L}.jsonl {P}/hellaswag100.jsonl"},
                     {"name": "ours", "artifact": f"ultra-cross-model-kv @{open(ROOT + '/ours/SNAPSHOT_SHA').read().strip()} vLLM 0.34 + CrossModelConnector",
-                     "port": 8001, "served_model": OURS[1], "start": "true", "stop": "true",
-                     "health": OURS[0] + "/health",
+                     "port": 8001, "served_model": OURS[1], "start": "true", "stop": "",
+                     "health": OURS[0] + "/health", "pids_cmd": o_pids,
+                     "memory": f"--gpu-memory-utilization {cfg.get('util', 0.5)}",
                      "quality": f"{QCLIENT} --base-url {OURS[0]} --model {OURS[1]} --out-dir {{arm_dir}} {P}/needles_{L}.jsonl {P}/hellaswag100.jsonl"}]}
         os.makedirs(rd, exist_ok=True)
         json.dump(plan, open(f"{rd}.plan.json", "w"), indent=1)
@@ -339,6 +365,7 @@ def phase_abba(cfg, calib, rounds=4):
         vr, vt = sh(f"python3 {ROOT}/h2h/tools/verdict.py {rd}")
         open(f"{rd}/verdict_local.txt", "w").write(vt)
         mark("ABBA_DONE", {"L": L, "rc": rc, "verdict": vt[:600]})
+    sampler.terminate()
     stop(ours)
 
 
