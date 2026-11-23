@@ -109,6 +109,7 @@ def ours_args(cfg, mapped=True):
     args = ["/opt/ours/bin/vllm", "serve", QWEN8, "--served-model-name", OURS[1], "--port", "8001",
             "--max-model-len", "32768", "--gpu-memory-utilization", str(cfg.get("util", 0.33)), "--dtype", "bfloat16",
             "--no-enable-prefix-caching", "--max-num-seqs", "2"]
+    args += [str(a) for a in cfg.get("vllm_args", [])]  # screened vLLM flags (part of the frozen config)
     if mapped:
         args += ["--kv-transfer-config", json.dumps(kv)]
     return args

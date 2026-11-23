@@ -127,6 +127,7 @@ def _ours_cmd(cfg):
     args = ["/opt/ours/bin/vllm", "serve", QWEN8, "--served-model-name", OURS_MODEL, "--port", "8001",
             "--max-model-len", "32768", "--gpu-memory-utilization", str(cfg.get("util", 0.45)), "--dtype", "bfloat16",
             "--no-enable-prefix-caching", "--max-num-seqs", "2"]
+    args += [str(a) for a in cfg.get("vllm_args", [])]  # screened vLLM flags (part of the frozen config)
     if cfg.get("mapped", True):
         args += ["--kv-transfer-config", json.dumps(kv)]
     return args
@@ -138,7 +139,11 @@ def _start_ours(rd, cfg, tag):
     args = _ours_cmd(cfg)
     open(os.path.join(rd, f"ours_cmd_{tag}.json"), "w").write(json.dumps(args, indent=1))
     p = subprocess.Popen(args, env=env, stdout=log, stderr=subprocess.STDOUT)
-    return p, _wait(OURS_URL + "/health", 1200, p)
+    try:
+        return p, _wait(OURS_URL + "/health", 1200, p)
+    except Exception:
+        _stop(p)  # a failed start must not keep GPU memory for the next config
+        raise
 
 
 def _stop(p):
