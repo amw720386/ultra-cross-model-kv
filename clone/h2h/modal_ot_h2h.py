@@ -78,8 +78,156 @@ def check():
     return out
 
 
+THEIRS_URL, OURS_URL = "http://127.0.0.1:8000", "http://127.0.0.1:8001"
+THEIRS_MODEL, OURS_MODEL = "kvt-qwen3-1.7b-to-8b", "qwen3-8b-kvx"
+CLIENT = "python3 /opt/h2h/bench/sse_ttft.py"
+EXTRA = json.dumps({"chat_template_kwargs": {"enable_thinking": False}})
+
+
+def _wait(url, timeout, proc=None):
+    import urllib.request
+    t0 = time.time()
+    while time.time() - t0 < timeout:
+        if proc is not None and proc.poll() is not None:
+            raise RuntimeError(f"server exited rc={proc.returncode} before {url} was healthy")
+        try:
+            with urllib.request.urlopen(url, timeout=5) as r:
+                if r.status == 200:
+                    return round(time.time() - t0, 1)
+        except Exception:
+            pass
+        time.sleep(3)
+    raise RuntimeError(f"{url} not healthy after {timeout}s")
+
+
+def _start_theirs(rd):
+    env = dict(os.environ, **THEIR_ENV)
+    log = open(os.path.join(rd, "theirs_server.log"), "ab")
+    # their runtime-entrypoint, unchanged (Modal process wrapper only)
+    p = subprocess.Popen(["/usr/bin/tini", "--", "/usr/local/bin/runtime-entrypoint"], env=env, stdout=log,
+                         stderr=subprocess.STDOUT)
+    return p, _wait(THEIRS_URL + "/health", 1800, p)
+
+
+def _ours_cmd(cfg):
+    kv = {"kv_connector": "CrossModelConnector", "kv_connector_module_path": "kvx.vllm_connector", "kv_role": "kv_both",
+          "kv_connector_extra_config": dict({"src": QWEN17, "maps": cfg["maps"], "tail": cfg["tail"], "min_len": 512,
+                                             "restore": "rms", "src_sdpa": cfg.get("src_sdpa", "vllm_fa"), "src_tp": 1},
+                                            **({"fp8": True} if cfg.get("fp8", 1) else {}), **cfg.get("extra", {}))}
+    args = ["/opt/ours/bin/vllm", "serve", QWEN8, "--served-model-name", OURS_MODEL, "--port", "8001",
+            "--max-model-len", "32768", "--gpu-memory-utilization", str(cfg.get("util", 0.45)), "--dtype", "bfloat16",
+            "--no-enable-prefix-caching", "--max-num-seqs", "4", "--attention-backend", "FLASH_ATTN"]
+    if cfg.get("mapped", True):
+        args += ["--kv-transfer-config", json.dumps(kv)]
+    return args
+
+
+def _start_ours(rd, cfg, tag):
+    env = dict(os.environ, PYTHONPATH="/opt/ours-src", HF_HUB_OFFLINE="1", CUDA_VISIBLE_DEVICES="0")
+    log = open(os.path.join(rd, f"ours_server_{tag}.log"), "ab")
+    args = _ours_cmd(cfg)
+    open(os.path.join(rd, f"ours_cmd_{tag}.json"), "w").write(json.dumps(args, indent=1))
+    p = subprocess.Popen(args, env=env, stdout=log, stderr=subprocess.STDOUT)
+    return p, _wait(OURS_URL + "/health", 1200, p)
+
+
+def _stop(p):
+    if p is not None and p.poll() is None:
+        p.terminate()
+        try:
+            p.wait(60)
+        except subprocess.TimeoutExpired:
+            p.kill()
+
+
+def _client(url, model, prompts, out, max_tokens=16, stream=True, warmup=1):
+    cmd = (f"{CLIENT} --base-url {url} --model {model} --prompts {prompts} --max-tokens {max_tokens} --out {out} "
+           f"--warmup {warmup} --extra-json '{EXTRA}'" + ("" if stream else " --no-stream"))
+    rc, txt = _sh(cmd, timeout=3600)
+    return {"cmd": cmd, "rc": rc, "tail": txt[-1500:]}
+
+
+@app.function(gpu="H100!", cpu=8.0, memory=65536, timeout=7200, volumes=MOUNTS)
+def run(run_id: str, steps: list):
+    """Steps (dicts, in order): {"do": "theirs_up"} | {"do": "theirs_down"} | {"do": "ours_up", "cfg": {...}, "tag"} |
+    {"do": "ours_down"} | {"do": "client", "arm": "theirs"|"ours", "prompts", "max_tokens", "stream", "out"} |
+    {"do": "quality", "arm", "files": [...], "out_dir"}. Everything lands in /runs/<run_id>/ and is committed."""
+    rd = f"/runs/{run_id}"
+    os.makedirs(rd, exist_ok=True)
+    names = subprocess.run(["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"], capture_output=True,
+                           text=True).stdout.strip().splitlines()
+    log = {"run_id": run_id, "gpu_names": names, "steps": [], "started": time.strftime("%FT%TZ", time.gmtime()),
+           "notes": ["their image = their Dockerfile @ pinned sha, ENTRYPOINT cleared: Modal process wrapper only; "
+                     "their runtime-entrypoint started unchanged as a subprocess",
+                     "their weights: documented LOCAL_FILES_ONLY=1 path, pinned snapshots mounted read-only at "
+                     "/cache/huggingface", "their nginx API-key proxy not used (deployment wrapper, not compute)"]}
+
+    def save():
+        json.dump(log, open(os.path.join(rd, "run_log.json"), "w"), indent=1)
+        RUNS.commit()
+
+    if len(names) != 1 or "H100" not in names[0]:
+        log["abort"] = f"need 1x H100, got {names}"
+        save()
+        return log
+    _sh(f"bash /opt/h2h/bench/evidence.sh {rd}/evidence/start")
+    _sh(f"python3 -m pip freeze > {rd}/evidence/pip_freeze_theirs.txt; /opt/ours/bin/pip freeze > {rd}/evidence/pip_freeze_ours.txt")
+    _sh(f"cp /opt/ours-src/SNAPSHOT_SHA {rd}/evidence/ours_sha.txt; cp /opt/h2h/SNAPSHOT_SHA {rd}/evidence/h2h_sha.txt; "
+        f"sha256sum /usr/local/bin/runtime-entrypoint > {rd}/evidence/their_entrypoint_sha256.txt")
+    theirs = ours = None
+    try:
+        for st in steps:
+            t0 = time.time()
+            ent = dict(st)
+            try:
+                if st["do"] == "theirs_up":
+                    theirs, ent["health_s"] = _start_theirs(rd)
+                elif st["do"] == "theirs_down":
+                    _stop(theirs); theirs = None
+                elif st["do"] == "ours_up":
+                    ours, ent["health_s"] = _start_ours(rd, st["cfg"], st.get("tag", "ours"))
+                elif st["do"] == "ours_down":
+                    _stop(ours); ours = None
+                elif st["do"] == "client":
+                    url, model = (THEIRS_URL, THEIRS_MODEL) if st["arm"] == "theirs" else (OURS_URL, OURS_MODEL)
+                    out = os.path.join(rd, st["out"])
+                    os.makedirs(os.path.dirname(out), exist_ok=True)
+                    ent["result"] = _client(url, model, st["prompts"], out, st.get("max_tokens", 16), st.get("stream", True),
+                                            st.get("warmup", 1))
+                elif st["do"] == "quality":
+                    url, model = (THEIRS_URL, THEIRS_MODEL) if st["arm"] == "theirs" else (OURS_URL, OURS_MODEL)
+                    od = os.path.join(rd, st["out_dir"])
+                    os.makedirs(od, exist_ok=True)
+                    ent["result"] = dict(zip(("rc", "tail"), _sh(
+                        f"python3 /opt/h2h/bench/quality_chat_client.py --base-url {url} --model {model} --out-dir {od} "
+                        + " ".join(st["files"]), timeout=5400)))
+                elif st["do"] == "nvsmi":
+                    ent["result"] = _sh("nvidia-smi --query-gpu=memory.used,memory.total --format=csv")
+            except Exception as e:  # keep going to the next step only if asked; always record
+                ent["error"] = repr(e)[:1500]
+                if not st.get("continue_on_error"):
+                    log["steps"].append(ent)
+                    raise
+            ent["wall_s"] = round(time.time() - t0, 1)
+            log["steps"].append(ent)
+            save()
+    finally:
+        _stop(ours)
+        _stop(theirs)
+        _sh(f"bash /opt/h2h/bench/evidence.sh {rd}/evidence/end")
+        log["ended"] = time.strftime("%FT%TZ", time.gmtime())
+        save()
+    return log
+
+
 @app.local_entrypoint()
-def main(what: str = "check"):
-    r = check.remote()
-    for k, (rc, txt) in r.items():
-        print(f"===== {k}: rc={rc}\n{txt}")
+def main(what: str = "check", run_id: str = "", steps_file: str = ""):
+    if what == "check":
+        r = check.remote()
+        for k, (rc, txt) in r.items():
+            print(f"===== {k}: rc={rc}\n{txt}")
+        return
+    r = run.remote(run_id, json.load(open(steps_file)))
+    os.makedirs("out/h2h", exist_ok=True)
+    json.dump(r, open(f"out/h2h/{run_id}.json", "w"), indent=1)
+    print(json.dumps(r, indent=1)[:6000])
