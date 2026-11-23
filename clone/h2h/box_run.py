@@ -152,6 +152,10 @@ def phase_setup():
     sh(f"/opt/ours/bin/pip freeze > {ev}/pip_freeze_ours.txt; cp {ROOT}/ours/SNAPSHOT_SHA {ev}/ours_sha.txt; "
        f"cp {ROOT}/h2h/SNAPSHOT_SHA {ev}/h2h_sha.txt; (cd {ROOT} && sha256sum prompts/* prompts-dev/* calib/* maps_*.pt) > {ev}/inputs.sha256")
     sh(f"bash {ROOT}/h2h/bench/evidence.sh {ev}/start")
+    sh(f"lscpu > {ev}/lscpu.txt; grep -m1 'model name' /proc/cpuinfo > {ev}/cpu_model.txt; "
+       f"cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor 2>/dev/null | sort | uniq -c > {ev}/cpu_governor.txt; "
+       f"[ -s {ev}/cpu_governor.txt ] || echo 'no cpufreq governor exposed in the container' > {ev}/cpu_governor.txt; "
+       f"nvidia-smi > {ev}/nvidia-smi.txt; nvidia-smi -q > {ev}/nvidia-smi-q.txt")
     mark("SETUP_DONE")
 
 
@@ -291,9 +295,12 @@ def main():
         tp, calib = phase_calib()
         frozen = phase_devpick(tp, [int(x) for x in os.environ.get("TAILS", "1,64,256").split(",")],
                                os.environ.get("MAPS", f"{ROOT}/maps_k24.pt"))
-        off = calib.get("short_off_pct")
-        if off is None or abs(off) > 5:
-            mark("WAIT_GO", {"short_off_pct": off, "why": "lead: short e2e > 5% off on bare metal -> report before ABBA"})
+        off, loff = calib.get("short_off_pct"), calib.get("long_off_pct")
+        # lead: ABBA starts on its own only if BOTH calibrations are within 5% (short e2e vs 0.1877 s AND long e2e on
+        # the retrieving calib variant vs 0.5465 s); otherwise wait for the lead's go with the numbers sent
+        if off is None or loff is None or abs(off) > 5 or abs(loff) > 5:
+            mark("WAIT_GO", {"short_off_pct": off, "long_off_pct": loff, "calib_prompt": calib.get("calib_prompt"),
+                             "why": "a calibration is > 5% off (or missing) -> lead's go before ABBA"})
             while not os.path.exists(f"{ROOT}/GO_ABBA") and not os.path.exists(f"{ROOT}/STOP"):
                 time.sleep(20)
             if os.path.exists(f"{ROOT}/STOP"):
