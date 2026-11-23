@@ -120,7 +120,7 @@ def start_ours(cfg, tag, mapped=True):
         cfg = dict(cfg, maps=cfg["maps"].replace(ROOT, "/in")) if cfg.get("maps") else cfg
         args = ["serve"] + ours_args(cfg, mapped)[2:]  # run with --entrypoint vllm: independent of the image default
         sh("docker rm -f ours")
-        cmd = ("docker run -d --name ours --gpus device=0 --ipc=host -v /data/hf:/cache/huggingface:ro "
+        cmd = ("docker run -d --name ours --gpus device=0 --ipc=host -v /data/hf:/cache/huggingface/hub:ro "
                f"-v {ROOT}/ours:/ours:ro -v {ROOT}:/in:ro -e PYTHONPATH=/ours -e HF_HUB_OFFLINE=1 "
                f"-p 127.0.0.1:8001:8001 --entrypoint vllm {OURS_IMAGE} " + " ".join(shlex.quote(a) for a in args))
         json.dump({"docker_cmd": cmd, "args": args}, open(f"{OUT}/ours_cmd_{tag}.json", "w"), indent=1)
@@ -175,7 +175,7 @@ def weights_evidence(tag, pids_cmd):
     its blob name (= the LFS sha256) and its recomputed sha256, plus the safetensors this arm's processes have
     memory-mapped right now (/proc/<host pid>/maps): which files each server actually serves from."""
     ev = f"{OUT}/evidence"
-    hf = "/data/hf/hub" if DOCKER else HF
+    hf = "/data/hf" if DOCKER else HF  # their container's cache has no hub/ level
     if not os.path.exists(f"{ev}/weights_snapshots.tsv"):
         rows = []
         for snap in (QWEN8, QWEN17):
