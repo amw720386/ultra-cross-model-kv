@@ -97,6 +97,8 @@ def status(row, ours):
         return "hold(rig)"  # measured on another GPU class (e.g. Modal upgraded an H100 request to H200): rerun on H100
     if o.get("value") is None:
         return "open"
+    if o.get("forecast"):  # extrapolated from measured points, not a measurement: never counts as beaten
+        return "behind(forecast)" if (o["value"] < row["their_value"]) == (row.get("direction", "higher") == "higher") else "open(forecast)"
     if row.get("n") and o.get("n") and o["n"] < row["n"]:
         return "behind(N)"
     v, t = o["value"], row["their_value"]
