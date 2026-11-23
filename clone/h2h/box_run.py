@@ -463,7 +463,7 @@ def phase_abba(cfg, calib, rounds=4):
         plan = {"run_id": f"{RUN_ID}-{L}", "metric": {"tool": "json", "key": "median_ttft_s", "direction": "lower", "unit": "s"},
                 "client_cmd": (f"{CLIENT} --base-url http://127.0.0.1:{{port}} --model {{served_model}} --prompts {{prompts_file}} "
                                f"--max-tokens 16 --out {{round_dir}}/bench.json --warmup 1 --extra-json '{EXTRA}'"),
-                "prompts_file": f"{P}/needles_{L}.jsonl", "model_dir": QWEN8, "rounds": rounds,
+                "prompts_file": f"{P}/needles_{L}.jsonl", "model_dir": (QWEN8.replace(HF, "/data/hf") if DOCKER else QWEN8), "rounds": rounds,  # host path: run_ab hashes it
                 "calibration": calibration,
                 "quality_note": ("quality runs in the LAST ABBA round with BOTH servers resident (co-resident, as intended); "
                                  "quality.json per arm = needles at this length only (the per-length map gate); HellaSwag-100 "
