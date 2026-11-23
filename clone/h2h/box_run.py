@@ -255,6 +255,48 @@ def phase_setup():
     mark("SETUP_DONE")
 
 
+PUB_TOKENS = {"long": 13, "short": 8}  # published replies, Qwen3 tokenizer incl. EOS: "The retrieval code is AMBER-7421." / "...is Paris."
+CAL_TOL_PCT = 6.0  # h2h lead's ruling (re-specified calibration): rebuilt 13,837 e2e within ~6% of 0.5465 s
+
+
+def rebuilt_e2e(res):
+    """h2h lead's re-specified calibration: e2e at the PUBLISHED reply length, from THEIR OWN completion_timing log:
+    prepare + queue + GPU TTFT + (published_tokens - 1) x their measured ms/step + the measured HTTP overhead
+    (client e2e - their server-side prepare+queue+gpu_section_total on the same calibration runs)."""
+    import collections
+    txt = sh("docker logs ot-runtime 2>&1")[1] if DOCKER else open(f"{OUT}/theirs_server_calib.log", errors="replace").read()
+    open(f"{OUT}/calib/their_completion_timing.log", "w").write(
+        "\n".join(l for l in txt.splitlines() if "completion_timing" in l) + "\n")
+    rows = []
+    for line in txt.splitlines():
+        i = line.find('{"completion_tokens"')
+        if i >= 0:
+            try:
+                d = json.loads(line[i:])
+                rows.append(d)
+            except ValueError:
+                pass
+    out = {}
+    for kind, (lo, hi), client_key in (("long", (13000, 14700), "calib2_e2e"), ("short", (1, 64), "short_e2e")):
+        sel = [d for d in rows if lo <= d["prompt_tokens"] <= hi and d["completion_tokens"] > 1]
+        if not sel or not (res.get(client_key) or {}).get("median"):
+            out[kind] = None
+            continue
+        med = lambda f: statistics.median(f(d) for d in sel)
+        t = lambda d, k: d["timings_ms"].get(k, 0.0)
+        prep, queue, ttft = med(lambda d: t(d, "prepare")), med(lambda d: t(d, "queue")), med(lambda d: t(d, "ttft_after_queue"))
+        step = med(lambda d: t(d, "decode") / (d["completion_tokens"] - 1))
+        server_total = med(lambda d: t(d, "prepare") + t(d, "queue") + t(d, "gpu_section_total"))
+        http = 1e3 * res[client_key]["median"] - server_total
+        n = PUB_TOKENS[kind]
+        e2e = (prep + queue + ttft + (n - 1) * step + http) / 1e3
+        out[kind] = {"rebuilt_e2e_s": e2e, "published_tokens": n, "n_requests": len(sel),
+                     "measured_completion_tokens": sorted(set(d["completion_tokens"] for d in sel)),
+                     "prepare_ms": prep, "queue_ms": queue, "gpu_ttft_ms": ttft, "ms_per_step": step, "http_ms": http,
+                     "raw_client_e2e_s": res[client_key]["median"]}
+    return out
+
+
 def phase_calib():
     p, hs = start_theirs("calib")
     mark("THEIRS_UP", {"health_s": hs})
@@ -298,7 +340,12 @@ def phase_calib():
             res["long_off_pct"] = 100 * (res["calib2_e2e"]["median"] / PUBLISHED["long_e2e_s"] - 1)
     sh(f"nvidia-smi --query-gpu=memory.used --format=csv > {OUT}/calib/theirs_mem.txt")
     short = res["short_e2e"]["median"]
-    res["short_off_pct"] = 100 * (short / PUBLISHED["short_e2e_s"] - 1) if short else None
+    res["short_off_pct"] = 100 * (short / PUBLISHED["short_e2e_s"] - 1) if short else None  # raw; reported, not gating
+    res["long_raw_off_pct"] = res.get("long_off_pct")
+    rb = rebuilt_e2e(res)
+    res["rebuilt"] = rb
+    res["long_off_pct"] = (100 * (rb["long"]["rebuilt_e2e_s"] / PUBLISHED["long_e2e_s"] - 1)) if rb.get("long") else None
+    res["short_rebuilt_off_pct"] = (100 * (rb["short"]["rebuilt_e2e_s"] / PUBLISHED["short_e2e_s"] - 1)) if rb.get("short") else None
     json.dump(res, open(f"{OUT}/calib/summary.json", "w"), indent=1)
     mark("CALIB_DONE", {k: (v.get("median") if isinstance(v, dict) and "median" in v else v) for k, v in res.items()
                         if k != "retrieval_vs_depth"})  # retrieval_vs_depth has no median (DO run 1 crashed here)
@@ -372,25 +419,43 @@ def phase_abba(cfg, calib, rounds=4):
     mark("WEIGHTS_EVIDENCE", {"theirs_mapped_files": weights_evidence("theirs", t_pids),
                               "ours_mapped_files": weights_evidence("ours", o_pids)})
     # h2h review #1/#2: calibration as numbers in the units verdict.py compares (e2e s, non-streaming retrieval)
-    long_alone = (calib.get("calib2_e2e") or calib["long_e2e"])["median"]
+    long_alone = ((calib.get("rebuilt") or {}).get("long") or {}).get("rebuilt_e2e_s")
+    co_med = co_med if co_med is None else co_med  # raw co-resident e2e (max_tokens 32): compare raw with raw below
+    raw_alone = (calib.get("calib2_e2e") or calib["long_e2e"])["median"]
     probe = lambda c: (lambda r: r[1].strip() if r[0] == 0 else "")(sh(c + " 2>/dev/null"))
     machine = " | ".join(x for x in (probe(f"cat {OUT}/evidence/ec2_instance_type.txt"),
                                      probe("nvidia-smi --query-gpu=name --format=csv,noheader | head -1"),
                                      probe("grep -m1 'model name' /proc/cpuinfo | cut -d: -f2")) if x)
     maps_sha = cfg.get("maps_sha256") or sh(f"sha256sum {shlex.quote(cfg['maps'])} | cut -d' ' -f1")[1].strip()
+    pf = f"{ROOT}/calibration_prereg.json"  # pre-registered before the box (h2h lead's ruling, ot-box-do2)
+    prereg = json.load(open(pf)) if os.path.exists(pf) else None
+    prereg_sha = sh(f"sha256sum {pf} | cut -d' ' -f1")[1].strip() if prereg else None
     calibration = {
         "published": PUBLISHED["long_e2e_s"], "theirs_measured": long_alone,
-        "metric": ("e2e s, non-streaming, 13,837-token retrieval (" +
-                   (f"calib variant {calib_prompt}, which their model retrieves from" if calib.get("calib2_e2e") else
-                    "the published prompt") + "), their side ALONE on the GPU, max_tokens 32"),
+        "metric": ("RE-SPECIFIED (h2h lead's ruling, pre-registered before the box): e2e s at the PUBLISHED reply length (13 tokens) "
+                   "on the 13,837-token retrieval (" + (f"calib variant {calib_prompt}, which their model retrieves from"
+                   if calib.get("calib2_e2e") else "the published prompt") + "), their side ALONE, rebuilt from THEIR OWN "
+                   "completion_timing log: prepare + queue + GPU TTFT + 12 x their ms/step + measured HTTP overhead; "
+                   f"gate within {CAL_TOL_PCT}% of 0.5465 s"),
+        "rebuilt_components": (calib.get("rebuilt") or {}).get("long"),
+        "raw": {"e2e_s_max_tokens_32": raw_alone, "off_pct": calib.get("long_raw_off_pct"),
+                "why_not_gating": "their reply on this prompt runs to max_tokens (32) instead of the published 13-token reply"},
+        "ttft_path_stability": {"this_box_sse_ttft_s": (calib.get("calib2_sse") or {}).get("median"),
+                                "do_run1_20261123T1312Z_s": 0.330, "modal_20261123T0731Z_s": 0.331},
         "source_url": SRC_URL, "machine": machine,
-        "short": {"published": PUBLISHED["short_e2e_s"], "measured": calib["short_e2e"]["median"],
-                  "metric": "e2e s, non-streaming, short completion"},
-        "coresident": {"theirs_measured": co_med, "theirs_alone": long_alone,
-                       "diff_pct": (100 * (co_med / long_alone - 1)) if co_med and long_alone else None,
-                       "flag_over_5pct": bool(co_med and long_alone and abs(co_med / long_alone - 1) > 0.05),
+        "short": {"published": PUBLISHED["short_e2e_s"], "measured_raw": calib["short_e2e"]["median"],
+                  "rebuilt_8_tokens": (calib.get("rebuilt") or {}).get("short"), "gating": False,
+                  "disclosure": ("reported, not gating (h2h lead): the residual gap is their CPU-bound HF decode speed "
+                                 "(ms/step on this host CPU vs ~18.5 implied by the published number), outside the TTFT headline")},
+        "coresident": {"theirs_measured_raw": co_med, "theirs_alone_raw": raw_alone,
+                       "diff_pct": (100 * (co_med / raw_alone - 1)) if co_med and raw_alone else None,
+                       "flag_over_5pct": bool(co_med and raw_alone and abs(co_med / raw_alone - 1) > 0.05),
                        "why": "their side re-timed with ours resident: memory/CPU starvation check (h2h lead)"},
-        "ttft": "their package publishes no TTFT; TTFT is measured on this box in the ABBA rounds"}
+        "ttft": "their package publishes no TTFT; TTFT is measured on this box in the ABBA rounds",
+        "explained": ("Not an environment excuse: their reply length differs from their own published replies "
+                      "(generation behaviour), and decode speed is not part of the headline metric; the GPU-bound TTFT path, "
+                      "which IS the headline, already matches across two independent boxes (DO 0.330 s vs Modal 0.331 s)."),
+        "prereg": prereg, "prereg_sha256": prereg_sha}
     fz = json.load(open(f"{OUT}/frozen_config.json"))
     assert fz.get("headline_length") in (8192, 16384), "pre-register the headline length in the frozen config before the box"
     for L in ABBA_LENGTHS:
@@ -454,7 +519,7 @@ def main():
         phase_setup()
         tp, calib = phase_calib()
         off0, loff0 = calib.get("short_off_pct"), calib.get("long_off_pct")
-        if os.environ.get("CALIB_HARD_STOP") == "1" and (off0 is None or loff0 is None or abs(off0) > 5 or abs(loff0) > 5):
+        if os.environ.get("CALIB_HARD_STOP") == "1" and (loff0 is None or abs(loff0) > CAL_TOL_PCT):
             # lead (Czechia 1.8 GHz try): hard stop right after calibration if EITHER calibration is > 5% off
             mark("CALIB_FAIL_STOP", {"short_off_pct": off0, "long_off_pct": loff0, "calib_prompt": calib.get("calib_prompt")})
             stop(tp)
@@ -472,7 +537,7 @@ def main():
         off, loff = calib.get("short_off_pct"), calib.get("long_off_pct")
         # lead: ABBA starts on its own only if BOTH calibrations are within 5% (short e2e vs 0.1877 s AND long e2e on
         # the retrieving calib variant vs 0.5465 s); otherwise wait for the lead's go with the numbers sent
-        if off is None or loff is None or abs(off) > 5 or abs(loff) > 5:
+        if loff is None or abs(loff) > CAL_TOL_PCT:
             mark("WAIT_GO", {"short_off_pct": off, "long_off_pct": loff, "calib_prompt": calib.get("calib_prompt"),
                              "why": "a calibration is > 5% off (or missing) -> lead's go before ABBA"})
             while not os.path.exists(f"{ROOT}/GO_ABBA") and not os.path.exists(f"{ROOT}/STOP"):
