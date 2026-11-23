@@ -300,7 +300,8 @@ def phase_calib():
     short = res["short_e2e"]["median"]
     res["short_off_pct"] = 100 * (short / PUBLISHED["short_e2e_s"] - 1) if short else None
     json.dump(res, open(f"{OUT}/calib/summary.json", "w"), indent=1)
-    mark("CALIB_DONE", {k: (v["median"] if isinstance(v, dict) else v) for k, v in res.items()})
+    mark("CALIB_DONE", {k: (v.get("median") if isinstance(v, dict) and "median" in v else v) for k, v in res.items()
+                        if k != "retrieval_vs_depth"})  # retrieval_vs_depth has no median (DO run 1 crashed here)
     return p, res
 
 
