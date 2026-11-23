@@ -356,6 +356,14 @@ def main():
     if what == "all":
         phase_setup()
         tp, calib = phase_calib()
+        off0, loff0 = calib.get("short_off_pct"), calib.get("long_off_pct")
+        if os.environ.get("CALIB_HARD_STOP") == "1" and (off0 is None or loff0 is None or abs(off0) > 5 or abs(loff0) > 5):
+            # lead (Czechia 1.8 GHz try): hard stop right after calibration if EITHER calibration is > 5% off
+            mark("CALIB_FAIL_STOP", {"short_off_pct": off0, "long_off_pct": loff0, "calib_prompt": calib.get("calib_prompt")})
+            stop(tp)
+            sh(f"bash {ROOT}/h2h/bench/evidence.sh {OUT}/evidence/end")
+            mark("ALL_DONE")
+            return
         frozen = phase_devpick(tp, [int(x) for x in os.environ.get("TAILS", "1,64,256").split(",")],
                                os.environ.get("MAPS", f"{ROOT}/maps_k24.pt"))
         off, loff = calib.get("short_off_pct"), calib.get("long_off_pct")
