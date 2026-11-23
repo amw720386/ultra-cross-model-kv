@@ -390,6 +390,8 @@ def phase_abba(cfg, calib, rounds=4):
                        "flag_over_5pct": bool(co_med and long_alone and abs(co_med / long_alone - 1) > 0.05),
                        "why": "their side re-timed with ours resident: memory/CPU starvation check (h2h lead)"},
         "ttft": "their package publishes no TTFT; TTFT is measured on this box in the ABBA rounds"}
+    fz = json.load(open(f"{OUT}/frozen_config.json"))
+    assert fz.get("headline_length") in (8192, 16384), "pre-register the headline length in the frozen config before the box"
     for L in ABBA_LENGTHS:
         rd = f"{OUT}/abba_{L}"
         plan = {"run_id": f"{RUN_ID}-{L}", "metric": {"tool": "json", "key": "median_ttft_s", "direction": "lower", "unit": "s"},
@@ -401,7 +403,14 @@ def phase_abba(cfg, calib, rounds=4):
                                  "quality.json per arm = needles at this length only (the per-length map gate); HellaSwag-100 "
                                  "in {arm_dir}/hellaswag is informational: ours serves prompts < 512 tokens natively by config "
                                  "(min_len 512), so it compares THEIR mapped path with OUR native short-prompt path"),
-                "frozen_config": cfg, "frozen_config_sha256": json.load(open(f"{OUT}/frozen_config.json"))["pick_sha256"],
+                "frozen_config": cfg, "frozen_config_sha256": fz["pick_sha256"],
+                "preregistration": {
+                    "headline_length": fz["headline_length"], "frozen_before_box": True,
+                    "config_rule": "ONE frozen config for all lengths, picked on DEV prompts only (h2h-tail-frozen, ot-margin-first)",
+                    "dev_needles_of_frozen_config": fz.get("dev_needles"),
+                    "timing_and_gate_prompts": "held-out /vol/h2h/prompts (built 2026-11-23T07:12Z, before any pick), disjoint from the dev set",
+                    "disclosure": ("Modal calibration boot 20261123T0731Z-onetriangle-calib ran 3 TTFT screens of OURS on these gate "
+                                   "files; recorded as screens only, never used for a pick")},
                 "resident": True,
                 "arms": [
                     {"name": "theirs", "artifact": "OneTriangle public Docker release @8f05e5f1 (Dockerfile replayed), kvt 3efa8e6e",
