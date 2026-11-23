@@ -570,3 +570,17 @@ def test_kv_layout_h2_needs_backend():
     assert vc.kv_layout(kv, 2, 8, "ROCM_ATTN") == "split4"
     with pytest.raises(RuntimeError):
         vc.kv_layout(kv, 2, 8, "")
+
+
+def test_window_select_uses_depth_window_and_same_ridge():
+    X, Y, _, (Ls, ds, Lt, dt, H) = _toy_stats()
+    st = core.GramStats(Ls, ds, Lt, dt, "cpu"); st.add(X, Y); st.finalize()
+    R2 = core.layer_r2(st, 1e-6, H)
+    mw = core.fit_maps(st, R2, 2, 1e-6, H, select="window")
+    assert [m["sel"] for m in mw] == [core.window_layers(t, Ls, Lt, 2) for t in range(Lt)]
+    # same selection through the r2 path gives the same ridge solution (selection is the only difference)
+    mr = core.fit_maps(st, R2, 2, 1e-6, H)
+    for a, b in zip(mw, mr):
+        if a["sel"] == b["sel"]:
+            assert torch.allclose(a["W"], b["W"])
+    assert core.window_layers(0, 28, 36, 8) == list(range(8)) and core.window_layers(35, 28, 36, 8) == list(range(20, 28))

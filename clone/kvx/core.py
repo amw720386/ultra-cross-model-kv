@@ -190,8 +190,16 @@ def layer_r2(st, lam, H, lam_rel=0.0):
     return R2
 
 
-def fit_maps(st, R2, k, lam, H, lam_rel=0.0):
-    """Per target layer: pick top-k source layers by head-averaged R^2 and solve ridge.
+def window_layers(t, Ls, Lt, k):
+    """The k source layers nearest target layer t by relative depth (a fixed contiguous window, e.g. 1.7B -> 8B:
+    target 0 -> 0..7, target 35 -> 20..27 for k=8)."""
+    c = (t + 0.5) * Ls / Lt - 0.5
+    return sorted(sorted(range(Ls), key=lambda s: (abs(s - c), s))[:min(k, Ls)])
+
+
+def fit_maps(st, R2, k, lam, H, lam_rel=0.0, select="r2"):
+    """Per target layer: pick top-k source layers by head-averaged R^2 (select="r2") or the depth-nearest window
+    (select="window"), and solve ridge.
 
     Returns list over target layers of dict(sel=[source layers], W=[k*ds, dt], b=[dt], r2=[H]).
     """
@@ -200,8 +208,11 @@ def fit_maps(st, R2, k, lam, H, lam_rel=0.0):
     maps = []
     dev = st.xx.device
     for t in range(st.Lt):
-        score = R2[t].mean(0)
-        sel = torch.topk(score, min(k, st.Ls)).indices.sort().values.tolist()
+        if select == "window":
+            sel = window_layers(t, st.Ls, st.Lt, k)
+        else:
+            score = R2[t].mean(0)
+            sel = torch.topk(score, min(k, st.Ls)).indices.sort().values.tolist()
         idx = torch.cat([torch.arange(s * ds, (s + 1) * ds, device=dev) for s in sel])
         cols = torch.arange(t * dt, (t + 1) * dt, device=dev)
         dt_ = _solve_dtype(dev, len(idx))
