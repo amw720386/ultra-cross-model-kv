@@ -8,6 +8,7 @@ h2h/ (verified-h2h snapshot), prompts/, prompts-dev/, maps_*.pt. Everything is w
 """
 import json
 import os
+import shlex
 import statistics
 import subprocess
 import sys
@@ -27,6 +28,9 @@ QCLIENT = f"python3 {ROOT}/h2h/bench/quality_chat_client.py"
 EXTRA = json.dumps({"chat_template_kwargs": {"enable_thinking": False}})
 P, D = f"{ROOT}/prompts", f"{ROOT}/prompts-dev"
 LENGTHS = (8192, 16384, 30720)
+DOCKER = os.environ.get("OT_MODE") == "docker"   # EC2: their runtime is the container ot-runtime (started at boot)
+OURS_IMAGE = "vllm/vllm-openai:v0.34.0"
+THEIR_IMAGE = "onetriangle/qwen3-1p7b-to-8b-prefill:2026-11-12"
 PUBLISHED = {"short_e2e_s": 0.1877, "long_e2e_s": 0.5465}
 SRC_URL = ("https://huggingface.co/turtler12/onetriangle-qwen3-1.7b-to-8b-prefill-docker (VALIDATION_REPORT.md, "
            "ACCEPTANCE_RESULTS.json) @ 8f05e5f1d1d30bc60be81a6e23ae743cc31f6f7c")
@@ -74,7 +78,20 @@ def their_env():
     return env
 
 
+class _Docker:
+    """Stand-in for a Popen: a named container."""
+    def __init__(self, name):
+        self.name, self.pid, self.returncode = name, None, None
+
+    def poll(self):
+        rc, out = sh(f"docker inspect -f '{{{{.State.Running}}}}' {self.name}")
+        return None if out.strip() == "true" else 1
+
+
 def start_theirs(tag):
+    if DOCKER:
+        hs = wait(THEIRS[0] + "/health", 3600)
+        return _Docker("ot-runtime"), hs
     log = open(f"{OUT}/theirs_server_{tag}.log", "ab")
     p = subprocess.Popen(["/usr/bin/tini", "--", "/usr/local/bin/runtime-entrypoint"], env=their_env(), stdout=log,
                          stderr=subprocess.STDOUT, start_new_session=True)
@@ -96,6 +113,20 @@ def ours_args(cfg, mapped=True):
 
 
 def start_ours(cfg, tag, mapped=True):
+    if DOCKER:
+        cfg = dict(cfg, maps=cfg["maps"].replace(ROOT, "/in")) if cfg.get("maps") else cfg
+        args = ours_args(cfg, mapped)[2:]  # the image's entrypoint is `vllm serve`
+        sh("docker rm -f ours")
+        cmd = ("docker run -d --name ours --gpus device=0 --ipc=host -v /data/hf:/cache/huggingface:ro "
+               f"-v {ROOT}/ours:/ours:ro -v {ROOT}:/in:ro -e PYTHONPATH=/ours -e HF_HUB_OFFLINE=1 "
+               f"-p 127.0.0.1:8001:8001 {OURS_IMAGE} " + " ".join(shlex.quote(a) for a in args))
+        json.dump({"docker_cmd": cmd, "args": args}, open(f"{OUT}/ours_cmd_{tag}.json", "w"), indent=1)
+        sh(cmd, log=f"{OUT}/ours_docker_{tag}.log", check=True)
+        p = _Docker("ours")
+        try:
+            return p, wait(OURS[0] + "/health", 1800, p)
+        finally:
+            sh(f"docker logs ours > {OUT}/ours_server_{tag}.log 2>&1")
     env = dict(os.environ, PYTHONPATH=f"{ROOT}/ours", HF_HUB_OFFLINE="1", CUDA_VISIBLE_DEVICES="0")
     args = ours_args(cfg, mapped)
     json.dump(args, open(f"{OUT}/ours_cmd_{tag}.json", "w"), indent=1)
@@ -105,6 +136,10 @@ def start_ours(cfg, tag, mapped=True):
 
 
 def stop(p):
+    if isinstance(p, _Docker):
+        if p.name == "ours":
+            sh(f"docker logs ours >> {OUT}/ours_server_last.log 2>&1; docker rm -f ours")
+        return  # their container stays as the boot driver left it; the box is terminated at the end
     if p is not None and p.poll() is None:
         os.killpg(p.pid, 15)
         try:
@@ -131,7 +166,35 @@ def quality(arm, files, out_dir):
     return json.load(open(q)) if os.path.exists(q) else {"error": txt[-1500:]}
 
 
+def phase_setup_docker():
+    ev = f"{OUT}/evidence"
+    os.makedirs(ev, exist_ok=True)
+    sh(f"cp /data/boot.status /data/ot_repo_head.txt /data/ot_sha256sums_check.txt /data/their_build.log /data/their_run.txt "
+       f"/var/log/ot-boot.log {ev}/ 2>/dev/null; docker images --digests --no-trunc > {ev}/docker_images.txt; "
+       f"docker inspect {THEIR_IMAGE} > {ev}/their_image_inspect.json; docker inspect {OURS_IMAGE} > {ev}/ours_image_inspect.json; "
+       f"docker inspect ot-runtime > {ev}/their_container_inspect.json; "
+       f"docker exec ot-runtime python3 -m pip freeze > {ev}/pip_freeze_theirs.txt 2>&1; "
+       f"docker exec ot-runtime sh -c 'cd /app/kvt && find . -type f | LC_ALL=C sort | xargs sha256sum' > {ev}/app_kvt_files.sha256; "
+       f"sha256sum {ev}/app_kvt_files.sha256 > {ev}/app_kvt_tree.sha256; "
+       f"docker exec ot-runtime sha256sum /usr/local/bin/runtime-entrypoint > {ev}/their_entrypoint.sha256; "
+       "docker exec ot-runtime dpkg-query -W -f " + shlex.quote("${Package}\t${Version}\n") +
+       f" ca-certificates curl gosu python3 python3-pip python3-venv tini > {ev}/apt_their_line.tsv 2>&1; "
+       f"docker run --rm --entrypoint pip {OURS_IMAGE} freeze > {ev}/pip_freeze_ours.txt 2>&1; "
+       f"cp {ROOT}/ours/SNAPSHOT_SHA {ev}/ours_sha.txt; cp {ROOT}/h2h/SNAPSHOT_SHA {ev}/h2h_sha.txt; "
+       f"(cd {ROOT} && sha256sum prompts/* prompts-dev/* calib/* maps_*.pt) > {ev}/inputs.sha256; "
+       f"lscpu > {ev}/lscpu.txt; grep -m1 'model name' /proc/cpuinfo > {ev}/cpu_model.txt; "
+       f"cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor 2>/dev/null | sort | uniq -c > {ev}/cpu_governor.txt; "
+       f"[ -s {ev}/cpu_governor.txt ] || echo 'no cpufreq governor exposed' > {ev}/cpu_governor.txt; "
+       f"nvidia-smi > {ev}/nvidia-smi.txt; nvidia-smi -q > {ev}/nvidia-smi-q.txt; "
+       f"curl -s -m 3 http://169.254.169.254/latest/meta-data/instance-type > {ev}/ec2_instance_type.txt; "
+       f"curl -s -m 3 http://169.254.169.254/latest/meta-data/placement/availability-zone > {ev}/ec2_az.txt")
+    sh(f"bash {ROOT}/h2h/bench/evidence.sh {ev}/start")
+    mark("SETUP_DONE")
+
+
 def phase_setup():
+    if DOCKER:
+        return phase_setup_docker()
     os.makedirs(f"{OUT}/evidence", exist_ok=True)
     ev = f"{OUT}/evidence"
     sh(f"cp {ROOT}/replay.sh {ROOT}/replay_map.tsv {ROOT}/replay.sh.meta.json {ROOT}/replay.log {ev}/")
