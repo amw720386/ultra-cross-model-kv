@@ -59,7 +59,7 @@ for tag, c, gate in LEVERS:
     steps.append({"do": "ours_down"})
 # diagnostic (kvx-pairs): mapped HellaSwag on our arm, labelled; not a config candidate
 steps += [{"do": "ours_up", "cfg": cfg(extra={"min_len": 1}), "tag": "diag_minlen1", "continue_on_error": True},
-          {"do": "quality", "arm": "ours", "files": [f"{D}/hellaswag*.jsonl"], "out_dir": "levers/diag_minlen1/dev_hellaswag",
+          {"do": "quality", "arm": "ours", "files": [f"{D}/hellaswag*.jsonl"], "out_dir": "levers/diag_minlen1_hellaswag_NOT_frozen_config",
            "continue_on_error": True},
           {"do": "ours_down"}]
 steps += screen("theirs", "theirs_tail", (8192, 16384)) + [{"do": "theirs_down"}]

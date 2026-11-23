@@ -217,6 +217,10 @@ def run(run_id: str, steps: list):
                     ent["result"] = dict(zip(("rc", "tail"), _sh(
                         f"python3 /opt/h2h/bench/quality_chat_client.py --base-url {url} --model {model} --out-dir {od} "
                         + " ".join(st["files"]), timeout=5400)))
+                elif st["do"] == "metrics":  # vLLM Prometheus histograms (engine TTFT/prefill/queue vs client TTFT)
+                    out = os.path.join(rd, st["out"])
+                    os.makedirs(os.path.dirname(out), exist_ok=True)
+                    ent["result"] = _sh(f"curl -s {OURS_URL}/metrics > {out}; grep -c '^vllm:' {out}")
                 elif st["do"] == "nvsmi":
                     ent["result"] = _sh("nvidia-smi --query-gpu=memory.used,memory.total --format=csv")
             except Exception as e:  # keep going to the next step only if asked; always record
