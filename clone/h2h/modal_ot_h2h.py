@@ -77,6 +77,11 @@ def check():
     out["ours_vllm_serve_help"] = _sh("/opt/ours/bin/vllm serve --help=kv-transfer-config 2>&1 | head -20; "
                                       "/opt/ours/bin/vllm serve --help 2>&1 | grep -i -E 'default-chat-template|served-model' | head")
     out["maps"] = _sh("ls -la /vol/runs/pairs-q17-q8/maps_k24.pt")
+    out["vllm_C"] = _sh("ls -la /opt/ours/lib/python3.12/site-packages/vllm/_C* /opt/ours/lib/python3.12/site-packages/vllm/*.so 2>&1 | head; "
+                        "/opt/ours/bin/python -c 'import importlib.util as u; print(u.find_spec(\"vllm._C\"))'; "
+                        "/opt/ours/bin/pip show vllm | head -3; /opt/ours/bin/pip download vllm==0.34.0 --no-deps -d /tmp/w -q 2>&1 | tail -1; ls /tmp/w")
+    out["vllm_serve_flags"] = _sh("/opt/ours/bin/vllm serve --help=all 2>/dev/null | grep -E -- '--(attention-backend|kv-transfer-config|"
+                                  "default-chat-template-kwargs|served-model-name|no-enable-prefix-caching|max-num-seqs)' | head")
     out["harness"] = _sh("ls /opt/h2h/bench /opt/h2h/tools && python3 /opt/h2h/bench/sse_ttft.py --help | head -5")
     return out
 
@@ -119,7 +124,7 @@ def _ours_cmd(cfg):
                                             **({"fp8": True} if cfg.get("fp8", 1) else {}), **cfg.get("extra", {}))}
     args = ["/opt/ours/bin/vllm", "serve", QWEN8, "--served-model-name", OURS_MODEL, "--port", "8001",
             "--max-model-len", "32768", "--gpu-memory-utilization", str(cfg.get("util", 0.45)), "--dtype", "bfloat16",
-            "--no-enable-prefix-caching", "--max-num-seqs", "4", "--attention-backend", "FLASH_ATTN"]
+            "--no-enable-prefix-caching", "--max-num-seqs", "4"]
     if cfg.get("mapped", True):
         args += ["--kv-transfer-config", json.dumps(kv)]
     return args
