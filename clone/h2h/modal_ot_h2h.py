@@ -39,7 +39,7 @@ if OT_REPO:
             "python3 -m venv /opt/ours",
             "/opt/ours/bin/pip install --no-cache-dir vllm==0.34.0",
             # OUR side only: a C compiler for vLLM's torch.compile/Inductor (their runtime never invokes one)
-            "apt-get update -qq && apt-get install -y -qq --no-install-recommends gcc g++ && rm -rf /var/lib/apt/lists/*",
+            "apt-get update -qq && apt-get install -y -qq --no-install-recommends gcc g++ python3-dev && rm -rf /var/lib/apt/lists/*",
         )
     )
     if OURS_SRC:

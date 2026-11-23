@@ -209,7 +209,7 @@ def phase_setup():
        f"sha256sum {ev}/app_kvt_files.sha256 > {ev}/app_kvt_tree.sha256; "
        f"sha256sum /usr/local/bin/runtime-entrypoint > {ev}/their_entrypoint.sha256; cat /etc/os-release > {ev}/os-release.txt")
     # OUR side only below (their freeze/apt/sha256 recorded above): a C compiler for vLLM's compile + our venv
-    sh("apt-get update -qq && apt-get install -y -qq --no-install-recommends gcc g++ > /dev/null", log=f"{ev}/ours_setup.log",
+    sh("apt-get update -qq && apt-get install -y -qq --no-install-recommends gcc g++ python3-dev > /dev/null", log=f"{ev}/ours_setup.log",
        check=True)
     sh("python3 -m venv /opt/ours && /opt/ours/bin/pip install -q --no-cache-dir vllm==0.34.0",
        log=f"{ev}/ours_setup.log", check=True)
