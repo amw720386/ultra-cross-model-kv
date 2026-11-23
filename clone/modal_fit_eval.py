@@ -136,7 +136,8 @@ def fit_eval_impl(src: str, tgt: str, n_calib: int = 500, L: int = 1024, stride:
              feat: str = "kv", calib_concat: int = 0, save_maps: int = 0, sinks: str = "",
              layer_scan: int = 0, native_first: str = "", kspecs: str = "", lowranks: str = "", fp8sim: int = 0,
              src_stride: int = 1, calib_src: str = "fineweb", one_pass_: int = -1, vweight: float = 0.0, yarn: float = 0.0,
-             maps_from: str = "", recompute: str = "", rd_rank: int = 128, rd_docs: int = 32, select: str = "r2"):
+             maps_from: str = "", recompute: str = "", rd_rank: int = 128, rd_docs: int = 32, select: str = "r2",
+             alt_lam: float = 0.0):
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer
     from kvx import core
@@ -201,6 +202,7 @@ def fit_eval_impl(src: str, tgt: str, n_calib: int = 500, L: int = 1024, stride:
                Ls=Ls, Lt=Lt, Hs=Hs, Ht=Ht, D=Dt, t_load=t_data)
     klist = [Ls if k == "all" else int(k) for k in ks.split(",")]
     maps = {}
+    alt_maps = {}
     r2sum = {}
     t1 = time.time()
     dsrc = S.config.hidden_size if feat == "hidden" else (2 * Hs * Ds if feat == "kvcat" else Hs * Ds)
@@ -270,6 +272,9 @@ def fit_eval_impl(src: str, tgt: str, n_calib: int = 500, L: int = 1024, stride:
         vk_list = [Ls if x == "all" else int(x) for x in vks.split(",")] if vks else []
         for k in sorted(set(klist + (vk_list if kind == "v" else []))):
             maps[(kind, k)] = core.fit_maps(st, R2, k, lam, Ht, lam_rel, select=select)
+            if alt_lam > 0:  # a second ridge strength from the same Gram stats (abs lambda), saved to <run_id>-lam<alt>/
+                alt_maps[(kind, k)] = core.fit_maps(st, R2, k, alt_lam, Ht, 0.0, select=select)
+                r2sum[kind][f"k{k}_alt"] = torch.stack([m["r2"] for m in alt_maps[(kind, k)]]).mean().item()
             r2sum[kind][f"k{k}"] = torch.stack([m["r2"] for m in maps[(kind, k)]]).mean().item()
             r2sum[kind][f"k{k}_src_layers_used"] = len({s_ for m in maps[(kind, k)] for s_ in m["sel"]})
         print(f"[{time.time()-t0:.0f}s] {kind} maps fit {r2sum[kind]}", flush=True)
@@ -295,6 +300,11 @@ def fit_eval_impl(src: str, tgt: str, n_calib: int = 500, L: int = 1024, stride:
             os.makedirs(os.path.dirname(path), exist_ok=True)
             torch.save({"k": cpu(maps[("k", kk)]), "v": cpu(maps[("v", kk)]), "src": src, "tgt": tgt, "k_layers": kk,
                         "feat": feat}, path)
+            if ("k", kk) in alt_maps:  # one maps file per alt dir, so --maps-from <run_id>-lam<alt> finds it
+                ad = f"/vol/runs/{run_id}-lam{alt_lam:g}/" + ("" if kk == sk else "maps_all/")
+                os.makedirs(ad, exist_ok=True)
+                torch.save({"k": cpu(alt_maps[("k", kk)]), "v": cpu(alt_maps[("v", kk)]), "src": src, "tgt": tgt,
+                            "k_layers": kk, "feat": feat, "lam": alt_lam, "select": select}, f"{ad}maps_k{kk}.pt")
         _commit()
     res["r2"] = r2sum
     kw = None
@@ -641,14 +651,15 @@ def main(src: str = "Qwen/Qwen3-1.7B", tgt: str = "Qwen/Qwen3-8B", n_calib: int 
          calib_l: int = 1024, calib_concat: int = 0, save_maps: int = 0, sinks: str = "",
          layer_scan: int = 0, native_first: str = "", kspecs: str = "", lowranks: str = "", fp8sim: int = 0,
          src_stride: int = 1, calib_src: str = "fineweb", one_pass: int = -1, vweight: float = 0.0, yarn: float = 0.0,
-         maps_from: str = "", recompute: str = "", rd_rank: int = 128, rd_docs: int = 32, select: str = "r2"):
+         maps_from: str = "", recompute: str = "", rd_rank: int = 128, rd_docs: int = 32, select: str = "r2",
+         alt_lam: float = 0.0):
     run_id = run_id or time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
     r = fit_eval.remote(src=src, tgt=tgt, n_calib=n_calib, ks=ks, n_eval=n_eval, modes=modes, run_id=run_id, lam=lam, P=prefix,
                          distill_steps=distill_steps, distill_k=distill_k, rank=rank, distill_lr=distill_lr, lam_rel=lam_rel, bench_n=bench_n,
                          tails=tails, tail_k=tail_k, bench_tail=bench_tail,
                          eval_L=eval_l, distill_docs=distill_docs, vks=vks,
                          mlp_epochs=mlp_epochs, mlp_kinds=mlp_kinds, feat=feat, L=calib_l, calib_concat=calib_concat, save_maps=save_maps, sinks=sinks,
-                         layer_scan=layer_scan, native_first=native_first, kspecs=kspecs, lowranks=lowranks, fp8sim=fp8sim, src_stride=src_stride, calib_src=calib_src, one_pass_=one_pass, vweight=vweight, yarn=yarn, maps_from=maps_from, recompute=recompute, rd_rank=rd_rank, rd_docs=rd_docs, select=select)
+                         layer_scan=layer_scan, native_first=native_first, kspecs=kspecs, lowranks=lowranks, fp8sim=fp8sim, src_stride=src_stride, calib_src=calib_src, one_pass_=one_pass, vweight=vweight, yarn=yarn, maps_from=maps_from, recompute=recompute, rd_rank=rd_rank, rd_docs=rd_docs, select=select, alt_lam=alt_lam)
     os.makedirs(f"out/{run_id}", exist_ok=True)
     json.dump(r, open(f"out/{run_id}/result.json", "w"), indent=1)
     print(json.dumps(r, indent=1))
