@@ -479,7 +479,7 @@ def phase_abba(cfg, calib, rounds=4):
                                    "files; recorded as screens only, never used for a pick")},
                 "resident": True,
                 "arms": [
-                    {"name": "theirs", "artifact": "OneTriangle public Docker release @8f05e5f1 (Dockerfile replayed), kvt 3efa8e6e",
+                    {"name": "theirs", "artifact": ("OneTriangle public Docker release @8f05e5f1, " + ("real docker build of their Dockerfile (image digest in evidence/docker_images.txt)" if DOCKER else "Dockerfile replayed") + ", kvt 3efa8e6e"),
                      "port": 8000, "served_model": THEIRS[1], "start": "true", "stop": "",
                      "health": THEIRS[0] + "/health", "pids_cmd": t_pids,
                      "memory": "as packaged: their runtime has no GPU-memory flag (see evidence/their_startup.log)",
