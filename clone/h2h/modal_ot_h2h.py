@@ -33,6 +33,9 @@ if OT_REPO:
         modal.Image.from_dockerfile(os.path.join(OT_REPO, "Dockerfile"), context_dir=OT_REPO)
         .entrypoint([])  # Modal process wrapper only: their runtime-entrypoint is started as a subprocess below
         .run_commands(
+            # Modal needs a `python` on PATH to detect the image's Python; their base has only python3. A symlink to the
+            # same /usr/bin/python3 adds a name and changes no interpreter their entrypoint (python3 -m kvt) uses.
+            "[ -e /usr/bin/python ] || ln -s /usr/bin/python3 /usr/bin/python",
             "python3 -m venv /opt/ours",
             "/opt/ours/bin/pip install --no-cache-dir vllm==0.34.0",
         )
@@ -160,7 +163,8 @@ def run(run_id: str, steps: list):
            "notes": ["their image = their Dockerfile @ pinned sha, ENTRYPOINT cleared: Modal process wrapper only; "
                      "their runtime-entrypoint started unchanged as a subprocess",
                      "their weights: documented LOCAL_FILES_ONLY=1 path, pinned snapshots mounted read-only at "
-                     "/cache/huggingface", "their nginx API-key proxy not used (deployment wrapper, not compute)"]}
+                     "/cache/huggingface", "their nginx API-key proxy not used (deployment wrapper, not compute)",
+                     "image adds /usr/bin/python -> /usr/bin/python3 (Modal Python detection); their python3 unchanged"]}
 
     def save():
         json.dump(log, open(os.path.join(rd, "run_log.json"), "w"), indent=1)
