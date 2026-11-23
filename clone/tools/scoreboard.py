@@ -93,7 +93,7 @@ def status(row, ours):
     if o.get("quality_ok") is False:  # timing measured, but the same config failed its quality check: not a win
         return "hold(quality)"
     g = o.get("gpu_measured")
-    if g and not o.get("rig_exempt") and "H100" in str(row.get("their_rig", "")) and "H100" not in g:
+    if g and not o.get("rig_exempt") and "H100" in str(row.get("their_rig", "")) and ("H100" not in g or "H200" in g or "MIXED" in g.upper()):
         return "hold(rig)"  # measured on another GPU class (e.g. Modal upgraded an H100 request to H200): rerun on H100
     if o.get("value") is None:
         return "open"
