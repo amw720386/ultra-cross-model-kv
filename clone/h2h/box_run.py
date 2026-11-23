@@ -170,6 +170,35 @@ def quality(arm, files, out_dir):
     return json.load(open(q)) if os.path.exists(q) else {"error": txt[-1500:]}
 
 
+def weights_evidence(tag, pids_cmd):
+    """h2h review #4: same target weights on both arms. Every safetensors file of the pinned 8B / 1.7B snapshots with
+    its blob name (= the LFS sha256) and its recomputed sha256, plus the safetensors this arm's processes have
+    memory-mapped right now (/proc/<host pid>/maps): which files each server actually serves from."""
+    ev = f"{OUT}/evidence"
+    hf = "/data/hf/hub" if DOCKER else HF
+    if not os.path.exists(f"{ev}/weights_snapshots.tsv"):
+        rows = []
+        for snap in (QWEN8, QWEN17):
+            d = snap.replace(HF, hf)
+            for fn in sorted(os.listdir(d)) if os.path.isdir(d) else []:
+                if fn.endswith(".safetensors"):
+                    real = os.path.realpath(os.path.join(d, fn))
+                    _, h = sh(f"sha256sum {shlex.quote(real)} | cut -d' ' -f1")
+                    rows.append(f"{snap}\t{fn}\t{os.path.basename(real)}\t{h.strip()}\t{'MATCH' if h.strip() == os.path.basename(real) else 'MISMATCH'}")
+        open(f"{ev}/weights_snapshots.tsv", "w").write("snapshot\tfile\tblob\tsha256\tblob_check\n" + "\n".join(rows) + "\n")
+    _, pids = sh(pids_cmd)
+    out = []
+    for pid in pids.split():
+        try:
+            for line in open(f"/proc/{pid}/maps"):
+                if ".safetensors" in line or line.rstrip().endswith(".pt"):
+                    out.append(f"{pid}\t{line.split()[-1]}")
+        except OSError:
+            pass
+    open(f"{ev}/weights_mapped_{tag}.tsv", "w").write("\n".join(sorted(set(out))) + "\n")
+    return len(set(o.split("\t")[1] for o in out))
+
+
 def phase_setup_docker():
     ev = f"{OUT}/evidence"
     os.makedirs(ev, exist_ok=True)
@@ -336,19 +365,42 @@ def phase_abba(cfg, calib, rounds=4):
                 vals.append(r["median_e2e_s"])
         mark("COResident_CALIB", {"calib2_e2e_values": vals, "median": statistics.median(vals) if vals else None,
                                   "theirs_alone_median": (calib.get("calib2_e2e") or {}).get("median")})
+    co_med = statistics.median(vals) if calib_prompt and vals else None
     t_pids = "docker top ot-runtime -eo pid | tail -n +2" if DOCKER else f"pgrep -g $(ps -o pgid= -p $(cat {OUT}/theirs.pid))"
     o_pids = "docker top ours -eo pid | tail -n +2" if DOCKER else f"pgrep -g $(ps -o pgid= -p $(cat {OUT}/ours.pid))"
+    mark("WEIGHTS_EVIDENCE", {"theirs_mapped_files": weights_evidence("theirs", t_pids),
+                              "ours_mapped_files": weights_evidence("ours", o_pids)})
+    # h2h review #1/#2: calibration as numbers in the units verdict.py compares (e2e s, non-streaming retrieval)
+    long_alone = (calib.get("calib2_e2e") or calib["long_e2e"])["median"]
+    probe = lambda c: (lambda r: r[1].strip() if r[0] == 0 else "")(sh(c + " 2>/dev/null"))
+    machine = " | ".join(x for x in (probe(f"cat {OUT}/evidence/ec2_instance_type.txt"),
+                                     probe("nvidia-smi --query-gpu=name --format=csv,noheader | head -1"),
+                                     probe("grep -m1 'model name' /proc/cpuinfo | cut -d: -f2")) if x)
+    maps_sha = cfg.get("maps_sha256") or sh(f"sha256sum {shlex.quote(cfg['maps'])} | cut -d' ' -f1")[1].strip()
+    calibration = {
+        "published": PUBLISHED["long_e2e_s"], "theirs_measured": long_alone,
+        "metric": ("e2e s, non-streaming, 13,837-token retrieval (" +
+                   (f"calib variant {calib_prompt}, which their model retrieves from" if calib.get("calib2_e2e") else
+                    "the published prompt") + "), their side ALONE on the GPU, max_tokens 32"),
+        "source_url": SRC_URL, "machine": machine,
+        "short": {"published": PUBLISHED["short_e2e_s"], "measured": calib["short_e2e"]["median"],
+                  "metric": "e2e s, non-streaming, short completion"},
+        "coresident": {"theirs_measured": co_med, "theirs_alone": long_alone,
+                       "diff_pct": (100 * (co_med / long_alone - 1)) if co_med and long_alone else None,
+                       "flag_over_5pct": bool(co_med and long_alone and abs(co_med / long_alone - 1) > 0.05),
+                       "why": "their side re-timed with ours resident: memory/CPU starvation check (h2h lead)"},
+        "ttft": "their package publishes no TTFT; TTFT is measured on this box in the ABBA rounds"}
     for L in ABBA_LENGTHS:
         rd = f"{OUT}/abba_{L}"
         plan = {"run_id": f"{RUN_ID}-{L}", "metric": {"tool": "json", "key": "median_ttft_s", "direction": "lower", "unit": "s"},
                 "client_cmd": (f"{CLIENT} --base-url http://127.0.0.1:{{port}} --model {{served_model}} --prompts {{prompts_file}} "
                                f"--max-tokens 16 --out {{round_dir}}/bench.json --warmup 1 --extra-json '{EXTRA}'"),
                 "prompts_file": f"{P}/needles_{L}.jsonl", "model_dir": QWEN8, "rounds": rounds,
-                "calibration": {"no_published": True,
-                                "why": ("their package publishes no TTFT; e2e calibration on this box: short "
-                                        f"{calib['short_e2e']['median']} s vs published 0.1877, 13,837-token retrieval "
-                                        f"{(calib.get('calib2_e2e') or calib['long_e2e'])['median']} s vs published 0.5465 "
-                                        f"({SRC_URL}); see calib/summary.json")},
+                "calibration": calibration,
+                "quality_note": ("quality runs in the LAST ABBA round with BOTH servers resident (co-resident, as intended); "
+                                 "quality.json per arm = needles at this length only (the per-length map gate); HellaSwag-100 "
+                                 "in {arm_dir}/hellaswag is informational: ours serves prompts < 512 tokens natively by config "
+                                 "(min_len 512), so it compares THEIR mapped path with OUR native short-prompt path"),
                 "frozen_config": cfg, "frozen_config_sha256": json.load(open(f"{OUT}/frozen_config.json"))["pick_sha256"],
                 "resident": True,
                 "arms": [
@@ -356,12 +408,17 @@ def phase_abba(cfg, calib, rounds=4):
                      "port": 8000, "served_model": THEIRS[1], "start": "true", "stop": "",
                      "health": THEIRS[0] + "/health", "pids_cmd": t_pids,
                      "memory": "as packaged: their runtime has no GPU-memory flag (see evidence/their_startup.log)",
-                     "quality": f"{QCLIENT} --base-url {THEIRS[0]} --model {THEIRS[1]} --out-dir {{arm_dir}} {P}/needles_{L}.jsonl {P}/hellaswag100.jsonl"},
-                    {"name": "ours", "artifact": f"ultra-cross-model-kv @{open(ROOT + '/ours/SNAPSHOT_SHA').read().strip()} vLLM 0.34 + CrossModelConnector",
+                     "quality": (f"{QCLIENT} --base-url {THEIRS[0]} --model {THEIRS[1]} --out-dir {{arm_dir}} {P}/needles_{L}.jsonl; "
+                                 f"{QCLIENT} --base-url {THEIRS[0]} --model {THEIRS[1]} --out-dir {{arm_dir}}/hellaswag {P}/hellaswag100.jsonl")},
+                    {"name": "ours", "artifact": (f"ultra-cross-model-kv @{open(ROOT + '/ours/SNAPSHOT_SHA').read().strip()} vLLM 0.34 + "
+                                              f"CrossModelConnector; target {QWEN8.rsplit('/', 3)[1]}@{QWEN8.rsplit('/', 1)[1][:8]}; "
+                                              f"source {QWEN17.rsplit('/', 3)[1]}@{QWEN17.rsplit('/', 1)[1][:8]}; maps {os.path.basename(cfg['maps'])} "
+                                              f"sha256 {maps_sha}; per-file weight shas in evidence/weights_snapshots.tsv"),
                      "port": 8001, "served_model": OURS[1], "start": "true", "stop": "",
                      "health": OURS[0] + "/health", "pids_cmd": o_pids,
                      "memory": f"--gpu-memory-utilization {cfg.get('util', 0.5)}",
-                     "quality": f"{QCLIENT} --base-url {OURS[0]} --model {OURS[1]} --out-dir {{arm_dir}} {P}/needles_{L}.jsonl {P}/hellaswag100.jsonl"}]}
+                     "quality": (f"{QCLIENT} --base-url {OURS[0]} --model {OURS[1]} --out-dir {{arm_dir}} {P}/needles_{L}.jsonl; "
+                                 f"{QCLIENT} --base-url {OURS[0]} --model {OURS[1]} --out-dir {{arm_dir}}/hellaswag {P}/hellaswag100.jsonl")}]}
         os.makedirs(rd, exist_ok=True)
         json.dump(plan, open(f"{rd}.plan.json", "w"), indent=1)
         rc, txt = sh(f"python3 {ROOT}/h2h/bench/run_ab.py {rd}.plan.json {rd}", log=f"{OUT}/abba.log", timeout=7200)
