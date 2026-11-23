@@ -115,11 +115,11 @@ def ours_args(cfg, mapped=True):
 def start_ours(cfg, tag, mapped=True):
     if DOCKER:
         cfg = dict(cfg, maps=cfg["maps"].replace(ROOT, "/in")) if cfg.get("maps") else cfg
-        args = ours_args(cfg, mapped)[2:]  # the image's entrypoint is `vllm serve`
+        args = ["serve"] + ours_args(cfg, mapped)[2:]  # run with --entrypoint vllm: independent of the image default
         sh("docker rm -f ours")
         cmd = ("docker run -d --name ours --gpus device=0 --ipc=host -v /data/hf:/cache/huggingface:ro "
                f"-v {ROOT}/ours:/ours:ro -v {ROOT}:/in:ro -e PYTHONPATH=/ours -e HF_HUB_OFFLINE=1 "
-               f"-p 127.0.0.1:8001:8001 {OURS_IMAGE} " + " ".join(shlex.quote(a) for a in args))
+               f"-p 127.0.0.1:8001:8001 --entrypoint vllm {OURS_IMAGE} " + " ".join(shlex.quote(a) for a in args))
         json.dump({"docker_cmd": cmd, "args": args}, open(f"{OUT}/ours_cmd_{tag}.json", "w"), indent=1)
         sh(cmd, log=f"{OUT}/ours_docker_{tag}.log", check=True)
         p = _Docker("ours")
