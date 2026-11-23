@@ -28,6 +28,8 @@ QCLIENT = f"python3 {ROOT}/h2h/bench/quality_chat_client.py"
 EXTRA = json.dumps({"chat_template_kwargs": {"enable_thinking": False}})
 P, D = f"{ROOT}/prompts", f"{ROOT}/prompts-dev"
 LENGTHS = (8192, 16384, 30720)
+# lead: verdict-critical order (the length most likely to win first); native context runs last
+ABBA_LENGTHS = tuple(int(x) for x in os.environ.get("ABBA_LENGTHS", ",".join(map(str, LENGTHS))).split(","))
 DOCKER = os.environ.get("OT_MODE") == "docker"   # EC2: their runtime is the container ot-runtime (started at boot)
 OURS_IMAGE = "vllm/vllm-openai:v0.34.0"
 THEIR_IMAGE = "onetriangle/qwen3-1p7b-to-8b-prefill:2026-11-12"
@@ -335,7 +337,7 @@ def phase_abba(cfg, calib, rounds=4):
                                   "theirs_alone_median": (calib.get("calib2_e2e") or {}).get("median")})
     t_pids = "docker top ot-runtime -eo pid | tail -n +2" if DOCKER else f"pgrep -g $(ps -o pgid= -p $(cat {OUT}/theirs.pid))"
     o_pids = "docker top ours -eo pid | tail -n +2" if DOCKER else f"pgrep -g $(ps -o pgid= -p $(cat {OUT}/ours.pid))"
-    for L in LENGTHS:
+    for L in ABBA_LENGTHS:
         rd = f"{OUT}/abba_{L}"
         plan = {"run_id": f"{RUN_ID}-{L}", "metric": {"tool": "json", "key": "median_ttft_s", "direction": "lower", "unit": "s"},
                 "client_cmd": (f"{CLIENT} --base-url http://127.0.0.1:{{port}} --model {{served_model}} --prompts {{prompts_file}} "
@@ -391,8 +393,14 @@ def main():
             sh(f"bash {ROOT}/h2h/bench/evidence.sh {OUT}/evidence/end")
             mark("ALL_DONE")
             return
-        frozen = phase_devpick(tp, [int(x) for x in os.environ.get("TAILS", "1,64,256").split(",")],
-                               os.environ.get("MAPS", f"{ROOT}/maps_k24.pt"))
+        if os.environ.get("FROZEN_CONFIG"):
+            # lead (on-demand box): config frozen on the Modal dev pick before launch; no paid dev pick on the box
+            frozen = json.load(open(os.environ["FROZEN_CONFIG"]))
+            json.dump(frozen, open(f"{OUT}/frozen_config.json", "w"), indent=1)
+            mark("FROZEN", {"pick": frozen["pick"], "sha": frozen["pick_sha256"], "from": os.environ["FROZEN_CONFIG"]})
+        else:
+            frozen = phase_devpick(tp, [int(x) for x in os.environ.get("TAILS", "1,64,256").split(",")],
+                                   os.environ.get("MAPS", f"{ROOT}/maps_k24.pt"))
         off, loff = calib.get("short_off_pct"), calib.get("long_off_pct")
         # lead: ABBA starts on its own only if BOTH calibrations are within 5% (short e2e vs 0.1877 s AND long e2e on
         # the retrieving calib variant vs 0.5465 s); otherwise wait for the lead's go with the numbers sent
