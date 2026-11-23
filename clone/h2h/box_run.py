@@ -1,0 +1,315 @@
+"""OneTriangle h2h on a bare-metal (non-gVisor) H100 box: their image replayed from their Dockerfile, our stack in a
+separate venv, both servers resident on GPU0, ABBA via the shared harness (decision ot-h2h-vast).
+
+  python3 box_run.py setup | calib | devpick | abba | native      (one driver runs them in order; see box_driver.sh)
+
+Layout on the box (/root): ot-repo/ (their repo @8f05e5f1), replay.sh + replay_map.tsv, ours/ (our clone snapshot),
+h2h/ (verified-h2h snapshot), prompts/, prompts-dev/, maps_*.pt. Everything is written under OUT=/root/out/<run_id>/.
+"""
+import json
+import os
+import statistics
+import subprocess
+import sys
+import time
+import urllib.request
+
+ROOT = "/root"
+RUN_ID = os.environ.get("RUN_ID", "ot-h2h")
+OUT = f"{ROOT}/out/{RUN_ID}"
+HF = "/cache/huggingface/hub"
+QWEN8 = f"{HF}/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6066d109eabc6255188de91218"
+QWEN17 = f"{HF}/models--Qwen--Qwen3-1.7B/snapshots/70d244cc86ccca08cf5af4e1e306ecf908b1ad5e"
+THEIRS = ("http://127.0.0.1:8000", "kvt-qwen3-1.7b-to-8b")
+OURS = ("http://127.0.0.1:8001", "qwen3-8b-kvx")
+CLIENT = f"python3 {ROOT}/h2h/bench/sse_ttft.py"
+QCLIENT = f"python3 {ROOT}/h2h/bench/quality_chat_client.py"
+EXTRA = json.dumps({"chat_template_kwargs": {"enable_thinking": False}})
+P, D = f"{ROOT}/prompts", f"{ROOT}/prompts-dev"
+LENGTHS = (8192, 16384, 30720)
+PUBLISHED = {"short_e2e_s": 0.1877, "long_e2e_s": 0.5465}
+SRC_URL = ("https://huggingface.co/turtler12/onetriangle-qwen3-1.7b-to-8b-prefill-docker (VALIDATION_REPORT.md, "
+           "ACCEPTANCE_RESULTS.json) @ 8f05e5f1d1d30bc60be81a6e23ae743cc31f6f7c")
+
+
+def sh(cmd, log=None, timeout=None, check=False):
+    p = subprocess.run(["bash", "-o", "pipefail", "-c", cmd], capture_output=True, text=True, timeout=timeout)
+    if log:
+        with open(log, "a") as f:
+            f.write(f"\n### {time.strftime('%FT%TZ', time.gmtime())} $ {cmd}\n{p.stdout}{p.stderr}")
+    if check and p.returncode:
+        raise RuntimeError(f"rc={p.returncode}: {cmd}\n{(p.stdout + p.stderr)[-2000:]}")
+    return p.returncode, p.stdout + p.stderr
+
+
+def mark(name, data=None):
+    os.makedirs(OUT, exist_ok=True)
+    with open(f"{OUT}/progress.log", "a") as f:
+        f.write(f"{time.strftime('%FT%TZ', time.gmtime())} {name} {json.dumps(data) if data is not None else ''}\n")
+
+
+def wait(url, timeout, proc=None):
+    t0 = time.time()
+    while time.time() - t0 < timeout:
+        if proc is not None and proc.poll() is not None:
+            raise RuntimeError(f"server exited rc={proc.returncode} before {url} was healthy")
+        try:
+            with urllib.request.urlopen(url, timeout=5) as r:
+                if r.status == 200:
+                    return round(time.time() - t0, 1)
+        except Exception:
+            pass
+        time.sleep(3)
+    raise RuntimeError(f"{url} not healthy after {timeout}s")
+
+
+def their_env():
+    env = dict(os.environ)
+    for ln in open("/etc/ot-replay.env"):  # their Dockerfile ENV/ARG, as replayed
+        if "=" in ln:
+            k, v = ln.rstrip("\n").split("=", 1)
+            env[k] = v
+    env.update(LOCAL_FILES_ONLY=os.environ.get("OT_LOCAL_FILES_ONLY", "0"), CUDA_VISIBLE_DEVICES="0")  # compose values
+    env.pop("PYTHONPATH", None)
+    return env
+
+
+def start_theirs(tag):
+    log = open(f"{OUT}/theirs_server_{tag}.log", "ab")
+    p = subprocess.Popen(["/usr/bin/tini", "--", "/usr/local/bin/runtime-entrypoint"], env=their_env(), stdout=log,
+                         stderr=subprocess.STDOUT, start_new_session=True)
+    open(f"{OUT}/theirs.pid", "w").write(str(p.pid))
+    return p, wait(THEIRS[0] + "/health", 3600, p)
+
+
+def ours_args(cfg, mapped=True):
+    kv = {"kv_connector": "CrossModelConnector", "kv_connector_module_path": "kvx.vllm_connector", "kv_role": "kv_both",
+          "kv_connector_extra_config": dict({"src": QWEN17, "maps": cfg["maps"], "tail": cfg["tail"], "min_len": 512,
+                                             "restore": "rms", "src_sdpa": cfg.get("src_sdpa", "vllm_fa"), "src_tp": 1},
+                                            **({"fp8": True} if cfg.get("fp8", 1) else {}), **cfg.get("extra", {}))}
+    args = ["/opt/ours/bin/vllm", "serve", QWEN8, "--served-model-name", OURS[1], "--port", "8001",
+            "--max-model-len", "32768", "--gpu-memory-utilization", str(cfg.get("util", 0.5)), "--dtype", "bfloat16",
+            "--no-enable-prefix-caching", "--max-num-seqs", "4"]
+    if mapped:
+        args += ["--kv-transfer-config", json.dumps(kv)]
+    return args
+
+
+def start_ours(cfg, tag, mapped=True):
+    env = dict(os.environ, PYTHONPATH=f"{ROOT}/ours", HF_HUB_OFFLINE="1", CUDA_VISIBLE_DEVICES="0")
+    args = ours_args(cfg, mapped)
+    json.dump(args, open(f"{OUT}/ours_cmd_{tag}.json", "w"), indent=1)
+    log = open(f"{OUT}/ours_server_{tag}.log", "ab")
+    p = subprocess.Popen(args, env=env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+    return p, wait(OURS[0] + "/health", 1800, p)
+
+
+def stop(p):
+    if p is not None and p.poll() is None:
+        os.killpg(p.pid, 15)
+        try:
+            p.wait(90)
+        except subprocess.TimeoutExpired:
+            os.killpg(p.pid, 9)
+
+
+def client(arm, prompts, out, max_tokens=16, stream=True, warmup=1):
+    url, model = THEIRS if arm == "theirs" else OURS
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    cmd = (f"{CLIENT} --base-url {url} --model {model} --prompts {prompts} --max-tokens {max_tokens} --out {out} "
+           f"--warmup {warmup} --extra-json '{EXTRA}'" + ("" if stream else " --no-stream"))
+    rc, txt = sh(cmd, log=f"{OUT}/clients.log", timeout=3600)
+    return json.load(open(out)) if rc == 0 and os.path.exists(out) else {"error": txt[-1500:]}
+
+
+def quality(arm, files, out_dir):
+    url, model = THEIRS if arm == "theirs" else OURS
+    os.makedirs(out_dir, exist_ok=True)
+    rc, txt = sh(f"{QCLIENT} --base-url {url} --model {model} --out-dir {out_dir} {files}", log=f"{OUT}/clients.log",
+                 timeout=5400)
+    q = f"{out_dir}/quality.json"
+    return json.load(open(q)) if os.path.exists(q) else {"error": txt[-1500:]}
+
+
+def phase_setup():
+    os.makedirs(f"{OUT}/evidence", exist_ok=True)
+    ev = f"{OUT}/evidence"
+    sh(f"cp {ROOT}/replay.sh {ROOT}/replay_map.tsv {ROOT}/replay.sh.meta.json {ROOT}/replay.log {ev}/")
+    rc, txt = sh(f"tail -1 {ROOT}/replay.log")  # box_driver.sh ran their replayed Dockerfile before this python started
+    if "REPLAY_DONE" not in txt:
+        raise RuntimeError("their Dockerfile replay did not complete: see replay.log")
+    sh(f"python3 -m pip freeze > {ev}/pip_freeze_theirs.txt; "
+       "dpkg-query -W -f='${Package}\\t${Version}\\n' ca-certificates curl gosu python3 python3-pip python3-venv tini "
+       f"> {ev}/apt_their_line.tsv; dpkg-query -W -f='${{Package}}\\t${{Version}}\\n' > {ev}/dpkg_all_after_replay.tsv; "
+       f"(cd /app/kvt && find . -type f | LC_ALL=C sort | xargs sha256sum) > {ev}/app_kvt_files.sha256; "
+       f"sha256sum {ev}/app_kvt_files.sha256 > {ev}/app_kvt_tree.sha256; "
+       f"sha256sum /usr/local/bin/runtime-entrypoint > {ev}/their_entrypoint.sha256; cat /etc/os-release > {ev}/os-release.txt")
+    # OUR side only below (their freeze/apt/sha256 recorded above): a C compiler for vLLM's compile + our venv
+    sh("apt-get update -qq && apt-get install -y -qq --no-install-recommends gcc g++ > /dev/null", log=f"{ev}/ours_setup.log",
+       check=True)
+    sh("python3 -m venv /opt/ours && /opt/ours/bin/pip install -q --no-cache-dir vllm==0.34.0",
+       log=f"{ev}/ours_setup.log", check=True)
+    sh(f"/opt/ours/bin/pip freeze > {ev}/pip_freeze_ours.txt; cp {ROOT}/ours/SNAPSHOT_SHA {ev}/ours_sha.txt; "
+       f"cp {ROOT}/h2h/SNAPSHOT_SHA {ev}/h2h_sha.txt; (cd {ROOT} && sha256sum prompts/* prompts-dev/* calib/* maps_*.pt) > {ev}/inputs.sha256")
+    sh(f"bash {ROOT}/h2h/bench/evidence.sh {ev}/start")
+    mark("SETUP_DONE")
+
+
+def phase_calib():
+    p, hs = start_theirs("calib")
+    mark("THEIRS_UP", {"health_s": hs})
+    res = {"health_s": hs}
+    for kind, prompts, stream in (("short_e2e", f"{P}/short_france.jsonl", False),
+                                  ("long_e2e", f"{P}/long_retrieval_13837.jsonl", False),
+                                  ("long_sse", f"{P}/long_retrieval_13837.jsonl", True)) + \
+            ():
+        vals = []
+        for k in range(5):
+            r = client("theirs", prompts, f"{OUT}/calib/theirs/{kind}_{k}.json", max_tokens=32, stream=stream,
+                       warmup=1 if k == 0 else 0)
+            key = "median_ttft_s" if kind.endswith("sse") else "median_e2e_s"
+            if "error" not in r:
+                vals.append(r[key])
+                res.setdefault(kind + "_text", r["records"][0]["text"][:120])
+        res[kind] = {"values": vals, "median": statistics.median(vals) if vals else None}
+    # calibration-only retrieval prompts (kvx-pairs, /vol/h2h/calib; never in the gate/ABBA). Rule fixed BEFORE any
+    # output: probe all four once; calibrate e2e on the LOWEST-depth variant their model retrieves (AMBER-7421 in reply)
+    probe = {}
+    for dep in ("d075", "d090", "d097", "d100"):
+        f = f"{ROOT}/calib/retrieval13837_{dep}.jsonl"
+        r = client("theirs", f, f"{OUT}/calib/theirs/probe_{dep}.json", max_tokens=32, stream=False, warmup=0)
+        txt = r["records"][0]["text"] if "records" in r else ""
+        probe[dep] = {"retrieved": "AMBER-7421" in txt, "text": txt[:120], "e2e_s": r.get("median_e2e_s")}
+    res["retrieval_vs_depth"] = probe
+    chosen = next((d for d in ("d075", "d090", "d097", "d100") if probe[d]["retrieved"]), None)
+    res["calib_prompt"] = chosen
+    if chosen:
+        f = f"{ROOT}/calib/retrieval13837_{chosen}.jsonl"
+        for kind, stream in (("calib2_e2e", False), ("calib2_sse", True)):
+            vals = []
+            for k in range(5):
+                r = client("theirs", f, f"{OUT}/calib/theirs/{kind}_{k}.json", max_tokens=32, stream=stream,
+                           warmup=1 if k == 0 else 0)
+                if "error" not in r:
+                    vals.append(r["median_ttft_s" if stream else "median_e2e_s"])
+                    res.setdefault(kind + "_text", r["records"][0]["text"][:120])
+            res[kind] = {"values": vals, "median": statistics.median(vals) if vals else None}
+        if res["calib2_e2e"]["median"]:
+            res["long_off_pct"] = 100 * (res["calib2_e2e"]["median"] / PUBLISHED["long_e2e_s"] - 1)
+    sh(f"nvidia-smi --query-gpu=memory.used --format=csv > {OUT}/calib/theirs_mem.txt")
+    short = res["short_e2e"]["median"]
+    res["short_off_pct"] = 100 * (short / PUBLISHED["short_e2e_s"] - 1) if short else None
+    json.dump(res, open(f"{OUT}/calib/summary.json", "w"), indent=1)
+    mark("CALIB_DONE", {k: (v["median"] if isinstance(v, dict) else v) for k, v in res.items()})
+    return p, res
+
+
+def phase_devpick(theirs_proc, tails, maps):
+    devfiles = f"{D}/needles_*.jsonl {D}/hellaswag*.jsonl"
+    qt = quality("theirs", devfiles, f"{OUT}/dev/theirs")
+    mark("DEV_THEIRS", {k: qt.get(k) for k in ("correct", "n")})
+    import math
+    pick = None
+    tried = []
+    for t in tails:
+        cfg = {"maps": maps, "tail": t, "util": 0.5, "fp8": 1, "src_sdpa": "vllm_fa"}
+        try:
+            p, hs = start_ours(cfg, f"dev_tail{t}")
+        except Exception as e:
+            tried.append({"tail": t, "error": repr(e)[:500]})
+            mark("DEV_OURS_FAIL", {"tail": t})
+            continue
+        qo = quality("ours", devfiles, f"{OUT}/dev/ours_tail{t}")
+        stop(p)
+        ok = None
+        if "correct" in qo and "correct" in qt:
+            pt, po = qt["correct"] / qt["n"], qo["correct"] / qo["n"]
+            ci = 1.96 * math.sqrt(pt * (1 - pt) / qt["n"] + po * (1 - po) / qo["n"])
+            ok = po >= pt - ci
+        tried.append({"tail": t, "health_s": hs, "correct": qo.get("correct"), "n": qo.get("n"), "pass": ok})
+        mark("DEV_OURS", tried[-1])
+        if ok and pick is None:
+            pick = cfg
+            break  # smallest passing tail (tails are tried smallest first)
+    frozen = {"pick": pick, "tried": tried, "theirs_dev": {k: qt.get(k) for k in ("correct", "n")},
+              "rule": "smallest tail with dev quality >= theirs - CI (h2h-tail-frozen), dev files only"}
+    s = json.dumps(pick, sort_keys=True)
+    import hashlib
+    frozen["pick_sha256"] = hashlib.sha256(s.encode()).hexdigest()
+    json.dump(frozen, open(f"{OUT}/frozen_config.json", "w"), indent=1)
+    mark("FROZEN", {"pick": pick, "sha": frozen["pick_sha256"]})
+    return frozen
+
+
+def phase_abba(cfg, calib, rounds=4):
+    ours, hs = start_ours(cfg, "abba")
+    mark("OURS_UP_ABBA", {"health_s": hs})
+    sh(f"nvidia-smi --query-gpu=memory.used --format=csv > {OUT}/both_resident_mem.txt")
+    for L in LENGTHS:
+        rd = f"{OUT}/abba_{L}"
+        plan = {"run_id": f"{RUN_ID}-{L}", "metric": {"tool": "json", "key": "median_ttft_s", "direction": "lower", "unit": "s"},
+                "client_cmd": (f"{CLIENT} --base-url http://127.0.0.1:{{port}} --model {{served_model}} --prompts {{prompts_file}} "
+                               f"--max-tokens 16 --out {{round_dir}}/bench.json --warmup 1 --extra-json '{EXTRA}'"),
+                "prompts_file": f"{P}/needles_{L}.jsonl", "model_dir": QWEN8, "rounds": rounds,
+                "calibration": {"no_published": True,
+                                "why": ("their package publishes no TTFT; e2e calibration on this box: short "
+                                        f"{calib['short_e2e']['median']} s vs published 0.1877, 13,837-token retrieval "
+                                        f"{(calib.get('calib2_e2e') or calib['long_e2e'])['median']} s vs published 0.5465 "
+                                        f"({SRC_URL}); see calib/summary.json")},
+                "frozen_config": cfg, "frozen_config_sha256": json.load(open(f"{OUT}/frozen_config.json"))["pick_sha256"],
+                "arms": [
+                    {"name": "theirs", "artifact": "OneTriangle public Docker release @8f05e5f1 (Dockerfile replayed), kvt 3efa8e6e",
+                     "port": 8000, "served_model": THEIRS[1], "start": "true", "stop": "true",
+                     "health": THEIRS[0] + "/health",
+                     "quality": f"{QCLIENT} --base-url {THEIRS[0]} --model {THEIRS[1]} --out-dir {{arm_dir}} {P}/needles_{L}.jsonl {P}/hellaswag100.jsonl"},
+                    {"name": "ours", "artifact": f"ultra-cross-model-kv @{open(ROOT + '/ours/SNAPSHOT_SHA').read().strip()} vLLM 0.34 + CrossModelConnector",
+                     "port": 8001, "served_model": OURS[1], "start": "true", "stop": "true",
+                     "health": OURS[0] + "/health",
+                     "quality": f"{QCLIENT} --base-url {OURS[0]} --model {OURS[1]} --out-dir {{arm_dir}} {P}/needles_{L}.jsonl {P}/hellaswag100.jsonl"}]}
+        os.makedirs(rd, exist_ok=True)
+        json.dump(plan, open(f"{rd}.plan.json", "w"), indent=1)
+        rc, txt = sh(f"python3 {ROOT}/h2h/bench/run_ab.py {rd}.plan.json {rd}", log=f"{OUT}/abba.log", timeout=7200)
+        vr, vt = sh(f"python3 {ROOT}/h2h/tools/verdict.py {rd}")
+        open(f"{rd}/verdict_local.txt", "w").write(vt)
+        mark("ABBA_DONE", {"L": L, "rc": rc, "verdict": vt[:600]})
+    stop(ours)
+
+
+def phase_native():
+    p, hs = start_ours({"maps": "", "tail": 0, "util": 0.5}, "native", mapped=False)
+    for L in LENGTHS:
+        client("ours", f"{P}/needles_{L}.jsonl", f"{OUT}/native_context/ttft_{L}.json")
+    stop(p)
+    mark("NATIVE_DONE")
+
+
+def main():
+    os.makedirs(OUT, exist_ok=True)
+    what = sys.argv[1]
+    if what == "all":
+        phase_setup()
+        tp, calib = phase_calib()
+        frozen = phase_devpick(tp, [int(x) for x in os.environ.get("TAILS", "1,64,256").split(",")],
+                               os.environ.get("MAPS", f"{ROOT}/maps_k24.pt"))
+        off = calib.get("short_off_pct")
+        if off is None or abs(off) > 5:
+            mark("WAIT_GO", {"short_off_pct": off, "why": "lead: short e2e > 5% off on bare metal -> report before ABBA"})
+            while not os.path.exists(f"{ROOT}/GO_ABBA") and not os.path.exists(f"{ROOT}/STOP"):
+                time.sleep(20)
+            if os.path.exists(f"{ROOT}/STOP"):
+                stop(tp)
+                mark("STOPPED")
+                return
+        if frozen["pick"] is None:
+            mark("NO_PASSING_CONFIG")
+            stop(tp)
+            return
+        phase_abba(frozen["pick"], calib)
+        phase_native()
+        stop(tp)
+        sh(f"bash {ROOT}/h2h/bench/evidence.sh {OUT}/evidence/end")
+        mark("ALL_DONE")
+
+
+if __name__ == "__main__":
+    main()
