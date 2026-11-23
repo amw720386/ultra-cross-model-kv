@@ -105,8 +105,8 @@ def ours_args(cfg, mapped=True):
                                              "restore": "rms", "src_sdpa": cfg.get("src_sdpa", "vllm_fa"), "src_tp": 1},
                                             **({"fp8": True} if cfg.get("fp8", 1) else {}), **cfg.get("extra", {}))}
     args = ["/opt/ours/bin/vllm", "serve", QWEN8, "--served-model-name", OURS[1], "--port", "8001",
-            "--max-model-len", "32768", "--gpu-memory-utilization", str(cfg.get("util", 0.5)), "--dtype", "bfloat16",
-            "--no-enable-prefix-caching", "--max-num-seqs", "4"]
+            "--max-model-len", "32768", "--gpu-memory-utilization", str(cfg.get("util", 0.33)), "--dtype", "bfloat16",
+            "--no-enable-prefix-caching", "--max-num-seqs", "2"]
     if mapped:
         args += ["--kv-transfer-config", json.dumps(kv)]
     return args
@@ -280,7 +280,7 @@ def phase_devpick(theirs_proc, tails, maps):
     pick = None
     tried = []
     for t in tails:
-        cfg = {"maps": maps, "tail": t, "util": 0.5, "fp8": 1, "src_sdpa": "vllm_fa"}
+        cfg = {"maps": maps, "tail": t, "util": 0.33, "fp8": 1, "src_sdpa": "vllm_fa"}
         try:
             p, hs = start_ours(cfg, f"dev_tail{t}")
         except Exception as e:
@@ -370,7 +370,7 @@ def phase_abba(cfg, calib, rounds=4):
 
 
 def phase_native():
-    p, hs = start_ours({"maps": "", "tail": 0, "util": 0.5}, "native", mapped=False)
+    p, hs = start_ours({"maps": "", "tail": 0, "util": 0.33}, "native", mapped=False)
     for L in LENGTHS:
         client("ours", f"{P}/needles_{L}.jsonl", f"{OUT}/native_context/ttft_{L}.json")
     stop(p)

@@ -126,7 +126,7 @@ def _ours_cmd(cfg):
                                             **({"fp8": True} if cfg.get("fp8", 1) else {}), **cfg.get("extra", {}))}
     args = ["/opt/ours/bin/vllm", "serve", QWEN8, "--served-model-name", OURS_MODEL, "--port", "8001",
             "--max-model-len", "32768", "--gpu-memory-utilization", str(cfg.get("util", 0.45)), "--dtype", "bfloat16",
-            "--no-enable-prefix-caching", "--max-num-seqs", "4"]
+            "--no-enable-prefix-caching", "--max-num-seqs", "2"]
     if cfg.get("mapped", True):
         args += ["--kv-transfer-config", json.dumps(kv)]
     return args

@@ -28,7 +28,7 @@ for k in range(0):
 steps.append({"do": "quality", "arm": "theirs", "files": [DEV], "out_dir": "dev/theirs", "continue_on_error": True})
 # ours: one server per tail candidate, dev quality + a TTFT screen at each length
 for t in TAILS:
-    cfg = {"maps": MAPS, "tail": t, "util": 0.45, "fp8": 1, "src_sdpa": "vllm_fa"}
+    cfg = {"maps": MAPS, "tail": t, "util": 0.33, "fp8": 1, "src_sdpa": "vllm_fa"}
     steps += [{"do": "ours_up", "cfg": cfg, "tag": f"tail{t}"}, {"do": "nvsmi"},
               {"do": "quality", "arm": "ours", "files": [DEV], "out_dir": f"dev/ours_tail{t}", "continue_on_error": True}]
     for L in (8192, 16384, 30720):  # lead: TTFT screens used for picking run on the DEV prompt files only
