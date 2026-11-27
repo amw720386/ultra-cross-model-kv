@@ -204,12 +204,19 @@ def run(run_id: str, steps: list):
                 elif st["do"] == "down":
                     _stop(proc)
                     proc = None
-                elif st["do"] == "client":
+                elif st["do"] in ("client", "logprobs") and st.get("limit"):
+                    sub = f"/tmp/{os.path.basename(st['prompts'])}.first{st['limit']}"
+                    _sh(f"head -n {int(st['limit'])} {st['prompts']} > {sub}")
+                    st = dict(st, prompts=sub)
+                if st["do"] == "client":
                     out = f"{rd}/{st['out']}"
                     os.makedirs(os.path.dirname(out), exist_ok=True)
                     ent["result"] = dict(zip(("rc", "tail"), _sh(
                         f"python3 /opt/h2h/bench/sse_ttft.py --base-url {URL} --model {TARGET} --prompts {st['prompts']} "
                         f"--max-tokens {st.get('max_tokens', 32)} --out {out} --warmup {st.get('warmup', 1)}", timeout=3000)))
+                elif st["do"] == "needles_from_sse":
+                    ent["result"] = dict(zip(("rc", "tail"), _sh(
+                        f"python3 /opt/ours-src/h2h/needles_from_sse.py {rd}/{st['bench']} {st['prompts']} {rd}/{st['out_dir']}")))
                 elif st["do"] == "logprobs":
                     out = f"{rd}/{st['out']}"
                     os.makedirs(os.path.dirname(out), exist_ok=True)

@@ -23,27 +23,30 @@ a = ap.parse_args()
 L = {"32k": 32768, "128k": 131072}[a.length]
 FP8KV = a.length == "128k"
 P = a.prompts
-GATE = f"{P}/gate/needles_{a.length}.jsonl"
-GATE12 = f"{P}/gate/needles_{a.length}_first12.jsonl"
-DEV = f"{P}/dev/needles_{a.length}.jsonl"
-HS = f"{P}/gate/hellaswag100.jsonl"
+NT = {"32k": "needles_32640", "128k": "needles_130944"}[a.length]  # kvx-pairs' files (<= mml - 32 tokens)
+GATE = f"{P}/prompts-{a.length}/{NT}.jsonl"
+DEV = f"{P}/prompts-{a.length}-dev/{NT}.jsonl"
+HS = f"{P}/prompts-{a.length}/hellaswag100.jsonl"
 LEVERS = {"src_lean": 2, "async_load": 1, "mapper": "group", "group": 4}
 VARGS = ["--async-scheduling", "--max-num-batched-tokens", "32768"]
 
 
 def cand(maps):
-    return {"maps": maps, "tail": 1, "util": 0.66, "restore": "none", "extra": dict(LEVERS), "vllm_args": VARGS}
+    # min_len 1 (lead): the gate's short task (HellaSwag) goes through the map too; needles are >= 32K tokens either way
+    return {"maps": maps, "tail": 1, "util": 0.66, "restore": "none", "min_len": 1, "extra": dict(LEVERS), "vllm_args": VARGS}
 
 
 def gate(arm):
     s = []
+    # rep 0 = all 24 gate needles, timed AND scored (needles_from_sse: same scorer as the gate client, no second prefill)
     for rep in range(3):
-        f = GATE if (rep == 0 or not FP8KV) else GATE12
-        s.append({"do": "client", "prompts": f, "max_tokens": 32, "warmup": 1 if rep == 0 else 0,
-                  "out": f"{arm}/ttft_rep{rep}.json", "continue_on_error": True})
+        s.append({"do": "client", "prompts": GATE, "max_tokens": 32, "warmup": 1 if rep == 0 else 0,
+                  "limit": (12 if (FP8KV and rep > 0) else None), "out": f"{arm}/ttft_rep{rep}.json", "continue_on_error": True})
         s.append({"do": "metrics", "out": f"{arm}/metrics_rep{rep}.txt", "continue_on_error": True})
-    s += [{"do": "quality", "files": [GATE], "out_dir": f"{arm}/gate_needles", "continue_on_error": True},
-          {"do": "logprobs", "prompts": GATE, "out": f"{arm}/first_token_logprobs.jsonl", "continue_on_error": True},
+    s += [{"do": "needles_from_sse", "bench": f"{arm}/ttft_rep0.json", "prompts": GATE, "out_dir": f"{arm}/gate_needles",
+           "continue_on_error": True},
+          {"do": "logprobs", "prompts": GATE, "limit": (8 if FP8KV else None), "out": f"{arm}/first_token_logprobs.jsonl",
+           "continue_on_error": True},
           {"do": "quality", "files": [HS], "out_dir": f"{arm}/hellaswag", "continue_on_error": True},
           {"do": "nvsmi"}]
     return s
@@ -51,7 +54,7 @@ def gate(arm):
 
 steps = [{"do": "up", "arm": "stock", "mml": L, "kv_fp8": FP8KV, "tag": "stock"}, {"do": "nvsmi"}]
 if a.length == "32k":
-    steps.append({"do": "quality", "files": [DEV], "out_dir": "stock/dev_needles"})
+    steps.append({"do": "quality", "files": [DEV], "out_dir": "stock/dev_needles"})  # the devpick bar (same box)
 steps += gate("stock") + [{"do": "down"}]
 if a.length == "32k":
     cands = [cand(m) for m in (a.maps_k16, a.maps_k24) if m]
