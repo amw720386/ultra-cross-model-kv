@@ -25,7 +25,9 @@ MODELS = modal.Volume.from_name(os.environ.get("KVX_WEIGHTS_VOLUME", "gap-push-m
 VOL = modal.Volume.from_name(os.environ.get("KVX_VOLUME", "clone-push-kvx"))
 RUNS = modal.Volume.from_name(os.environ.get("H2H_RUNS_VOLUME", "kvx-h2h-runs"), create_if_missing=True)
 
-image = modal.Image.from_registry(IMAGE).entrypoint([])
+image = (modal.Image.from_registry(IMAGE).entrypoint([])
+         # Modal needs a `python` on PATH to detect the image's Python; the image has python3 only: a name, same interpreter
+         .run_commands("[ -e /usr/bin/python ] || ln -s $(command -v python3) /usr/bin/python"))
 if OURS_SRC:
     image = image.add_local_dir(OURS_SRC, "/opt/ours-src", copy=True)
 if H2H_SRC:
