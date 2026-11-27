@@ -197,7 +197,7 @@ def window_layers(t, Ls, Lt, k):
     return sorted(sorted(range(Ls), key=lambda s: (abs(s - c), s))[:min(k, Ls)])
 
 
-def fit_maps(st, R2, k, lam, H, lam_rel=0.0, select="r2"):
+def fit_maps(st, R2, k, lam, H, lam_rel=0.0, select="r2", force=(), n_real=None):
     """Per target layer: pick top-k source layers by head-averaged R^2 (select="r2") or the depth-nearest window
     (select="window"), and solve ridge.
 
@@ -208,11 +208,14 @@ def fit_maps(st, R2, k, lam, H, lam_rel=0.0, select="r2"):
     maps = []
     dev = st.xx.device
     for t in range(st.Lt):
+        # forced source rows (e.g. token-embedding pseudo-layers) sit after the real layers; selection sees real ones only
+        nreal = n_real if n_real is not None else st.Ls - len(force)
         if select == "window":
-            sel = window_layers(t, st.Ls, st.Lt, k)
+            sel = window_layers(t, nreal, st.Lt, k)
         else:
-            score = R2[t].mean(0)
-            sel = torch.topk(score, min(k, st.Ls)).indices.sort().values.tolist()
+            score = R2[t].mean(0)[:nreal]
+            sel = torch.topk(score, min(k, nreal)).indices.sort().values.tolist()
+        sel = sel + [int(f) for f in force]
         idx = torch.cat([torch.arange(s * ds, (s + 1) * ds, device=dev) for s in sel])
         cols = torch.arange(t * dt, (t + 1) * dt, device=dev)
         dt_ = _solve_dtype(dev, len(idx))
