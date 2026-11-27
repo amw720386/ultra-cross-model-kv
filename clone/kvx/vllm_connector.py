@@ -98,6 +98,19 @@ def kv_layout(kv, H, D, backend=""):
     raise RuntimeError(f"kvx connector: unknown KV cache layout {sh} for backend {backend} (H={H}, D={D})")
 
 
+def quant_for_cache(K, V, cache_dtype, k_scale=1.0, v_scale=1.0):
+    """fp8 KV cache (--kv-cache-dtype fp8): vLLM stores e4m3 bytes (torch.uint8 or float8_e4m3fn) and dequantizes with the
+    layer's k_scale / v_scale, so the connector writes K / scale, V / scale as e4m3, like reshape_and_cache_flash does.
+    Any other cache dtype: unchanged (write_kv casts)."""
+    import torch
+    f8 = torch.float8_e4m3fn
+    if cache_dtype not in (torch.uint8, f8):
+        return K, V
+    q = lambda x, s: (x.float() / s).clamp(-448.0, 448.0).to(f8)
+    K8, V8 = q(K, k_scale), q(V, v_scale)
+    return (K8.view(torch.uint8), V8.view(torch.uint8)) if cache_dtype == torch.uint8 else (K8, V8)
+
+
 def write_kv(kv, bi, off, K, V, block, layout):
     """Write K, V [n, H, D] at paged slots (bi, off) for any layout from kv_layout."""
     if layout == "fa":
@@ -748,6 +761,10 @@ class CrossModelConnector(KVConnectorBase_V1):
                     raise RuntimeError(f"kvx connector: attention backend {bname} reads each KV block as [2, H, block, D]; "
                                        "the connector writes FlashAttention's row split. Start vLLM with attention_backend='FLASH_ATTN'")
             layers[int(m.group(1))] = kv
+            ks, vs = getattr(layer, "_k_scale_float", None), getattr(layer, "_v_scale_float", None)
+            if ks is None and getattr(layer, "_k_scale", None) is not None:
+                ks, vs = float(layer._k_scale), float(layer._v_scale)
+            self.__dict__.setdefault("_kv_scales", {})[int(m.group(1))] = (ks or 1.0, vs or 1.0)
         if not layers:
             raise RuntimeError("kvx connector: no attention layer with a kv_cache matched layers.<i>. in "
                                "forward_context.no_compile_layers; the scheduler already promised mapped tokens")
@@ -808,6 +825,9 @@ class CrossModelConnector(KVConnectorBase_V1):
                 if self._layout is None:
                     self._layout = kv_layout(kv, K.shape[1], D, self._backend)
                     logger.info("kvx connector: KV layout %s (backend %s)", self._layout, self._backend)
+                if kv.dtype not in (K.dtype,) and str(kv.dtype) in ("torch.uint8", "torch.float8_e4m3fn"):
+                    ks, vs = getattr(self, "_kv_scales", {}).get(l, (1.0, 1.0))
+                    K, V = quant_for_cache(K, V, kv.dtype, ks, vs)
                 write_kv(kv, bi, off, K, V, self.block, self._layout)
                 if events:
                     ev = torch.cuda.Event()
