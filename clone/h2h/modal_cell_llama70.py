@@ -60,6 +60,13 @@ def ours_argv(mml, kv_fp8, cfg):
             + [str(x) for x in cfg.get("vllm_args", [])])
 
 
+def wilson_lo(k, n, z=1.96):
+    if n == 0:
+        return 0.0
+    p = k / n
+    return (p + z * z / (2 * n) - z * ((p * (1 - p) / n + z * z / (4 * n * n)) ** 0.5)) / (1 + z * z / n)
+
+
 def _sh(cmd, timeout=900):
     p = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
     return p.returncode, (p.stdout + p.stderr)[-4000:]
@@ -148,6 +155,52 @@ def run(run_id: str, steps: list):
                     open(f"{rd}/argv_{tag}.json", "w").write(json.dumps(argv, indent=1))
                     proc = subprocess.Popen(argv, env=env, stdout=open(f"{rd}/server_{tag}.log", "ab"), stderr=subprocess.STDOUT)
                     ent["health_s"] = _wait(1800, proc)
+                elif st["do"] == "devpick":
+                    # pre-registered rule (lead, kvx-cell-llama70): candidates in order (cheapest first); the first whose
+                    # DEV needles at this length reach the Wilson lower bound of stock's DEV needles (same file, same box)
+                    # is frozen (sha written BEFORE any gate prompt is timed) and its server stays up for the gate steps.
+                    import hashlib
+                    sq = json.load(open(f"{rd}/{st['stock_dev']}/quality.json"))
+                    bar = wilson_lo(sq["correct"], sq["n"])
+                    tried, picked = [], None
+                    for i, cfg in enumerate(st["candidates"]):
+                        tag = f"ours_dev{i}"
+                        argv = ours_argv(st["mml"], st["kv_fp8"], cfg)
+                        open(f"{rd}/argv_{tag}.json", "w").write(json.dumps(argv, indent=1))
+                        proc = subprocess.Popen(argv, env=env, stdout=open(f"{rd}/server_{tag}.log", "ab"), stderr=subprocess.STDOUT)
+                        try:
+                            hs = _wait(1800, proc)
+                        except Exception as e:
+                            tried.append({"cfg": cfg, "error": repr(e)[:300]})
+                            _stop(proc); proc = None
+                            continue
+                        od = f"{rd}/devpick/{tag}"
+                        os.makedirs(od, exist_ok=True)
+                        rq = _sh(f"python3 /opt/h2h/bench/quality_chat_client.py --base-url {URL} --model {TARGET} --out-dir {od} {st['dev_files']}", timeout=2400)
+                        q = json.load(open(f"{od}/quality.json")) if os.path.exists(f"{od}/quality.json") else {}
+                        ok = bool(q) and q["correct"] / q["n"] >= bar
+                        tried.append({"cfg": cfg, "health_s": hs, "dev": {k: q.get(k) for k in ("correct", "n")}, "pass": ok})
+                        save()
+                        if ok:
+                            picked = cfg
+                            break
+                        _stop(proc); proc = None
+                    fz = {"pick": picked, "rule": "first candidate (cheapest first) with DEV needles >= Wilson LB of stock DEV needles",
+                          "stock_dev": {k: sq.get(k) for k in ("correct", "n")}, "bar": bar, "tried": tried,
+                          "frozen_at": time.strftime("%FT%TZ", time.gmtime())}
+                    fz["pick_sha256"] = hashlib.sha256(json.dumps(picked, sort_keys=True).encode()).hexdigest() if picked else None
+                    json.dump(fz, open(f"{rd}/frozen_config.json", "w"), indent=1)
+                    ent["result"] = {k: fz[k] for k in ("pick_sha256", "bar", "stock_dev")} | {"tried": [t.get("dev") for t in tried]}
+                    if not picked:
+                        raise RuntimeError("devpick: no candidate passed the dev gate; gate steps for ours are not run")
+                elif st["do"] == "up_frozen":
+                    fz = json.load(open(st["frozen"]))
+                    argv = ours_argv(st["mml"], st["kv_fp8"], fz["pick"])
+                    open(f"{rd}/argv_ours.json", "w").write(json.dumps(argv, indent=1))
+                    json.dump(fz, open(f"{rd}/frozen_config_used.json", "w"), indent=1)
+                    proc = subprocess.Popen(argv, env=env, stdout=open(f"{rd}/server_ours.log", "ab"), stderr=subprocess.STDOUT)
+                    ent["health_s"] = _wait(1800, proc)
+                    ent["pick_sha256"] = fz["pick_sha256"]
                 elif st["do"] == "down":
                     _stop(proc)
                     proc = None
