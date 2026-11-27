@@ -6,6 +6,7 @@ Per context: the fastest mapped config's median TTFT (and its tag), native vLLM 
 native / mapped, components from the connector's 'kvx components:' lines (median per mapped length; first target
 token = mapped TTFT - connector total). Prints everything; --write merges into ours.json and appends ledger rows.
 """
+import feedgate  # noqa: E402  (tools/feedgate.py: feed validator gate)
 import argparse
 import datetime
 import json
@@ -167,7 +168,9 @@ def main():
         json.dump(cur, open(OURS, "w"), indent=1, sort_keys=True)
         key = lambda r: (r["run_id"], r["metric"], r["model"])  # re-running the report replaces, never duplicates
         old = [json.loads(l) for l in open(LEDGER)] if os.path.exists(LEDGER) else []
-        new = {key(r): r for r in old + ledger}
+        new = {key(r): r for r in old}
+        for r in ledger:  # a re-measured row keeps fields only the old row states (recipe backfill), then is gated
+            new[key(r)] = feedgate.gate(feedgate.merge_keep_fields(new.get(key(r), {}), r))
         with open(LEDGER, "w") as f:
             for l in new.values():
                 f.write(json.dumps(l, sort_keys=True) + "\n")

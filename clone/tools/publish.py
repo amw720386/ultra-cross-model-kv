@@ -2,6 +2,7 @@
 
 python tools/publish.py out/<run_id>/result.json --cost 0.42 --chip L40S --lever ridge-kv-map
 """
+import feedgate  # noqa: E402  (tools/feedgate.py: feed validator gate)
 import argparse, json, os, subprocess, time
 
 DATA = os.path.expanduser("~/kvx-data")
@@ -31,11 +32,14 @@ def main():
         for k in keys:
             e = r["eval"][k]
             for metric in ("kl_first", "kl"):
-                f.write(json.dumps(dict(
+                f.write(json.dumps(feedgate.gate(dict(
                     app_or_label="kvx-fit", baseline=round(base, 5), chip=a.chip,
                     cost_usd=round(a.cost / len(keys), 4), delta_pct=round(100 * (e[metric] - base) / base, 2),
                     lane="kvx", lever=f"{a.lever}:{k}", metric=f"{metric}_nats(P={r['P']},{r.get('eval_src', 'fineweb-edu')})",
-                    model=model, provider="modal", run_id=run_id, ts=ts, value=round(e[metric], 5)),
+                    model=model, provider="modal", run_id=run_id, ts=ts, value=round(e[metric], 5),
+                    target_model=r["tgt"], source_model=r["src"], engine="hf-transformers", precision="bf16",
+                    mode="offline_eval", isl=r.get("P"), context=r.get("eval_L") or r.get("L"), n=r.get("n_eval"),
+                    **({"lever_id": "cross-model-kv-transfer"} if not k.startswith(("ref_", "oracle")) else {}))),
                     sort_keys=True) + "\n")
     for i in range(6):  # traceDB sqlite is shared with other seats: retry on lock
         # optional shared lock for hosts where several writers share one traceDB catalog (KVX_INGEST_LOCK)
