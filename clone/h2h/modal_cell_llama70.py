@@ -78,15 +78,13 @@ def check():
     out["tokenizers_match"] = _sh(f"cmp {TARGET_DIR}/tokenizer.json {SOURCE_DIR}/tokenizer.json && echo identical || echo DIFFER")
     out["maps"] = _sh("ls -la /vol/runs/pairs-l31-8b-l33-70b-fp8*/ 2>&1 | head; ls -la /vol/runs/pairs-l31-8b-l33-70b-fp8*/maps_all 2>&1 | head")
     out["prompts"] = _sh("ls -la /vol/h2h-llama70/* 2>&1 | head -20")
-    # every argv this app will launch, parsed by vLLM's own arg parser (no GPU)
-    for name, argv in (("stock32k", stock_argv(32768, False)), ("stock128k", stock_argv(131072, True)),
-                       ("ours128k", ours_argv(131072, True, {"maps": "/vol/x.pt", "tail": 1, "util": 0.66,
-                                                             "extra": {"src_lean": 2, "async_load": 1, "mapper": "group", "group": 4},
-                                                             "vllm_args": ["--async-scheduling", "--max-num-batched-tokens", "32768"]}))):
-        code = ("import sys; from vllm.entrypoints.openai.cli_args import make_arg_parser; from vllm.utils.argparse_utils import "
-                "FlexibleArgumentParser as P; p=make_arg_parser(P()); a=p.parse_args(sys.argv[1:]); "
-                "print('ok', a.model, a.max_model_len, a.tensor_parallel_size, a.kv_cache_dtype, a.gpu_memory_utilization, a.revision)")
-        out[f"argv_{name}"] = {"argv": argv, "parse": _sh("python3 -c " + json.dumps(code) + " " + " ".join(json.dumps(x) for x in argv[2:]))}
+    # every argv this app will launch, parsed by vLLM's own serve parser (no GPU), + source/target tokenizer equality
+    argvs = {"stock32k": stock_argv(32768, False), "stock128k": stock_argv(131072, True),
+             "ours128k": ours_argv(131072, True, {"maps": "/vol/x.pt", "tail": 1, "util": 0.66,
+                                                  "extra": {"src_lean": 2, "async_load": 1, "mapper": "group", "group": 4},
+                                                  "vllm_args": ["--async-scheduling", "--max-num-batched-tokens", "32768"]})}
+    out["argv"] = argvs
+    out["check2"] = _sh("cd /opt/ours-src && python3 h2h/l70_cpu_check2.py " + json.dumps(json.dumps(argvs)), timeout=900)
     out["fp8_cache_write"] = _sh("cd /opt/ours-src && PYTHONPATH=/opt/ours-src python3 h2h/fp8_cache_write_check.py")
     out["harness"] = _sh("ls /opt/h2h/bench; python3 /opt/h2h/bench/sse_ttft.py --help | head -3; python3 /opt/ours-src/h2h/first_token_logprobs.py --help | head -3")
     return out
