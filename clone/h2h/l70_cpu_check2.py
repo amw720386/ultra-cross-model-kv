@@ -11,7 +11,11 @@ for f in res["make_arg_parser_in"]:
     m = m[m.index("vllm."):] if "vllm." in m else m
     mod = m
     break
-if mod:
+mod = next((m for m in (f.split("site-packages/")[-1].replace("/", ".").removesuffix(".py") for f in res["make_arg_parser_in"])
+            if "openai" in m and "batch" not in m), None)
+res["parser_module"] = mod
+try:
+  if mod:
     import importlib
     from vllm.utils.argparse_utils import FlexibleArgumentParser
     p = importlib.import_module(mod).make_arg_parser(FlexibleArgumentParser())
@@ -23,6 +27,8 @@ if mod:
                          a.max_num_batched_tokens, bool(a.kv_transfer_config)]
         except SystemExit as e:
             res[name] = f"PARSE FAILED (SystemExit {e})"
+except Exception as e:  # vLLM cannot build its parser without a device (CPU container): best effort only
+    res["argv_parse"] = f"skipped on CPU: {e!r}"[:300]
 from transformers import AutoTokenizer
 T = "/hf/hub/models--RedHatAI--Llama-3.3-70B-Instruct-FP8-dynamic/snapshots/f50dbad2c84590ca17dc51e207c34321b65ff14b"
 S = "/hf/hub/models--unsloth--Llama-3.1-8B-Instruct/snapshots/4699cc75b550f9c6f3173fb80f4703b62d946aa5"
