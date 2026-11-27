@@ -19,7 +19,7 @@ from modal_fit_eval import _cache_path, hf_shared, image, vol
 
 app = modal.App(os.environ.get("KVX_APP", "kvx-longcal-build"), image=image.add_local_python_source("modal_fit_eval"))
 WORD = re.compile(r"\S+")
-H2H_DIRS = ("h2h/prompts", "h2h/prompts-dev", "h2h/calib")
+H2H_DIRS = ("h2h/prompts", "h2h/prompts-dev", "h2h/calib")  # default; --dirs overrides (comma list under /vol)
 
 
 def gram_hashes(text, n=13):
@@ -28,7 +28,7 @@ def gram_hashes(text, n=13):
 
 
 @app.function(cpu=8.0, memory=65536, timeout=3300, volumes={"/vol": vol, "/hf": hf_shared.read_only()})
-def build(tgt: str, n_calib: int, L: int):
+def build(tgt: str, n_calib: int, L: int, dirs: list = None):
     import torch
     from datasets import load_dataset
     from transformers import AutoTokenizer
@@ -37,7 +37,7 @@ def build(tgt: str, n_calib: int, L: int):
     tok.name_or_path = tgt  # same as fit_eval: the cache key reads it
     # 13-grams of every h2h prompt
     tg, files = set(), {}
-    for d in H2H_DIRS:
+    for d in (dirs or H2H_DIRS):
         for f in sorted(os.listdir(f"/vol/{d}")):
             if not f.endswith(".jsonl"):
                 continue
@@ -50,6 +50,9 @@ def build(tgt: str, n_calib: int, L: int):
             files[f"{d}/{f}"] = k
     half = n_calib // 2
     eos = tok.eos_token_id
+    # same BOS rule as modal_fit_eval (Llama: every sequence starts with BOS, as every served prompt does)
+    bos = int(tok.bos_token_id is not None and "qwen" not in tok.name_or_path.lower())
+    lead = [tok.bos_token_id] if bos else []
     stats = dict(h2h_files=files, h2h_13grams=len(tg), dropped=0)
 
     def clean(seq):
@@ -60,9 +63,9 @@ def build(tgt: str, n_calib: int, L: int):
     for i, ex in enumerate(fw):
         last = i
         buf += tok(ex["text"], add_special_tokens=False)["input_ids"] + [eos]
-        while len(buf) >= L and len(fwl) < half:
-            s = buf[:L]
-            buf = buf[L:]
+        while len(buf) >= L - len(lead) and len(fwl) < half:
+            s = lead + buf[:L - len(lead)]
+            buf = buf[L - len(lead):]
             if clean(s):
                 fwl.append(s)
             else:
@@ -76,8 +79,9 @@ def build(tgt: str, n_calib: int, L: int):
     for ex in load_dataset("emozilla/pg19", split="train", streaming=True):
         ids = tok(ex["text"][: L * 32 * 6], add_special_tokens=False)["input_ids"]
         books += 1
-        for c in range(min(32, len(ids) // L)):
-            s = ids[c * L:(c + 1) * L]
+        Lb = L - len(lead)
+        for c in range(min(32, len(ids) // Lb)):
+            s = lead + ids[c * Lb:(c + 1) * Lb]
             if clean(s):
                 pg.append(s)
             else:
@@ -91,17 +95,20 @@ def build(tgt: str, n_calib: int, L: int):
     leak = sum(1 for s in fwl + pg if not clean(s))
     assert leak == 0, leak
     stats["overlap_after"] = leak
-    for tag, seqs in ((f"calib_{half}x{L}_bos0", fwl), (f"pg19train_{half}x{L}_bos0", pg)):
+    stats["bos"] = bos
+    for tag, seqs in ((f"calib_{half}x{L}_bos{bos}", fwl), (f"pg19train_{half}x{L}_bos{bos}", pg)):
         p = _cache_path(tok, tag)
         assert not os.path.exists(p), f"cache exists, refusing to overwrite: {p}"
         torch.save(seqs, p)
         stats[tag] = p
-    os.makedirs("/vol/h2h/longcal", exist_ok=True)
-    json.dump(stats, open("/vol/h2h/longcal/calib_stats.json", "w"), indent=1)
+    sd = f"/vol/calib_stats/{tgt.replace('/', '--')}_{n_calib}x{L}"
+    os.makedirs(sd, exist_ok=True)
+    json.dump(stats, open(f"{sd}/calib_stats.json", "w"), indent=1)
+    stats["stats_file"] = f"{sd}/calib_stats.json"
     vol.commit()
     return stats
 
 
 @app.local_entrypoint()
-def main(tgt: str = "Qwen/Qwen3-8B", n_calib: int = 1000, seq_len: int = 8192):
-    print(json.dumps(build.remote(tgt, n_calib, seq_len), indent=1))
+def main(tgt: str = "Qwen/Qwen3-8B", n_calib: int = 1000, seq_len: int = 8192, dirs: str = ""):
+    print(json.dumps(build.remote(tgt, n_calib, seq_len, [d for d in dirs.split(",") if d] or None), indent=1))

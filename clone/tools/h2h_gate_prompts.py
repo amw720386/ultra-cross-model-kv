@@ -28,7 +28,7 @@ vol = modal.Volume.from_name(os.environ.get("KVX_VOLUME", "kvx"), create_if_miss
 weights = modal.Volume.from_name(os.environ.get("KVX_WEIGHTS_VOLUME", "kvx-hf"))
 app = modal.App(os.environ.get("KVX_APP", "kvx-h2h-gate-prompts"), image=image)
 
-TGT, TGT_REV = "Qwen/Qwen3-8B", "b968826d9c46dd6066d109eabc6255188de91218"
+QWEN, QWEN_REV = "Qwen/Qwen3-8B", "b968826d9c46dd6066d109eabc6255188de91218"  # h2h default target
 HS_ID, HS_REV, HS_SPLIT = "Rowan/hellaswag", "218ec52e09a7e7462a5400043bb9a69a41d06b76", "validation"
 HS_NAMESPACE = "qwen3-kv-transfer-hellaswag-v1"
 LETTERS = "ABCDEFGHIJ"
@@ -78,17 +78,19 @@ def hellaswag_rows(n, offset=0):
 
 
 @app.function(cpu=8.0, memory=32768, timeout=3000, volumes={"/vol": vol, "/hf": weights.read_only()})
-def build(lengths: list, n: int, skip_rows: int, out_dir: str, seed: int, hs_offset: int, calib: int):
+def build(lengths: list, n: int, skip_rows: int, out_dir: str, seed: int, hs_offset: int, calib: int,
+          tgt: str = QWEN, tgt_rev: str = QWEN_REV, max_ctx: int = 32768):
     from datasets import load_dataset
     from transformers import AutoTokenizer
-    tok = AutoTokenizer.from_pretrained(snapshot(TGT, TGT_REV))
+    tok = AutoTokenizer.from_pretrained(snapshot(tgt, tgt_rev))
     def render(content):  # rendered chat-prompt token count (transformers 5: tokenize=True returns a dict, so render text)
         text = tok.apply_chat_template([{"role": "user", "content": content}], tokenize=False,
                                        add_generation_prompt=True, enable_thinking=False)
         return len(tok(text, add_special_tokens=False)["input_ids"])
     assert render("hello") > 5, render("hello")
     os.makedirs(f"/vol/{out_dir}", exist_ok=True)
-    man = dict(tokenizer=f"{TGT}@{TGT_REV}", chat_template="Qwen3-8B pinned, enable_thinking=False", files={})
+    man = dict(tokenizer=f"{tgt}@{tgt_rev}", chat_template=f"{tgt} pinned (enable_thinking=False passed; ignored by non-Qwen templates)",
+               max_ctx=max_ctx, files={})
     # haystack docs: FineWeb-Edu sample-10BT rows >= skip_rows (disjoint from both sides' calibration scans)
     fw = load_dataset("HuggingFaceFW/fineweb-edu", name="sample-10BT", split="train", streaming=True)
     it = (ex["text"] for k, ex in enumerate(fw) if k >= skip_rows)
@@ -102,16 +104,20 @@ def build(lengths: list, n: int, skip_rows: int, out_dir: str, seed: int, hs_off
             question = f"\n\nWhat is the retrieval code for project {noun}? Reply with the code only."
             budget = L - render(needle + question) - 8
             ids = []
-            while len(ids) < budget:
+            while len(ids) < budget + 512:
                 ids += tok(next(it) + "\n\n", add_special_tokens=False)["input_ids"]
-            hay = tok.decode(ids[:budget])
             depth = 0.05 + 0.90 * j / max(1, n - 1)
-            pos = int(len(hay) * depth)
-            cut = hay.rfind(". ", 0, pos)
-            pos = cut + 1 if cut > 0 else pos
-            content = hay[:pos] + needle + hay[pos:] + question
-            ntok = render(content)
-            assert L - 64 <= ntok <= L + 64 and ntok + 32 <= 32768, (L, ntok)
+            for _ in range(6):  # decode/encode drift grows with length: step the budget toward L
+                hay = tok.decode(ids[:budget])
+                pos = int(len(hay) * depth)
+                cut = hay.rfind(". ", 0, pos)
+                pos = cut + 1 if cut > 0 else pos
+                content = hay[:pos] + needle + hay[pos:] + question
+                ntok = render(content)
+                if L - 32 <= ntok <= L:
+                    break
+                budget += L - 16 - ntok
+            assert L - 64 <= ntok <= L + 64 and ntok + 32 <= max_ctx, (L, ntok)
             rows.append(dict(id=f"needle{L}/{j}", kind="needle", length_target=L, prompt_tokens=ntok, input_tokens=ntok, depth=round(depth, 3),
                              messages=[{"role": "user", "content": content}], answer=code, max_tokens=32))
         p = f"/vol/{out_dir}/needles_{L}.jsonl"
@@ -164,8 +170,11 @@ def build(lengths: list, n: int, skip_rows: int, out_dir: str, seed: int, hs_off
 
 @app.local_entrypoint()
 def main(lengths: str = "8192,16384,30720", n: int = 24, skip_rows: int = 50000, out_dir: str = "h2h/prompts",
-         seed: int = 20261123, hs_offset: int = 0, calib: int = 1):
+         seed: int = 20261123, hs_offset: int = 0, calib: int = 1, tgt: str = QWEN, tgt_rev: str = QWEN_REV,
+         max_ctx: int = 32768):
+    # other targets: --tgt org/name --tgt-rev <sha> --max-ctx <served max-model-len>
     # gate: defaults (their 100 HellaSwag rows). DEV (tail pick, DECISION h2h-tail-frozen): a separate dir, other
     # seed + haystack rows, HellaSwag rows [100:200] of their order:
     #   --out-dir h2h/prompts-dev --seed 7 --skip-rows 150000 --hs-offset 100 --calib 0
-    print(json.dumps(build.remote([int(x) for x in lengths.split(",")], n, skip_rows, out_dir, seed, hs_offset, calib), indent=1))
+    print(json.dumps(build.remote([int(x) for x in lengths.split(",")], n, skip_rows, out_dir, seed, hs_offset, calib,
+                                  tgt, tgt_rev, max_ctx), indent=1))

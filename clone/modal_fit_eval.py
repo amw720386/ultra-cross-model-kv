@@ -20,7 +20,8 @@ GPU_SPEC = GPU.split(",") if "," in GPU else GPU
 APP = os.environ.get("KVX_APP", "kvx-fit")
 image = (
     modal.Image.debian_slim(python_version="3.11")
-    .pip_install("torch==2.8.0", "transformers==4.56.2", "accelerate", "datasets==3.6.0", "numpy", "hf_transfer")
+    .pip_install("torch==2.8.0", "transformers==4.56.2", "accelerate", "datasets==3.6.0", "numpy", "hf_transfer",
+                 *os.environ.get("KVX_FIT_EXTRA_PIP", "").split())  # opt-in extras, e.g. compressed-tensors for FP8 targets
     .env({"HF_HOME": "/vol/hf", "HF_HUB_ENABLE_HF_TRANSFER": "1", **{k: os.environ[k] for k in ("KVX_VOLUME", "KVX_WEIGHTS_VOLUME") if k in os.environ}})
     .add_local_python_source("kvx")
 )
