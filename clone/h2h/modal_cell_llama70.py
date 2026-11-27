@@ -124,8 +124,7 @@ def _stop(p):
     _sh("for i in $(seq 1 30); do nvidia-smi --query-compute-apps=pid --format=csv,noheader | grep -q . || break; sleep 2; done")
 
 
-@app.function(gpu="H100!:2", cpu=16.0, memory=196608, timeout=3600, volumes=MOUNTS)
-def run(run_id: str, steps: list):
+def _run(run_id: str, steps: list):
     """Steps: {"do": "up", "arm": "stock"|"ours", "mml", "kv_fp8", "cfg"?} | {"do": "down"} | {"do": "client", "prompts",
     "out", "max_tokens", "warmup"} | {"do": "logprobs", "prompts", "out"} | {"do": "quality", "files", "out_dir"} |
     {"do": "metrics", "out"} | {"do": "nvsmi"}. Everything lands in /runs/<run_id>/ and is committed after each step."""
@@ -250,11 +249,22 @@ def run(run_id: str, steps: list):
     return log
 
 
+# hard caps by container timeout (lead: 32K <= $4, 128K <= $9; Modal 2x H100 ~$7.90/h, and 1 h is Modal's own limit)
+@app.function(gpu="H100!:2", cpu=16.0, memory=196608, timeout=1800, volumes=MOUNTS)
+def run_32k(run_id: str, steps: list):
+    return _run(run_id, steps)
+
+
+@app.function(gpu="H100!:2", cpu=16.0, memory=196608, timeout=3600, volumes=MOUNTS)
+def run_128k(run_id: str, steps: list):
+    return _run(run_id, steps)
+
+
 @app.local_entrypoint()
-def main(run_id: str = "", steps_file: str = "", what: str = "run"):
+def main(run_id: str = "", steps_file: str = "", what: str = "run", length: str = ""):
     if what == "check":
         print(json.dumps(check.remote(), indent=1))
         return
     steps = json.load(open(steps_file))
-    out = run.remote(run_id, steps)
+    out = {"32k": run_32k, "128k": run_128k}[length].remote(run_id, steps)
     print(json.dumps({k: out[k] for k in ("run_id", "gpu_names", "started", "ended")}, indent=1))
